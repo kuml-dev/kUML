@@ -8,6 +8,7 @@ import dev.kuml.layout.Rect
 import dev.kuml.layout.bridge.label.LabelPlacer
 import dev.kuml.layout.bridge.label.PlacedLabel
 import dev.kuml.renderer.theme.core.ThemeRegistry
+import io.kotest.assertions.withClue
 import io.kotest.core.spec.style.FunSpec
 import io.kotest.matchers.shouldBe
 import io.kotest.matchers.shouldNotBe
@@ -70,8 +71,9 @@ class LabelGeometryInvariantTest :
             val plan = UmlAssociationLabelPlan.planFor(diagram = diagram, layout = layout, theme = ThemeRegistry.get("plain")!!)
             val v = violations(layout, plan)
             // Six role labels fan into one node face; a role label may still have to cross a neighbouring edge there.
+            // Nacharbeit 79: the example's explicit multiplicity("1") ends are now drawn too, which crowds the face further (3 -> 4).
             v.filterNot { it.contains("crosses foreign edge") }.joinToString("\n") shouldBe ""
-            (v.size <= 3) shouldBe true
+            withClue(v.joinToString("\n")) { (v.size <= 4) shouldBe true }
         }
 
         test("example 64: parallel segments of foreign edges keep 8 px or are shorter than 6 px") {

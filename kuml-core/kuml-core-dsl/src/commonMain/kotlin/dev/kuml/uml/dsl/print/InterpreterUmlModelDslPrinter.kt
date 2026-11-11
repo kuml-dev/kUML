@@ -589,7 +589,11 @@ public object InterpreterUmlModelDslPrinter {
     /** Identical shape to [UmlModelDslPrinter]'s `endBody` — role/navigable/multiplicity are all interpreter-safe. */
     private fun endBody(end: UmlAssociationEnd): String? {
         val parts = mutableListOf<String>()
-        if (end.multiplicity != Multiplicity()) parts += "multiplicity(${quote(multiplicityString(end.multiplicity))})"
+        if (end.multiplicity != Multiplicity() ||
+            end.multiplicityExplicit
+        ) {
+            parts += "multiplicity(${quote(multiplicityString(end.multiplicity))})"
+        }
         if (!end.navigable) parts += "navigable = false"
         end.role?.let { parts += "role = ${quote(it)}" }
         return if (parts.isEmpty()) null else parts.joinToString("; ")

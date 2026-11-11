@@ -29,3 +29,21 @@ data class Multiplicity(
     val lower: Int = 1,
     val upper: Int? = 1,
 )
+
+/**
+ * Display label for a multiplicity, or `null` if nothing should be drawn.
+ *
+ * An implicit `1..1` (the default) yields `null`; an explicit `1..1` yields `"1"`.
+ * `lower == upper` gives `"n"`, an unbounded upper gives `"*"`, otherwise `"lower..upper"`.
+ */
+fun multiplicityLabel(
+    multiplicity: Multiplicity,
+    explicit: Boolean,
+): String? {
+    val upper = if (multiplicity.upper == null) "*" else multiplicity.upper.toString()
+    val label = if (multiplicity.lower == multiplicity.upper) upper else "${multiplicity.lower}..$upper"
+    return if (label == "1" && !explicit) null else label
+}
+
+/** Label of this end's multiplicity, honouring [UmlAssociationEnd.multiplicityExplicit]. */
+fun UmlAssociationEnd.multiplicityLabel(): String? = multiplicityLabel(multiplicity = multiplicity, explicit = multiplicityExplicit)

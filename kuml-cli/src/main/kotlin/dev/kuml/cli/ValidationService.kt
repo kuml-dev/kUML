@@ -9,6 +9,7 @@ import dev.kuml.core.script.diagnostics.ScriptProblems
 import dev.kuml.erm.model.ErmNotation
 import dev.kuml.layout.LayoutGraph
 import dev.kuml.layout.bridge.C4LayoutBridge
+import dev.kuml.layout.bridge.LayerPinCheck
 import dev.kuml.layout.bridge.LayoutSpecRunner
 import dev.kuml.layout.bridge.SpecDiagramKind
 import dev.kuml.layout.bridge.SpecDiagramKinds
@@ -135,9 +136,15 @@ public object ValidationService {
             }
         val layout =
             layoutOf(extracted).let { (kind, spec) ->
+                val graph = layoutGraphOf(extracted)
                 LayoutSpecRunner
-                    .validate(kind = kind, spec = spec, knownIds = layoutNodeIds(extracted), diagramName = diagramId)
-                    .map {
+                    .validate(
+                        kind = kind,
+                        spec = spec,
+                        knownIds = layoutNodeIds(e = extracted, graph = graph),
+                        diagramName = diagramId,
+                        edgeDegrees = graph?.let { LayerPinCheck.edgeDegrees(it) },
+                    ).map {
                         Finding(
                             code = it.code,
                             severity = if (it.isError) Severity.ERROR else Severity.WARNING,
@@ -264,48 +271,52 @@ public object ValidationService {
         }
 
     /** Ids the layout of [e] will know; the same graph the render builds, but without running an engine. */
-    private fun layoutNodeIds(e: ExtractedDiagram): Set<String>? {
-        val graph: LayoutGraph? =
-            runCatching {
-                when (e) {
-                    is ExtractedDiagram.Uml -> UmlLayoutBridge.toLayoutGraph(diagram = e.diagram)
-                    is ExtractedDiagram.C4 -> C4LayoutBridge.toLayoutGraph(diagram = e.diagram, model = e.model)
-                    is ExtractedDiagram.Erm ->
-                        when (e.diagram.notation) {
-                            ErmNotation.CHEN ->
-                                ErmChenLayoutBridge.toChenLayoutGraph(
-                                    model = e.model,
-                                    diagram = e.diagram,
-                                    sizeProvider = ErmChenSizeProvider(model = e.model, diagram = e.diagram),
-                                )
-                            ErmNotation.IDEF1X ->
-                                ErmIdef1xLayoutBridge.toLayoutGraph(
-                                    model = e.model,
-                                    diagram = e.diagram,
-                                    sizeProvider = ErmContentSizeProvider(model = e.model, diagram = e.diagram),
-                                )
-                            else ->
-                                ErmLayoutBridge.toLayoutGraph(
-                                    model = e.model,
-                                    diagram = e.diagram,
-                                    sizeProvider = ErmContentSizeProvider(model = e.model, diagram = e.diagram),
-                                )
-                        }
-                    is ExtractedDiagram.Sysml2 ->
-                        when (val d = e.diagram) {
-                            is dev.kuml.sysml2.BdDiagram -> Sysml2LayoutBridge.toLayoutGraph(model = e.model, diagram = d)
-                            is dev.kuml.sysml2.IbdDiagram -> Sysml2LayoutBridge.toLayoutGraph(model = e.model, diagram = d)
-                            is dev.kuml.sysml2.UcDiagram -> Sysml2LayoutBridge.toLayoutGraph(model = e.model, diagram = d)
-                            is dev.kuml.sysml2.ReqDiagram -> Sysml2LayoutBridge.toLayoutGraph(model = e.model, diagram = d)
-                            is dev.kuml.sysml2.StmDiagram -> Sysml2LayoutBridge.toLayoutGraph(model = e.model, diagram = d)
-                            is dev.kuml.sysml2.ActDiagram -> Sysml2LayoutBridge.toLayoutGraph(model = e.model, diagram = d)
-                            is dev.kuml.sysml2.SeqDiagram -> Sysml2LayoutBridge.toLayoutGraph(model = e.model, diagram = d)
-                            is dev.kuml.sysml2.ParDiagram -> Sysml2LayoutBridge.toLayoutGraph(model = e.model, diagram = d)
-                            is dev.kuml.sysml2.Sysml2PackageDiagram -> Sysml2LayoutBridge.toLayoutGraph(model = e.model, diagram = d)
-                        }
-                    else -> null
-                }
-            }.getOrNull()
+    private fun layoutGraphOf(e: ExtractedDiagram): LayoutGraph? =
+        runCatching {
+            when (e) {
+                is ExtractedDiagram.Uml -> UmlLayoutBridge.toLayoutGraph(diagram = e.diagram)
+                is ExtractedDiagram.C4 -> C4LayoutBridge.toLayoutGraph(diagram = e.diagram, model = e.model)
+                is ExtractedDiagram.Erm ->
+                    when (e.diagram.notation) {
+                        ErmNotation.CHEN ->
+                            ErmChenLayoutBridge.toChenLayoutGraph(
+                                model = e.model,
+                                diagram = e.diagram,
+                                sizeProvider = ErmChenSizeProvider(model = e.model, diagram = e.diagram),
+                            )
+                        ErmNotation.IDEF1X ->
+                            ErmIdef1xLayoutBridge.toLayoutGraph(
+                                model = e.model,
+                                diagram = e.diagram,
+                                sizeProvider = ErmContentSizeProvider(model = e.model, diagram = e.diagram),
+                            )
+                        else ->
+                            ErmLayoutBridge.toLayoutGraph(
+                                model = e.model,
+                                diagram = e.diagram,
+                                sizeProvider = ErmContentSizeProvider(model = e.model, diagram = e.diagram),
+                            )
+                    }
+                is ExtractedDiagram.Sysml2 ->
+                    when (val d = e.diagram) {
+                        is dev.kuml.sysml2.BdDiagram -> Sysml2LayoutBridge.toLayoutGraph(model = e.model, diagram = d)
+                        is dev.kuml.sysml2.IbdDiagram -> Sysml2LayoutBridge.toLayoutGraph(model = e.model, diagram = d)
+                        is dev.kuml.sysml2.UcDiagram -> Sysml2LayoutBridge.toLayoutGraph(model = e.model, diagram = d)
+                        is dev.kuml.sysml2.ReqDiagram -> Sysml2LayoutBridge.toLayoutGraph(model = e.model, diagram = d)
+                        is dev.kuml.sysml2.StmDiagram -> Sysml2LayoutBridge.toLayoutGraph(model = e.model, diagram = d)
+                        is dev.kuml.sysml2.ActDiagram -> Sysml2LayoutBridge.toLayoutGraph(model = e.model, diagram = d)
+                        is dev.kuml.sysml2.SeqDiagram -> Sysml2LayoutBridge.toLayoutGraph(model = e.model, diagram = d)
+                        is dev.kuml.sysml2.ParDiagram -> Sysml2LayoutBridge.toLayoutGraph(model = e.model, diagram = d)
+                        is dev.kuml.sysml2.Sysml2PackageDiagram -> Sysml2LayoutBridge.toLayoutGraph(model = e.model, diagram = d)
+                    }
+                else -> null
+            }
+        }.getOrNull()
+
+    private fun layoutNodeIds(
+        e: ExtractedDiagram,
+        graph: LayoutGraph? = layoutGraphOf(e),
+    ): Set<String>? {
         // Unknown graph (unsupported diagram art or bridge failure): do not guess, skip the unknown-id check.
         if (graph == null && e !is ExtractedDiagram.Blueprint) return null
         val fromGraph = graph?.let { g -> g.nodes.map { it.id.value } + g.groups.map { it.id.value } }.orEmpty()

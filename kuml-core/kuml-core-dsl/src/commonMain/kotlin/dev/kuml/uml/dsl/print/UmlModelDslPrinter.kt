@@ -445,7 +445,7 @@ public object UmlModelDslPrinter {
 
     /**
      * Builds the `source { … }` / `target { … }` body for one association end,
-     * or `null` if the end is entirely default (multiplicity `1`, navigable,
+     * or `null` if the end is entirely default (implicit multiplicity `1`, navigable,
      * no role) and needs no block at all.
      *
      * Multiple parts are joined with `; ` onto a single line — valid Kotlin
@@ -454,7 +454,11 @@ public object UmlModelDslPrinter {
      */
     private fun endBody(end: UmlAssociationEnd): String? {
         val parts = mutableListOf<String>()
-        if (end.multiplicity != Multiplicity()) parts += "multiplicity(${quote(multiplicityString(end.multiplicity))})"
+        if (end.multiplicity != Multiplicity() ||
+            end.multiplicityExplicit
+        ) {
+            parts += "multiplicity(${quote(multiplicityString(end.multiplicity))})"
+        }
         if (!end.navigable) parts += "navigable = false"
         end.role?.let { parts += "role = ${quote(it)}" }
         return if (parts.isEmpty()) null else parts.joinToString("; ")

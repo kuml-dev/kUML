@@ -74,11 +74,32 @@ class UmlEdgeLabelLatexRendererTest :
     StringSpec({
         // ── UmlEdgeLabels.of ────────────────────────────────────────────────
         "multiplicity labels follow the SVG rule" {
-            UmlEdgeLabels.multiplicityLabel(Multiplicity(lower = 1, upper = null)) shouldBe "1..*"
-            UmlEdgeLabels.multiplicityLabel(Multiplicity(lower = 0, upper = 1)) shouldBe "0..1"
-            UmlEdgeLabels.multiplicityLabel(Multiplicity(lower = 0, upper = null)) shouldBe "0..*"
-            UmlEdgeLabels.multiplicityLabel(Multiplicity(lower = 3, upper = 3)) shouldBe "3"
-            UmlEdgeLabels.multiplicityLabel(Multiplicity(lower = 1, upper = 1)) shouldBe null
+            UmlEdgeLabels.multiplicityLabel(m = Multiplicity(lower = 1, upper = null)) shouldBe "1..*"
+            UmlEdgeLabels.multiplicityLabel(m = Multiplicity(lower = 0, upper = 1)) shouldBe "0..1"
+            UmlEdgeLabels.multiplicityLabel(m = Multiplicity(lower = 0, upper = null)) shouldBe "0..*"
+            UmlEdgeLabels.multiplicityLabel(m = Multiplicity(lower = 3, upper = 3)) shouldBe "3"
+            UmlEdgeLabels.multiplicityLabel(m = Multiplicity(lower = 1, upper = 1)) shouldBe null
+        }
+
+        "an explicit 1 gives a label on each end, an implicit 1 none" {
+            val explicit =
+                UmlEdgeLabels.of(
+                    UmlAssociation(
+                        id = "a",
+                        ends =
+                            listOf(
+                                UmlAssociationEnd(typeId = "X", multiplicityExplicit = true),
+                                UmlAssociationEnd(typeId = "Y", multiplicityExplicit = true),
+                            ),
+                    ),
+                )
+            explicit.sourceMultiplicity shouldBe "1"
+            explicit.targetMultiplicity shouldBe "1"
+            UmlEdgeLabels.multiplicityLabel(m = Multiplicity(), explicit = true) shouldBe "1"
+
+            val implicit = UmlEdgeLabels.of(UmlAssociation(id = "a", ends = listOf(end(), end())))
+            implicit.sourceMultiplicity shouldBe null
+            implicit.targetMultiplicity shouldBe null
         }
 
         "association gives name, roles and multiplicities per end" {

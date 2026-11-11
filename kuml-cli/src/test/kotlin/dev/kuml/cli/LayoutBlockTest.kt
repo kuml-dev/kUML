@@ -187,4 +187,66 @@ class LayoutBlockTest :
             val outcome = LayoutSpecRunner.layout(engine = engine, graph = graph, hints = LayoutHints.DEFAULT, spec = diagram.layout)
             outcome.findings.any { it.code == "KUML-LAYOUT-W003" } shouldBe true
         }
+
+        fun pinDiagram(
+            body: String,
+            layout: String,
+        ) = diagramOf(
+            "classDiagram(name = \"Pin\") {\n" +
+                "    val a = classOf(name = \"A\")\n    val b = classOf(name = \"B\")\n" +
+                "    $body\n    layout { $layout }\n}",
+        )
+
+        fun renderPin(diagram: KumlDiagram) =
+            LayoutSpecRunner.layout(
+                engine = ElkLayoutEngineProvider().engine(),
+                graph =
+                    UmlLayoutBridge.toLayoutGraph(
+                        diagram = diagram,
+                        sizeProvider = UmlContentSizeProvider(diagram = diagram, layoutDirection = LayoutHints.DEFAULT.direction),
+                    ),
+                hints = LayoutHints.DEFAULT,
+                spec = diagram.layout,
+            )
+
+        test("W008: last() on an association source is reported by render, the diagram still renders with positions") {
+            val out = renderPin(pinDiagram(body = "association(source = a, target = b)", layout = "last(a)"))
+            out.findings.count { it.code == "KUML-LAYOUT-W008" && it.message.contains("last(A)") } shouldBe 1
+            out.result.nodes.size shouldBe 2
+        }
+
+        test("W008: first() on an association target is reported by render") {
+            val out = renderPin(pinDiagram(body = "association(source = a, target = b)", layout = "first(b)"))
+            out.findings.count { it.code == "KUML-LAYOUT-W008" && it.message.contains("first(B)") } shouldBe 1
+            out.result.nodes.size shouldBe 2
+        }
+
+        test("W008: a generalization is counted in the orientation of the layout graph (specific is the source)") {
+            val diagram = pinDiagram(body = "generalization(specific = b, general = a)", layout = "last(b)")
+            val graph =
+                UmlLayoutBridge.toLayoutGraph(
+                    diagram = diagram,
+                    sizeProvider = UmlContentSizeProvider(diagram = diagram, layoutDirection = LayoutHints.DEFAULT.direction),
+                )
+            val degrees =
+                dev.kuml.layout.bridge.LayerPinCheck
+                    .edgeDegrees(graph)
+            val b = degrees.getValue("B")
+            val expectsConflict = b.outgoing > 0
+            renderPin(diagram).findings.any { it.code == "KUML-LAYOUT-W008" } shouldBe expectsConflict
+        }
+
+        test("no W008 for valid pins: last() on a sink and first() on a source; the pin is applied") {
+            val out = renderPin(pinDiagram(body = "association(source = a, target = b)", layout = "first(a); last(b)"))
+            out.findings.none { it.code == "KUML-LAYOUT-W008" } shouldBe true
+            val ay =
+                out.result.nodes
+                    .getValue(dev.kuml.layout.NodeId("A"))
+                    .bounds.origin.y
+            val by =
+                out.result.nodes
+                    .getValue(dev.kuml.layout.NodeId("B"))
+                    .bounds.origin.y
+            (ay < by) shouldBe true
+        }
     })

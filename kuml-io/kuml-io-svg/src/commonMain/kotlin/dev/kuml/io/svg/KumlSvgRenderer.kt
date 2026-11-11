@@ -62,7 +62,6 @@ import dev.kuml.io.svg.sysml2.nextLifelineAxisX
 import dev.kuml.io.svg.sysml2.renderPlacedControlName
 import dev.kuml.io.svg.uml.UmlEndpointSide
 import dev.kuml.io.svg.uml.renderUmlAssociationClassTether
-import dev.kuml.io.svg.uml.toLabel
 import dev.kuml.io.svg.uml.umlEndpointFaceBucket
 import dev.kuml.layout.EdgeId
 import dev.kuml.layout.EdgeRoute
@@ -128,6 +127,7 @@ import dev.kuml.uml.UmlNode
 import dev.kuml.uml.UmlPackage
 import dev.kuml.uml.UmlStateMachine
 import dev.kuml.uml.UmlUseCaseSubject
+import dev.kuml.uml.multiplicityLabel
 import kotlin.math.abs
 
 /**
@@ -542,13 +542,13 @@ public object KumlSvgRenderer {
                                 if (el.ends.size >= 2) {
                                     val sourceEnd = el.ends[0]
                                     val targetEnd = el.ends[1]
-                                    if (sourceEnd.role != null || sourceEnd.multiplicity.toLabel() != null) {
+                                    if (sourceEnd.role != null || sourceEnd.multiplicityLabel() != null) {
                                         val face = umlEndpointFaceBucket(EdgeLabelGeometry.sourceSegmentTangent(route))
                                         buckets
                                             .getOrPut(sourceEnd.typeId to face) { mutableListOf() }
                                             .add(edgeId.value to UmlEndpointSide.SOURCE)
                                     }
-                                    if (targetEnd.role != null || targetEnd.multiplicity.toLabel() != null) {
+                                    if (targetEnd.role != null || targetEnd.multiplicityLabel() != null) {
                                         val face = umlEndpointFaceBucket(EdgeLabelGeometry.targetSegmentTangent(route))
                                         buckets
                                             .getOrPut(targetEnd.typeId to face) { mutableListOf() }
@@ -563,13 +563,13 @@ public object KumlSvgRenderer {
                                 if (el.ends.size >= 2) {
                                     val sourceEnd = el.ends[0]
                                     val targetEnd = el.ends[1]
-                                    if (sourceEnd.role != null || sourceEnd.multiplicity.toLabel() != null) {
+                                    if (sourceEnd.role != null || sourceEnd.multiplicityLabel() != null) {
                                         val face = umlEndpointFaceBucket(EdgeLabelGeometry.sourceSegmentTangent(route))
                                         buckets
                                             .getOrPut(sourceEnd.typeId to face) { mutableListOf() }
                                             .add(edgeId.value to UmlEndpointSide.SOURCE)
                                     }
-                                    if (targetEnd.role != null || targetEnd.multiplicity.toLabel() != null) {
+                                    if (targetEnd.role != null || targetEnd.multiplicityLabel() != null) {
                                         val face = umlEndpointFaceBucket(EdgeLabelGeometry.targetSegmentTangent(route))
                                         buckets
                                             .getOrPut(targetEnd.typeId to face) { mutableListOf() }

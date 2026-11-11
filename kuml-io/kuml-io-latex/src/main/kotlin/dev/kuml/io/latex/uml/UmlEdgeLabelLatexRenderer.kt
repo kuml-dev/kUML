@@ -19,6 +19,7 @@ import dev.kuml.uml.UmlGeneralization
 import dev.kuml.uml.UmlInclude
 import dev.kuml.uml.UmlInterfaceRealization
 import dev.kuml.uml.UmlRelationship
+import dev.kuml.uml.multiplicityLabel
 import kotlin.math.abs
 import kotlin.math.max
 import kotlin.math.min
@@ -103,18 +104,17 @@ internal data class UmlEdgeLabels(
                 stereotypes = stereotypes.filter { it.isNotBlank() }.distinct(),
                 name = name?.takeIf { it.isNotBlank() },
                 sourceRole = source?.role?.takeIf { it.isNotBlank() },
-                sourceMultiplicity = source?.let { multiplicityLabel(it.multiplicity) },
+                sourceMultiplicity = source?.multiplicityLabel(),
                 targetRole = target?.role?.takeIf { it.isNotBlank() },
-                targetMultiplicity = target?.let { multiplicityLabel(it.multiplicity) },
+                targetMultiplicity = target?.multiplicityLabel(),
             )
         }
 
-        /** Same rule as the SVG output: "1" gives null, lower == upper gives "n", unbounded gives "*", else "lower..upper". */
-        internal fun multiplicityLabel(m: Multiplicity): String? {
-            val upper = if (m.upper == null) "*" else m.upper.toString()
-            val label = if (m.lower == m.upper) upper else "${m.lower}..$upper"
-            return if (label == "1") null else label
-        }
+        /** Same rule as the SVG output (shared helper): implicit "1" gives null, an explicit "1" gives "1". */
+        internal fun multiplicityLabel(
+            m: Multiplicity,
+            explicit: Boolean = false,
+        ): String? = dev.kuml.uml.multiplicityLabel(multiplicity = m, explicit = explicit)
     }
 }
 

@@ -24,6 +24,12 @@ class AssociationEndBuilder internal constructor(
 
     /** Multiplicity of this end. */
     var multiplicity: Multiplicity = Multiplicity()
+        set(value) {
+            field = value
+            multiplicityExplicit = true
+        }
+
+    private var multiplicityExplicit: Boolean = false
 
     /** `false` hides the navigation arrow on this end. */
     var navigable: Boolean = true
@@ -42,6 +48,7 @@ class AssociationEndBuilder internal constructor(
             role = role,
             multiplicity = multiplicity,
             navigable = navigable,
+            multiplicityExplicit = multiplicityExplicit,
         )
 }
 

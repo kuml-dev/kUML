@@ -198,6 +198,31 @@ class AssociationBuilderTest :
             assoc.ends[0].navigable shouldBe true
             assoc.ends[1].navigable shouldBe true
         }
+
+        test(name = "multiplicity(\"1\") marks the end as explicit, an untouched end stays implicit") {
+            val model =
+                umlModel(name = "M") {
+                    association(sourceId = "A", targetId = "B") {
+                        source { multiplicity("1") }
+                    }
+                }
+            val assoc = model.elements.filterIsInstance<UmlAssociation>().first()
+            assoc.ends[0].multiplicityExplicit shouldBe true
+            assoc.ends[0].multiplicity shouldBe Multiplicity(lower = 1, upper = 1)
+            assoc.ends[1].multiplicityExplicit shouldBe false
+        }
+
+        test(name = "assigning the multiplicity property marks the end as explicit") {
+            val model =
+                umlModel(name = "M") {
+                    association(sourceId = "A", targetId = "B") {
+                        target { multiplicity = Multiplicity(lower = 1, upper = 1) }
+                    }
+                }
+            val assoc = model.elements.filterIsInstance<UmlAssociation>().first()
+            assoc.ends[0].multiplicityExplicit shouldBe false
+            assoc.ends[1].multiplicityExplicit shouldBe true
+        }
     })
 
 private val dev.kuml.core.model.KumlModel.elements

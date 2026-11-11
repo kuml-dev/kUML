@@ -6,6 +6,52 @@ All notable changes to this project are documented here. Format follows
 
 ## [Unreleased]
 
+### Nacharbeit 79: an explicit `multiplicity("1")` is drawn; `first()` / `last()` against the edges is reported
+
+**Why.** (a) `Multiplicity()` defaults to `1..1`, and the renderers hid every `1..1`. An author who wrote
+`multiplicity("1")` could not get the label, because the model could not tell an explicit `1` from the default.
+(b) `layout { last(x) }` on a node that has outgoing edges (or `first(x)` on one with incoming edges) makes the engine
+draw those edges against the flow direction, and nothing said so.
+
+**Change.**
+* (a) `UmlAssociationEnd` has a new last parameter `multiplicityExplicit: Boolean = false`. In the DSL,
+  `multiplicity("...")` and assigning the `multiplicity` property set it; an end that is not touched stays implicit.
+  One shared function (`UmlAssociationEnd.multiplicityLabel()`, `dev.kuml.uml`) replaces the two copies of the label rule
+  (SVG `Multiplicity.toLabel()`, LaTeX `UmlEdgeLabels.multiplicityLabel`); an explicit `1` gives "1", an implicit one
+  none, all other values as before. Ends built outside the DSL (reverse engineering, EMF import, direct constructor calls)
+  stay implicit, so their output does not change. The JSON field is omitted when `false`; older documents load unchanged.
+* (b) New warning `KUML-LAYOUT-W008` (`LayoutCodes.LAYER_PIN_CONFLICT`), raised by `kuml validate` and by the render. One
+  place (`LayerPinCheck` in `kuml-layout-bridge`) counts edges per node in the engine's source-to-target orientation
+  (self-loops and edges to non-nodes are not counted); validate and render both use it. The pin is **kept**: it is
+  not dropped and the layer index is untouched.
+* The DSL printer (`UmlModelDslPrinter`) now writes `multiplicity("1")` for an explicit `1`, so print and re-parse keep the flag.
+* Handbook: `layout.adoc` (W008, explicit `1`).
+
+**Deviation from the plan, on purpose.** The plan said W008 should drop the pin ("ignored"). The repro did not
+support that: with `association(A, B)` and `last(A)` or `first(B)`, and with a generalization and `last(Sub)`, the render
+does not abort; ELK honours the pin by reversing the edge. Dropping the pin would silently change existing diagrams, so
+W008 only warns and says what the engine does.
+
+**Verification.** Repro with the local CLI (`which kuml` was the `kuml-cli/build/install` path): (a) `A`, `B` with both
+ends `multiplicity("1")` show a `1` at each end in the PNG; (b) `layout { last(a) }` and `layout { first(b) }` print
+W008 in `kuml validate`, `kuml render` exits 0 with an image. New tests: `MultiplicityExplicitTest`, `AssociationBuilderTest`
+(explicit via `multiplicity("1")` and via the property), `UmlExplicitMultiplicitySvgTest` (two "1" labels near the two
+ends, none for implicit ends, mixed "2" case), `UmlEdgeLabelLatexRendererTest` (explicit and implicit), `LayerPinCheckTest`
+(truth table, degree counting, validate with and without degrees), `LayoutBlockTest` (render W008 for last and first,
+generalization orientation, valid pins give none and are applied), `ValidationServiceTest` (W008 via `kuml validate`).
+One existing test changed: `LabelGeometryInvariantTest` (vault example 64, dense hub) allows 4 instead of 3 role labels
+crossing a neighbouring edge, because the example's four `multiplicity("1")` ends are now drawn and crowd the node face.
+The example source was not edited. The "no label covers a node or another label" part of the test is unchanged.
+
+**Not verified.** Windows and the desktop UI path (the desktop validate calls `ValidationService.findingsOf`, so it gets
+W008 without a code change, but it was not opened). Hub classes with many edges and an explicit `1` at a converging end
+were not drawn.
+
+**Not fixed.** (c) `wrapColumns` with generalizations; (d) leaves far from their superclass; (e) an enum attribute without a
+type edge; (f) the default visibility marker; the model redesign towards a nullable multiplicity (the flag is a
+compatible stand-in); a layer-index mechanism that keeps conflicting pins without reversing edges. Association ends built by the AI editing
+tools (`UmlEditingTools`) are not marked explicit, so an AI-given "1" is still not drawn.
+
 ### Nacharbeit 78: the desktop MSI carries the real project version
 
 **Why.** `versionForJpackage` maps `0.x.y` to `x.y.0` because macOS needs a first number of at least 1. The Windows MSI

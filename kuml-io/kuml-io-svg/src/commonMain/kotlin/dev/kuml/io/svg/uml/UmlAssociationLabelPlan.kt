@@ -23,6 +23,7 @@ import dev.kuml.uml.UmlExtend
 import dev.kuml.uml.UmlGeneralization
 import dev.kuml.uml.UmlInclude
 import dev.kuml.uml.UmlInterfaceRealization
+import dev.kuml.uml.multiplicityLabel
 
 /** Keys of the labels one association edge carries in a label plan. */
 public object UmlLabelKeys {
@@ -168,7 +169,7 @@ public object UmlAssociationLabelPlan {
         pts: List<Point>,
     ): List<LabelRequest> {
         val out = ArrayList<LabelRequest>(2)
-        val mult = end.multiplicity.toLabel()
+        val mult = end.multiplicityLabel()
         val prefix = if (side == LabelEnd.SOURCE) "src" else "tgt"
         if (mult != null) {
             out += small(id = "$edgeId#${prefix}Mult", role = LabelRole.MULTIPLICITY, edgeId = edgeId, text = mult, side = side, pts = pts)

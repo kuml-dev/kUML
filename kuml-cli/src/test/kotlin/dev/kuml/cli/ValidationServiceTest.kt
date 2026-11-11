@@ -163,4 +163,18 @@ class ValidationServiceTest :
         test("a clean script has no findings") {
             ValidationService.validate(script = "classDiagram(name = \"A\") { classOf(name = \"A\") }").shouldBeEmpty()
         }
+
+        test("kuml validate reports W008 for last() on a node with an outgoing association, and nothing for a valid pin") {
+            fun codes(layout: String) =
+                ValidationService
+                    .validate(
+                        script =
+                            "classDiagram(name = \"Pin\") {\n" +
+                                "    val a = classOf(name = \"A\")\n    val b = classOf(name = \"B\")\n" +
+                                "    association(source = a, target = b)\n    layout { $layout }\n}",
+                    ).map { it.code }
+            codes("last(a)").count { it == "KUML-LAYOUT-W008" } shouldBe 1
+            codes("first(b)").count { it == "KUML-LAYOUT-W008" } shouldBe 1
+            codes("first(a); last(b)").count { it == "KUML-LAYOUT-W008" } shouldBe 0
+        }
     })

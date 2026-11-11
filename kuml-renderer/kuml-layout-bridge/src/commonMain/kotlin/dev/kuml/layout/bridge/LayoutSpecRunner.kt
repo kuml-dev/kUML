@@ -110,11 +110,13 @@ public object LayoutSpecRunner {
         spec: LayoutSpec?,
         knownIds: Set<String>?,
         diagramName: String? = null,
+        edgeDegrees: Map<String, EdgeDegree>? = null,
     ): List<LayoutSpecFinding> {
         if (spec == null) return emptyList()
         val findings = noEffectFindings(spec = spec, kind = kind, diagramName = diagramName).toMutableList()
         val checked = sanitize(spec = spec, findings = findings)
         checkIdSet(spec = checked, known = knownIds, findings = findings)
+        findings += layerPinFindings(kind = kind, spec = checked, degrees = edgeDegrees)
         return findings
     }
 
@@ -131,10 +133,14 @@ public object LayoutSpecRunner {
         kind: SpecDiagramKind = SpecDiagramKind.UML_CLASS,
         diagramName: String? = null,
     ): SpecLayoutOutcome {
+        val pinFindings = layerPinFindings(kind = kind, spec = spec, degrees = spec?.let { LayerPinCheck.edgeDegrees(graph) })
         if (kind == SpecDiagramKind.UML_CLASS) {
-            return layoutUmlClass(engine = engine, graph = graph, hints = hints, spec = spec, diagramName = diagramName)
+            val umlOutcome = layoutUmlClass(engine = engine, graph = graph, hints = hints, spec = spec, diagramName = diagramName)
+            return umlOutcome.copy(findings = umlOutcome.findings + pinFindings)
         }
-        val outcome = layoutInner(engine = engine, graph = graph, hints = hints, spec = spec, kind = kind, diagramName = diagramName)
+        val outcome =
+            layoutInner(engine = engine, graph = graph, hints = hints, spec = spec, kind = kind, diagramName = diagramName)
+                .let { it.copy(findings = it.findings + pinFindings) }
         // Wave 2E-a: every requirement diagram (grid or legacy) gets spread endpoints and nudged parallel segments.
         return when (kind) {
             SpecDiagramKind.SYSML2_REQ -> outcome.copy(result = ReqEdgeBands.apply(result = outcome.result, graph = graph))
@@ -497,6 +503,21 @@ public object LayoutSpecRunner {
         } else {
             tooWide
         }
+    }
+
+    /** W008 for pins that contradict the node's edges; nothing when the diagram kind ignores first/last (W001 says so). */
+    private fun layerPinFindings(
+        kind: SpecDiagramKind,
+        spec: LayoutSpec?,
+        degrees: Map<String, EdgeDegree>?,
+    ): List<LayoutSpecFinding> {
+        val effective = LayoutEffectMatrix.effectiveFor(kind)
+        val pinned =
+            spec?.copy(
+                first = if (LayoutOption.FIRST in effective) spec.first else emptyList(),
+                last = if (LayoutOption.LAST in effective) spec.last else emptyList(),
+            )
+        return LayerPinCheck.findings(spec = pinned, degrees = degrees)
     }
 
     /** Reports unknown ids ([LayoutCodes.UNKNOWN_ID]), exceeded id/group limits and first/last conflicts. */

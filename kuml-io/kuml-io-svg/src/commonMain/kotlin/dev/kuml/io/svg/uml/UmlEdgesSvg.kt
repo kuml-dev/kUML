@@ -16,7 +16,6 @@ import dev.kuml.layout.Point
 import dev.kuml.layout.bridge.label.PlacedLabel
 import dev.kuml.renderer.theme.core.KumlTheme
 import dev.kuml.uml.AggregationKind
-import dev.kuml.uml.Multiplicity
 import dev.kuml.uml.Stereotypable
 import dev.kuml.uml.UmlActivityEdge
 import dev.kuml.uml.UmlAssociation
@@ -30,6 +29,7 @@ import dev.kuml.uml.UmlInclude
 import dev.kuml.uml.UmlInterfaceRealization
 import dev.kuml.uml.UmlLink
 import dev.kuml.uml.UmlNavigability
+import dev.kuml.uml.multiplicityLabel
 import dev.kuml.uml.navigability
 import kotlin.math.abs
 
@@ -223,9 +223,9 @@ private fun renderAssociationLine(
     if (ends.size >= 2 && placed != null) {
         val labels =
             listOf(
-                UmlLabelKeys.SOURCE_MULT to ends[0].multiplicity.toLabel(),
+                UmlLabelKeys.SOURCE_MULT to ends[0].multiplicityLabel(),
                 UmlLabelKeys.SOURCE_ROLE to ends[0].role,
-                UmlLabelKeys.TARGET_MULT to ends[1].multiplicity.toLabel(),
+                UmlLabelKeys.TARGET_MULT to ends[1].multiplicityLabel(),
                 UmlLabelKeys.TARGET_ROLE to ends[1].role,
             )
         for ((key, text) in labels) {
@@ -249,7 +249,7 @@ private fun renderAssociationLine(
         val tgtStep = targetStackIndex.coerceIn(0, UML_ENDPOINT_LABEL_MAX_STACK_INDEX) * UML_ENDPOINT_LABEL_STACK_PX
 
         val (stx, sty) = EdgeLabelGeometry.sourceSegmentTangent(route)
-        sourceEnd.multiplicity.toLabel()?.let { label ->
+        sourceEnd.multiplicityLabel()?.let { label ->
             val m = mulMargin + srcStep
             endpointLabel(
                 builder = builder,
@@ -269,7 +269,7 @@ private fun renderAssociationLine(
         }
 
         val (ttx, tty) = EdgeLabelGeometry.targetSegmentTangent(route)
-        targetEnd.multiplicity.toLabel()?.let { label ->
+        targetEnd.multiplicityLabel()?.let { label ->
             val m = mulMargin + tgtStep
             endpointLabel(
                 builder = builder,
@@ -398,19 +398,6 @@ private fun endpointLabel(
     val attrs = mapOf("x" to fmt(x), "y" to fmt(y), "text-anchor" to "middle")
     builder.tag(name = "text", attrs = mapOf("class" to "kuml-small-halo") + attrs) { text(label) }
     builder.tag(name = "text", attrs = mapOf("class" to "kuml-small") + attrs) { text(label) }
-}
-
-/**
- * Returns a multiplicity label string, or null if the multiplicity is the
- * trivial "1". Internal (not private) so `KumlSvgRenderer`'s converging-
- * label grouping can reuse the exact same "does this end draw a label?"
- * rule as the renderer, keeping stack indices dense (no gaps from ends that
- * never draw anything).
- */
-internal fun Multiplicity.toLabel(): String? {
-    val upper = if (this.upper == null) "*" else this.upper.toString()
-    val label = if (this.lower == this.upper) upper else "${this.lower}..$upper"
-    return if (label == "1") null else label
 }
 
 /**

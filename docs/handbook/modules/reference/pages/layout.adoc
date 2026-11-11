@@ -167,6 +167,10 @@ classDiagram(name = "Zoo") {
   render differently there.
 * Unknown ids, more than 32 `sameLayer` groups or 64 ids per group, and ids in both `first` and `last`
   are reported (`KUML-LAYOUT-W004`, `KUML-LAYOUT-E001`, `KUML-LAYOUT-W001`).
+* A `first(x)` pin on a node with incoming edges, or a `last(x)` pin on a node with outgoing edges, reports
+  `KUML-LAYOUT-W008` (a warning) in `kuml validate` and `kuml render`. The pin is still applied and the diagram is
+  still drawn, but the engine then draws the edge or edges against the flow direction. Remove the pin or the edge to
+  clear the warning. Self-loops and edges to elements that are not nodes of the diagram are not counted.
 * C4 and ERM diagrams take the block as well (`layout { }` in the diagram builder). Service Blueprint accepts it,
   but its grid ignores every option and reports `KUML-LAYOUT-W001` (see xref:blueprint.adoc[Service Blueprint]). BPMN diagram blocks are not available yet.
 
@@ -212,6 +216,8 @@ Labels and notes are placed after the layout, and always in the same order: labe
 never covers a label that is drawn later.
 
 * UML associations: name, multiplicity and role labels are placed by one cost-based placer (`LabelPlacer`).
+  An association end whose multiplicity is written out (`multiplicity("1")` or `multiplicity = Multiplicity(1, 1)`) draws
+  the label `1`; an end where no multiplicity is set draws none, because `1` is the default.
 * SysML 2 IBD and BDD: connector labels are planned (`Sysml2EdgeLabelPlan`) before the notes; once the notes
   stand, the labels move away from them and from their anchor lines. The renderer draws each label exactly at its
   planned rectangle.

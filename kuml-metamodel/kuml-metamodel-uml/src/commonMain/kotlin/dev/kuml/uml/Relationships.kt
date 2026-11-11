@@ -47,6 +47,9 @@ data class UmlAssociation(
  * @property role Optional role name shown near the end.
  * @property multiplicity Multiplicity of this end (default: `1`).
  * @property navigable Whether this end is navigable from the other end.
+ * @property multiplicityExplicit `true` when the author set [multiplicity] explicitly (DSL
+ *   `multiplicity("1")` or `multiplicity = ...`). An explicit `1` is drawn as a label; the
+ *   implicit default `1` is not. Omitted from JSON when `false`, so older documents still load.
  */
 @Serializable
 data class UmlAssociationEnd(
@@ -54,6 +57,7 @@ data class UmlAssociationEnd(
     val role: String? = null,
     val multiplicity: Multiplicity = Multiplicity(),
     val navigable: Boolean = true,
+    val multiplicityExplicit: Boolean = false,
 )
 
 // ── Generalization ────────────────────────────────────────────────────────────

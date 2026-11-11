@@ -136,6 +136,12 @@ object LayoutCodes {
 
     /** A requirement stands in two groups; only the first one in declaration order holds it (Nacharbeit 55). */
     const val DUPLICATE_GROUP_MEMBERSHIP = "KUML-LAYOUT-W007"
+
+    /**
+     * A `first()` / `last()` pin sits on a node whose edges contradict it (a `last` node with outgoing edges, a `first` node
+     * with incoming ones); the engine draws those edges against the flow direction (Nacharbeit 79). The pin is kept.
+     */
+    const val LAYER_PIN_CONFLICT = "KUML-LAYOUT-W008"
     const val OUT_OF_RANGE = "KUML-LAYOUT-E001"
 
     /** Informational: a `sameLayer` of groups widens its row beyond the column count (wave 2E-a). Not an error. */
