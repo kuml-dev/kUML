@@ -6,6 +6,43 @@ All notable changes to this project are documented here. Format follows
 
 ## [Unreleased]
 
+### Nacharbeit 69: activity diagrams: wrapped and hard-broken action names, guard labels avoid lane borders (items b, d)
+
+**Why.** Reproduced with generic fixtures and the local installDist CLI (PNGs inspected; Nacharbeit 61/62 had listed
+(b), (d), (e) as not fixed and the PNGs confirm it). (d) An action name with `\n` lost the break in the SVG
+(`Hold damper,suspend ...`), and a long name was one unwrapped line (8.4 px per character, box height fixed at 60 px), so
+the lane grew very wide. (b) A guard on an edge that leaves a decision into another lane was centred on a short
+segment: with a long guard the label was drawn outside the image (clipped at the left edge) and crossed the lane
+border; the label plan knew neither lane borders nor the image edge. The name of a decision (`showName = true`) always
+sat on the right, even where an edge leaves to the right.
+
+**Change.** (d) `ActTextWrap.breakLines` splits at `\n` / `\r\n` / `\r` first (empty paragraphs dropped), new
+`ActTextWrap.actionNameLines` (about 24 characters per line, at most 4 lines, then the width grows) is used by the
+size provider (`actContentAwareSizeProvider`: width from the longest line, height `max(60, lines * 16 + 28)`, plus 14 px
+with a body line), by `renderRegularAction` (one `<text class="kuml-title">` per line, `data-line` on multi-line names)
+and by the title rectangles that the label plan avoids. One-line names keep their size and baseline. (b) `planActLabels`
+gets `laneBorders` (closed polylines, line obstacles with an owner id that never equals an edge id), `laneHeaders`
+(title obstacles) and `canvasBounds` (the area outside the image is covered several times, so leaving the image costs
+more than crossing a node and an edge). New `ActControlNamePlacement` puts the name of a decision, merge, fork or join on
+the first free side (diamonds: right, left, top, bottom; bars: left first), judged against all routes of the diagram,
+and the chosen rectangle goes into the label plan as an obstacle. Handbook: `sysml2.adoc`, section "Long names and
+guards".
+
+**Verification.** New tests: `ActTextWrapTest` (forced break, empty paragraphs, CR LF, a name of only breaks, 100 000
+character names stay at 12 lines, side choice), `Sysml2ActNacharbeit69Test` (full pipeline: `Hold damper,` stays apart,
+60-character name in 3 lines with a box of at most 248 px and a lane narrower than one line of 8.4 px per character, guard
+inside the image and clear of lane borders and lines, control name touches no edge). PNGs before and after viewed. Result
+of the existing suites: see the commit body.
+
+**Not verified.** Windows and Linux rendering, pixel-exact PNG.
+
+**Not fixed.** (e) / N-COM-A (a note anchored to an `action(...)` line of a part definition, all diagram types: needs its
+own wave with drawn-versus-declared note reconciliation and `KUML-NOTE-W002` with the comment line). A guard that fits
+nowhere without touching a line (a very long guard in a tight layout, e.g. 40 characters between two close lines) is now
+drawn inside the image with its halo but can still sit on a line; a label-aware layout or wrapping to the lane width is
+not built. The control-node name is still cut at 40 characters, the action body at 30 characters. Items (a), (c), (f) to
+(j) are out of scope ((a), (c), (f) were done in waves AA and AB).
+
 ### Nacharbeit 68: sequence diagrams: empty guard `[]`, time observation on a message row, notes on one anchor
 
 **Why.** Reproduced with a generic fixture and the local installDist CLI (PNG inspected). (f) A guard written as `[]` or

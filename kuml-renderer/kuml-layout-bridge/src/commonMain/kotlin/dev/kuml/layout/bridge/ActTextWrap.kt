@@ -40,6 +40,18 @@ public object ActTextWrap {
         return Wrapped(lines = lines.take(MAX_LINES_CAP.coerceAtLeast(maxLines)), widthPx = width)
     }
 
+    /** Approximate width (px) of one character of a 14 px bold action title (mirrors the size provider constant). */
+    public const val TITLE_CHAR_PX: Float = 8.4f
+
+    /**
+     * Lines of an action name: forced breaks (`\n`) are kept, each paragraph is wrapped at about 24 characters, and
+     * at most 4 lines are drawn before the width grows (10 % steps) instead of truncating.
+     */
+    public fun actionNameLines(name: String): List<String> =
+        wrap(text = name, maxWidthPx = ACTION_NAME_WIDTH_PX, maxLines = 4, charPx = TITLE_CHAR_PX).lines
+
+    private const val ACTION_NAME_WIDTH_PX: Float = 208f
+
     /** Convenience: only the lines. */
     public fun wrapActName(
         text: String,
@@ -99,26 +111,36 @@ public object ActTextWrap {
         val perLine = (widthPx / charPx).toInt().coerceAtLeast(2)
         val out = ArrayList<String>()
         var cur = StringBuilder()
-        for (word in text.trim().split(Regex("\\s+")).filter { it.isNotEmpty() }) {
-            var w = word
-            while (w.length > perLine) {
-                if (cur.isNotEmpty()) {
-                    out += cur.toString()
-                    cur = StringBuilder()
+        val paragraphs =
+            text
+                .replace("\r\n", "\n")
+                .replace('\r', '\n')
+                .split('\n')
+                .filter { it.isNotBlank() }
+        for (paragraph in paragraphs) {
+            for (word in paragraph.trim().split(Regex("\\s+")).filter { it.isNotEmpty() }) {
+                var w = word
+                while (w.length > perLine) {
+                    if (cur.isNotEmpty()) {
+                        out += cur.toString()
+                        cur = StringBuilder()
+                    }
+                    out += w.take(perLine)
+                    w = w.drop(perLine)
                 }
-                out += w.take(perLine)
-                w = w.drop(perLine)
+                if (cur.isEmpty()) {
+                    cur.append(w)
+                } else if (cur.length + 1 + w.length <= perLine) {
+                    cur.append(' ').append(w)
+                } else {
+                    out += cur.toString()
+                    cur = StringBuilder(w)
+                }
             }
-            if (cur.isEmpty()) {
-                cur.append(w)
-            } else if (cur.length + 1 + w.length <= perLine) {
-                cur.append(' ').append(w)
-            } else {
-                out += cur.toString()
-                cur = StringBuilder(w)
-            }
+            // A forced break ends the paragraph: the next one starts on a fresh line.
+            if (cur.isNotEmpty()) out += cur.toString()
+            cur = StringBuilder()
         }
-        if (cur.isNotEmpty()) out += cur.toString()
         if (out.isEmpty()) out += ""
         return out
     }

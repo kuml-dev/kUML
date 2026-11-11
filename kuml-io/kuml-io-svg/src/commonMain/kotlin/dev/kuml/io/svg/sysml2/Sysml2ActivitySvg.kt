@@ -124,17 +124,23 @@ private fun renderRegularAction(
         if (isCall) renderRake(w = w, h = h)
 
         val hasAction = !element.action.isNullOrEmpty()
-        val nameY = if (hasAction) h / 2f - 2f else h / 2f + 4f
+        // Nacharbeit 69: long names wrap at about 24 characters, `\n` forces a break; one <text> per line.
+        val nameLines = ActTextWrap.actionNameLines(element.name)
+        val blockShift = (nameLines.size - 1) * ACT_NAME_LINE_PX / 2f
+        val firstY = (if (hasAction) h / 2f - 2f else h / 2f + 4f) - blockShift
         val nameClass = if (element.isAbstract) "kuml-title kuml-title-abstract" else "kuml-title"
-        val nameAttrs =
-            buildMap<String, String> {
-                put("class", nameClass)
-                put("x", fmt(w / 2f))
-                put("y", fmt(nameY))
-                put("text-anchor", "middle")
-                if (element.isAbstract) put("font-style", "italic")
-            }
-        tag(name = "text", attrs = nameAttrs) { text(element.name) }
+        for ((i, line) in nameLines.withIndex()) {
+            val nameAttrs =
+                buildMap<String, String> {
+                    put("class", nameClass)
+                    put("x", fmt(w / 2f))
+                    put("y", fmt(firstY + i * ACT_NAME_LINE_PX))
+                    put("text-anchor", "middle")
+                    if (nameLines.size > 1) put("data-line", i.toString())
+                    if (element.isAbstract) put("font-style", "italic")
+                }
+            tag(name = "text", attrs = nameAttrs) { text(line) }
+        }
 
         if (hasAction) {
             val truncated = truncate(s = element.action!!, max = ACT_BODY_MAX_LEN)
@@ -144,7 +150,7 @@ private fun renderRegularAction(
                     mapOf(
                         "class" to "kuml-body",
                         "x" to fmt(w / 2f),
-                        "y" to fmt(h / 2f + 14f),
+                        "y" to fmt(h / 2f + 14f + blockShift),
                         "text-anchor" to "middle",
                     ),
             ) { text(truncated) }
@@ -548,6 +554,26 @@ private fun SvgBuilder.controlNodeName(
 }
 
 private const val CONTROL_NAME_MAX_CHARS = 40
+
+/** Nacharbeit 69 — the name of a control node as drawn (shortened to [CONTROL_NAME_MAX_CHARS]). */
+internal fun controlNodeDisplayName(name: String): String = truncate(s = name, max = CONTROL_NAME_MAX_CHARS)
+
+/** Nacharbeit 69 — draws a control-node name at an absolute, already placed position (the first free side). */
+internal fun SvgBuilder.renderPlacedControlName(
+    name: String,
+    x: Float,
+    y: Float,
+    anchor: String,
+) {
+    if (name.isBlank()) return
+    tag(
+        name = "text",
+        attrs = mapOf("class" to "kuml-body kuml-control-name", "x" to fmt(x), "y" to fmt(y), "text-anchor" to anchor),
+    ) { text(controlNodeDisplayName(name)) }
+}
+
+/** Nacharbeit 69 — line height (px) of a wrapped action name; equals the size provider value. */
+private const val ACT_NAME_LINE_PX = 16f
 
 /**
  * Fork / Join — Synchronisations-Bar: dickes gefülltes Rechteck. Die

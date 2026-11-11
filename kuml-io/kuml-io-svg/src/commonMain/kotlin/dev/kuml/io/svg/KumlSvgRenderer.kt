@@ -59,6 +59,7 @@ import dev.kuml.io.svg.erm.renderErmView
 import dev.kuml.io.svg.erm.renderIdef1xCategoryCircle
 import dev.kuml.io.svg.sysml2.edge.Sysml2EdgeRenderer
 import dev.kuml.io.svg.sysml2.nextLifelineAxisX
+import dev.kuml.io.svg.sysml2.renderPlacedControlName
 import dev.kuml.io.svg.uml.UmlEndpointSide
 import dev.kuml.io.svg.uml.renderUmlAssociationClassTether
 import dev.kuml.io.svg.uml.toLabel
@@ -3328,6 +3329,7 @@ public object KumlSvgRenderer {
 
             // 2. Standard node loop (action boxes + pins, pseudo nodes,
             //    diamonds, bars) — identical logic to renderSysml2Synthetic.
+            val controlNameRects = ArrayList<dev.kuml.layout.Rect>()
             for ((nodeId, nodeLayout) in layoutResult.nodes) {
                 val element = synthetic.elements.find { it.id == nodeId.value }
                 if (element != null) {
@@ -3342,7 +3344,53 @@ public object KumlSvgRenderer {
                                         ),
                                 ),
                         )
-                    NodeRendererDispatcher.dispatch(element = element, layout = shifted, theme = theme, builder = nodesBuilder)
+                    val controlKind = (element as? ActionDefinition)?.kind
+                    val namedControl =
+                        element is ActionDefinition &&
+                            element.showName &&
+                            element.name.isNotBlank() &&
+                            (
+                                controlKind == dev.kuml.sysml2.ActivityNodeKind.Decision ||
+                                    controlKind == dev.kuml.sysml2.ActivityNodeKind.Merge ||
+                                    controlKind == dev.kuml.sysml2.ActivityNodeKind.Fork ||
+                                    controlKind == dev.kuml.sysml2.ActivityNodeKind.Join
+                            )
+                    if (namedControl && element is ActionDefinition) {
+                        // Nacharbeit 69: the name sits on the first side that no edge crosses, not always right / left.
+                        NodeRendererDispatcher.dispatch(
+                            element = element.copy(showName = false),
+                            layout = shifted,
+                            theme = theme,
+                            builder = nodesBuilder,
+                        )
+                        val shownName =
+                            dev.kuml.io.svg.sysml2
+                                .controlNodeDisplayName(element.name)
+                        val isBar =
+                            controlKind == dev.kuml.sysml2.ActivityNodeKind.Fork || controlKind == dev.kuml.sysml2.ActivityNodeKind.Join
+                        val placed =
+                            dev.kuml.layout.bridge.ActControlNamePlacement.place(
+                                node = shifted.bounds,
+                                charCount = shownName.length,
+                                routes =
+                                    layoutResult.edges.entries
+                                        .sortedBy { it.key.value }
+                                        .map { (_, r) ->
+                                            dev.kuml.layout.bridge.label.Sysml2DiagramLabelPlan
+                                                .polylineOf(shiftRoute(route = r, dx = padding))
+                                        },
+                                order =
+                                    if (isBar) {
+                                        dev.kuml.layout.bridge.ActControlNamePlacement.BAR_ORDER
+                                    } else {
+                                        dev.kuml.layout.bridge.ActControlNamePlacement.DIAMOND_ORDER
+                                    },
+                            )
+                        nodesBuilder.renderPlacedControlName(name = element.name, x = placed.x, y = placed.y, anchor = placed.anchor)
+                        controlNameRects += placed.rect
+                    } else {
+                        NodeRendererDispatcher.dispatch(element = element, layout = shifted, theme = theme, builder = nodesBuilder)
+                    }
                 }
             }
 
@@ -3617,15 +3665,20 @@ public object KumlSvgRenderer {
                     actionById.values.mapNotNull { d ->
                         if (d.kind != dev.kuml.sysml2.ActivityNodeKind.Action) return@mapNotNull null
                         val b = shiftedBoundsById[d.id] ?: return@mapNotNull null
-                        val w = d.name.length * ACT_TITLE_CHAR_PX + 8f
+                        // Nacharbeit 69: the name may span several lines (wrapped / forced breaks).
+                        val nameLines =
+                            dev.kuml.layout.bridge.ActTextWrap
+                                .actionNameLines(d.name)
+                        val w = nameLines.maxOf { it.length } * ACT_TITLE_CHAR_PX + 8f
+                        val hTitle = maxOf(22f, nameLines.size * 16f + 6f)
                         dev.kuml.layout.Rect(
                             origin =
                                 dev.kuml.layout.Point(
                                     x = b.origin.x + (b.size.width - w) / 2f,
                                     y =
-                                        b.origin.y + b.size.height / 2f - 11f,
+                                        b.origin.y + b.size.height / 2f - hTitle / 2f,
                                 ),
-                            size = dev.kuml.layout.Size(width = w, height = 22f),
+                            size = dev.kuml.layout.Size(width = w, height = hTitle),
                         )
                     }
                 val plan =
@@ -3645,8 +3698,25 @@ public object KumlSvgRenderer {
                                         .EdgeLabelSpec(id = p.id, lines = it.map { l -> l.text })
                                 }
                             },
-                        titleRects = titleRects,
+                        titleRects = titleRects + controlNameRects,
                         glyphRects = glyphRects,
+                        canvasBounds =
+                            dev.kuml.layout.Rect(
+                                origin = dev.kuml.layout.Point(x = 0f, y = 0f),
+                                size =
+                                    dev.kuml.layout.Size(
+                                        width = layoutResult.canvas.width + 2 * padding,
+                                        height = layoutResult.canvas.height + 2 * padding,
+                                    ),
+                            ),
+                        laneBorders = groupRects,
+                        laneHeaders =
+                            groupRects.map {
+                                dev.kuml.layout.Rect(
+                                    origin = it.origin,
+                                    size = dev.kuml.layout.Size(width = it.size.width, height = laneHeaderHeight),
+                                )
+                            },
                     )
 
                 fun backdropOf(r: dev.kuml.layout.Rect): String {

@@ -2384,11 +2384,16 @@ public object Sysml2LayoutBridge {
             val base: dev.kuml.layout.Size =
                 when (kindHint) {
                     ActivityNodeKind.Action.name -> {
-                        val nameW = (def?.name?.length ?: 0) * IBD_TITLE_CHAR_PX
+                        val nameLines = ActTextWrap.actionNameLines(def?.name.orEmpty())
+                        val nameW = nameLines.maxOf { it.length } * ActTextWrap.TITLE_CHAR_PX
                         val bodyLen = minOf(def?.action?.length ?: 0, ACT_BODY_MAX_LEN_FOR_SIZING)
                         val bodyW = bodyLen * BDD_BODY_CHAR_PX
                         val contentW = maxOf(nameW, bodyW) + 2 * IBD_H_PAD
-                        dev.kuml.layout.Size(width = maxOf(contentW, ACT_ACTION_WIDTH), height = ACT_ACTION_HEIGHT)
+                        val bodyH = if (bodyLen > 0) ACT_NAME_BODY_EXTRA_PX else 0f
+                        dev.kuml.layout.Size(
+                            width = maxOf(contentW, ACT_ACTION_WIDTH),
+                            height = maxOf(ACT_ACTION_HEIGHT, nameLines.size * ACT_NAME_LINE_PX + ACT_NAME_V_PAD_PX + bodyH),
+                        )
                     }
                     ActivityNodeKind.Initial.name,
                     ActivityNodeKind.Final.name,
@@ -2442,14 +2447,27 @@ public object Sysml2LayoutBridge {
                         )
                     }
                     ActivityNodeKind.CallBehavior.name -> {
-                        val nameW = (def?.name?.length ?: 0) * IBD_TITLE_CHAR_PX
+                        val nameLines = ActTextWrap.actionNameLines(def?.name.orEmpty())
+                        val nameW = nameLines.maxOf { it.length } * ActTextWrap.TITLE_CHAR_PX
                         val contentW = nameW + 2 * IBD_H_PAD + ACT_CALL_FORK_EXTRA_W
-                        dev.kuml.layout.Size(width = maxOf(contentW, ACT_ACTION_WIDTH + ACT_CALL_FORK_EXTRA_W), height = ACT_ACTION_HEIGHT)
+                        dev.kuml.layout.Size(
+                            width = maxOf(contentW, ACT_ACTION_WIDTH + ACT_CALL_FORK_EXTRA_W),
+                            height = maxOf(ACT_ACTION_HEIGHT, nameLines.size * ACT_NAME_LINE_PX + ACT_NAME_V_PAD_PX),
+                        )
                     }
                     else -> dev.kuml.layout.Size(width = ACT_ACTION_WIDTH, height = ACT_ACTION_HEIGHT)
                 }
             actPinGrowth(base = base, def = def)
         }
+
+    /** Nacharbeit 69 — line height (px) of a wrapped action name. */
+    internal const val ACT_NAME_LINE_PX: Float = 16f
+
+    /** Nacharbeit 69 — vertical padding (px) of an action box around its name lines. */
+    internal const val ACT_NAME_V_PAD_PX: Float = 28f
+
+    /** Nacharbeit 69 — extra height (px) of an action box that also shows a body line. */
+    internal const val ACT_NAME_BODY_EXTRA_PX: Float = 14f
 
     /** Wave 2F — line height (px) of a wrapped signal name. */
     internal const val ACT_SIGNAL_LINE_PX: Float = 15f

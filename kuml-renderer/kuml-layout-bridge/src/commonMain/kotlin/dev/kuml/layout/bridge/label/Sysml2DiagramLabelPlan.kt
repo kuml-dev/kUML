@@ -289,9 +289,54 @@ public object Sysml2DiagramLabelPlan {
         titleRects: List<Rect> = emptyList(),
         costs: LabelCostModel = LabelCostModel(lineClearance = 2f),
         glyphRects: List<Rect> = emptyList(),
+        laneBorders: List<Rect> = emptyList(),
+        laneHeaders: List<Rect> = emptyList(),
+        canvasBounds: Rect? = null,
     ): Sysml2LabelPlanResult {
         if (pins.isEmpty() && edgeLabels.isEmpty()) return Sysml2LabelPlanResult(labels = emptyMap(), lines = emptyMap())
         val index = ObstacleIndex()
+        // Nacharbeit 69: swimlane borders are line obstacles (a guard must not sit across a lane border) and the lane
+        // header strips are title obstacles. The owner ids never match an edge id, so the own-edge exemption stays off.
+        for ((n, r) in laneBorders.sortedWith(compareBy({ it.origin.x }, { it.origin.y })).withIndex()) {
+            val x0 = r.origin.x
+            val y0 = r.origin.y
+            val x1 = x0 + r.size.width
+            val y1 = y0 + r.size.height
+            index.addPolyline(
+                kind = ObstacleKind.EDGE,
+                pts =
+                    listOf(
+                        Point(x = x0, y = y0),
+                        Point(x = x1, y = y0),
+                        Point(x = x1, y = y1),
+                        Point(x = x0, y = y1),
+                        Point(x = x0, y = y0),
+                    ),
+                ownerId = "lane:$n",
+            )
+        }
+        for (h in laneHeaders) index.addRect(kind = ObstacleKind.COMPOSITE_TITLE, r = h)
+        // Nacharbeit 69: the area outside the canvas is covered, so a label that fits nowhere never leaves the image.
+        canvasBounds?.let { c ->
+            val big = OUTSIDE_CANVAS_PX
+            val x0 = c.origin.x
+            val y0 = c.origin.y
+            val x1 = x0 + c.size.width
+            val y1 = y0 + c.size.height
+            val strips =
+                listOf(
+                    "w" to rectOf(left = x0 - big, top = y0 - big, right = x0, bottom = y1 + big),
+                    "e" to rectOf(left = x1, top = y0 - big, right = x1 + big, bottom = y1 + big),
+                    "n" to rectOf(left = x0, top = y0 - big, right = x1, bottom = y0),
+                    "s" to rectOf(left = x0, top = y1, right = x1, bottom = y1 + big),
+                )
+            // Covered several times: leaving the image must cost more than crossing a node and an edge together.
+            for ((side, r) in strips) {
+                repeat(
+                    OUTSIDE_CANVAS_WEIGHT,
+                ) { index.addRect(kind = ObstacleKind.NODE, r = r, ownerId = "canvas:$side") }
+            }
+        }
         for ((id, r) in nodes.entries.sortedBy { it.key }) index.addRect(kind = ObstacleKind.NODE, r = r, ownerId = id)
         for (t in titleRects) index.addRect(kind = ObstacleKind.COMPOSITE_TITLE, r = t)
         for ((id, route) in edges.entries.sortedBy { it.key }) {
@@ -601,7 +646,11 @@ public object Sysml2DiagramLabelPlan {
     /** The tip of an edge's arrow head, i.e. its target point. */
     public fun tipOf(route: EdgeRoute): Point = polylineOf(route).last()
 
-    private fun polylineOf(route: EdgeRoute): List<Point> =
+    private const val OUTSIDE_CANVAS_PX: Float = 10_000f
+    private const val OUTSIDE_CANVAS_WEIGHT: Int = 4
+
+    /** The points of [route] as one polyline (source, waypoints, target). */
+    public fun polylineOf(route: EdgeRoute): List<Point> =
         when (route) {
             is EdgeRoute.Direct -> listOf(route.source, route.target)
             is EdgeRoute.OrthogonalRounded -> listOf(route.source) + route.waypoints + listOf(route.target)

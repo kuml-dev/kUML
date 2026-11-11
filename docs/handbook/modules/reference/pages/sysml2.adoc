@@ -942,6 +942,14 @@ flow shows its type as `«Type»`. Names of signal, accept-event and time-event 
 then the node grows wider) and never shortened. Several arrivals at a decision or merge diamond are spread along its top
 side; from five arrivals on the diamond grows.
 
+==== Long names and guards (Nacharbeit 69)
+
+Long action names wrap after about 24 characters (at most 4 lines, then the box widens); `\n` in an `actionDef` name
+forces a line break. The box grows in height with the number of lines. The name of a decision, merge, fork or join
+(`showName = true`) is placed on the first free side (right, left, above, below; bars try left first) so that it does not
+sit on an edge. A guard label avoids lane borders and never leaves the image; if a guard fits nowhere without touching a
+line (very long guard in a tight layout) it is drawn on the best remaining spot with its halo.
+
 ==== Limits
 
 A node that the layout places inside a region frame in a diagram without partitions, or in a diagram flowing sideways,
