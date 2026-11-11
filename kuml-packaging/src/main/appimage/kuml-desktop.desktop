@@ -1,0 +1,9 @@
+[Desktop Entry]
+Type=Application
+Name=kUML Desktop
+Comment=UML/SysML v2 modelling with AI
+Exec=kuml-desktop
+Icon=kuml-desktop
+Terminal=false
+Categories=Development;
+X-AppImage-Version=@VERSION@

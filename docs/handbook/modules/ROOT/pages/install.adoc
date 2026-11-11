@@ -96,6 +96,25 @@ The release pipeline now builds the package so that its post-install script link
 to `kuml`. arm64 is not covered. The RPM of the CLI does not create the `/usr/bin/kuml` link; call
 `/opt/kuml/bin/kuml` there.
 
+=== AppImage (Linux desktop app, x86_64 only)
+
+The desktop app is also published as a single-file AppImage that runs on most x86_64 Linux distributions
+without installation. Download `kuml-desktop-<version>-x86_64.AppImage` from the GitHub Releases page, then:
+
+----
+chmod +x kuml-desktop-<version>-x86_64.AppImage
+./kuml-desktop-<version>-x86_64.AppImage
+----
+
+* The AppImage needs FUSE. If it does not start (containers, some minimal systems), run it with
+  `./kuml-desktop-<version>-x86_64.AppImage --appimage-extract-and-run`. The usual causes are a missing FUSE kernel
+  module or `fusermount` binary, or no FUSE support inside a container.
+* x86_64 only; there is no arm64 build.
+* There are no automatic updates (no zsync update information) and no menu integration; the file installs no
+  desktop entry. Tools such as AppImageLauncher can add one.
+* The AppImage is built by the release pipeline from the first release after this change on; it is not attached to
+  earlier releases unless the maintainer backfills it.
+
 === SDKMAN! (coming soon)
 
 SDKMAN! is the JVM-ecosystem package manager (`kotlin`, `gradle`, `maven`, `springboot`, …).

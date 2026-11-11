@@ -6,6 +6,30 @@ All notable changes to this project are documented here. Format follows
 
 ## [Unreleased]
 
+### Nacharbeit 77: AppImage of the desktop app (Linux x86_64) in the release pipeline
+
+**Why.** Linux users had only DEB/RPM; there was no distro-independent desktop package.
+
+**Change.** New job `build-appimage` in `release-installers.yml` (runs in parallel to `build-linux`, also via
+`workflow_dispatch` for an existing tag). It builds `:kuml-desktop:createDistributable`, wraps the result with
+`kuml-packaging/src/main/appimage/` (`AppRun`, `.desktop` template, `build-appimage.sh`, `smoke-appimage.sh`), runs a
+smoke test and attaches `kuml-desktop-<version>-x86_64.AppImage` to the release. appimagetool 1.9.1 and the
+type2-runtime 20251108 are pinned by URL and SHA-256 (the runtime is passed with `--runtime-file`, so nothing is
+downloaded unpinned). A second sparse checkout of the workflow's own commit supplies the scripts when an old tag is
+dispatched. README and install handbook document it.
+
+**Verification.** Run locally: `./gradlew clean check --no-build-cache --rerun-tasks` (BUILD SUCCESSFUL in 20m 1s, 1994 tasks executed), `actionlint` on the workflow (clean), `shellcheck` on all scripts (clean), a stub dry
+run of `build-appimage.sh` with a fake appimagetool (AppDir layout, `@VERSION@` substitution, `--runtime-file` and
+`ARCH=x86_64` arguments, AppRun mode 755; versions `v1.2.3` and `1.2.3;rm` and a missing launcher are rejected).
+
+**Not verified.** The AppImage was not built or started on this macOS machine; `desktop-file-validate` did not run
+locally. The GUI smoke runs only in CI and proves only that the process is still alive after 20 s. The real proof
+is the GitHub Actions run after the push (`workflow_dispatch` with the tag input), which the maintainer triggers.
+Not tested on real distributions (glibc range unknown).
+
+**Not fixed.** No arm64, no zsync/update information, no AppStream metainfo, no `StartupWMClass`, no GPG signature
+for the AppImage, no menu integration. The `tag` input is still interpolated directly in `build-linux`.
+
 ### Nacharbeit 76: parallel C4 relationships are all drawn, `note()` scope hint
 
 **Why.** Several `relationship(a, b)` calls between the same two elements all got the id `rel::a->b`. Every ID-keyed

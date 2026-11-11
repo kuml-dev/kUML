@@ -144,6 +144,9 @@ flows and a stroke-width pulse highlights each active task. Rendered by `BpmnSmi
 `echo "deb [signed-by=/usr/share/keyrings/kuml.gpg] https://apt.kuml.dev stable main" \| sudo tee /etc/apt/sources.list.d/kuml.list`, then
 `sudo apt update && sudo apt install kuml` (CLI) or `sudo apt install kuml-desktop` (desktop app; the desktop package is available from the first release built with the Linux desktop packages).
 
+| *AppImage* (Linux desktop app, x86_64 only)
+| Download `kuml-desktop-<version>-x86_64.AppImage` from the GitHub Releases page, then `chmod +x kuml-desktop-<version>-x86_64.AppImage && ./kuml-desktop-<version>-x86_64.AppImage`. Needs FUSE; if it does not start (containers, minimal systems), run it with `--appimage-extract-and-run`. Available from the first release built after this change (not attached to earlier releases unless backfilled).
+
 | *Docker*
 | `docker pull ghcr.io/kuml-dev/kuml-cli:<version>` — minimal CLI image.
 

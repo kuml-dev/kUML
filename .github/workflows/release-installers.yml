@@ -6,14 +6,14 @@ on:
     tags:
       - 'v*.*.*'
   # Manual run for an existing tag: builds only the Linux packages (DEB/RPM of the
-  # CLI and of the desktop app) from that tag and attaches them to its release
+  # CLI and of the desktop app, and the desktop AppImage) from that tag and attaches them to its release
   # (no Docker push, no DMG/MSI). The DEB smoke test is skipped here: it checks the
   # PATH symlink and desktop shortcut, which tags released before those changes
   # (up to v0.56.0) do not contain, so it would fail the backfill.
   workflow_dispatch:
     inputs:
       tag:
-        description: "Existing release tag to build the CLI and desktop DEB/RPM for (e.g. v0.56.0)"
+        description: "Existing release tag to build the CLI and desktop DEB/RPM and the desktop AppImage for (e.g. v0.56.0)"
         required: true
 
 jobs:
@@ -149,6 +149,147 @@ jobs:
           VERSION="${GITHUB_REF_NAME#v}"
           docker push ghcr.io/kuml-dev/kuml-cli:latest
           docker push ghcr.io/kuml-dev/kuml-cli:"$VERSION"
+
+  # ── Linux: AppImage of the desktop app (x86_64) ─────────────────────────────
+  build-appimage:
+    # ubuntu-22.04 instead of ubuntu-latest: AppImage guidance is to build on the
+    # oldest supported base so the image runs on more systems (glibc). No native
+    # code is compiled here; the bundled JRE (Temurin) and the Skiko libraries
+    # bring their own glibc requirement, so the runner choice mainly affects the
+    # appimagetool/runtime step. Replace when GitHub retires the 22.04 image.
+    runs-on: ubuntu-22.04
+    permissions:
+      contents: write  # gh release upload only
+    env:
+      APPIMAGETOOL_URL: https://github.com/AppImage/appimagetool/releases/download/1.9.1/appimagetool-x86_64.AppImage
+      APPIMAGETOOL_SHA256: ed4ce84f0d9caff66f50bcca6ff6f35aae54ce8135408b3fa33abfc3cb384eb0
+      APPIMAGE_RUNTIME_URL: https://github.com/AppImage/type2-runtime/releases/download/20251108/runtime-x86_64
+      APPIMAGE_RUNTIME_SHA256: 2fca8b443c92510f1483a883f60061ad09b46b978b2631c807cd873a47ec260d
+    steps:
+      # The code to package (the release tag).
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.inputs.tag || github.ref }}
+      # The AppImage scripts from the workflow's own commit: an old tag checked out
+      # by a manual dispatch does not contain them.
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.sha }}
+          path: .appimage-tooling
+          sparse-checkout: kuml-packaging/src/main/appimage
+
+      - uses: actions/setup-java@v4
+        with:
+          java-version: '21'
+          distribution: 'temurin'
+      - name: Set up Node.js (kuml-web frontend build, Vite requires ^20.19 or >=22.12)
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Install AppImage smoke-test tools
+        run: sudo apt-get update && sudo apt-get install -y desktop-file-utils xvfb
+
+      - name: Resolve version
+        id: ver
+        shell: bash
+        env:
+          INPUT_TAG: ${{ github.event.inputs.tag }}
+          REF_NAME: ${{ github.ref_name }}
+        run: |
+          set -euo pipefail
+          TAG="${INPUT_TAG:-$REF_NAME}"
+          if ! [[ "$TAG" =~ ^v[0-9]+\.[0-9]+\.[0-9]+([-.][0-9A-Za-z.]+)?$ ]]; then
+            echo "::error::invalid tag '$TAG'"
+            exit 1
+          fi
+          echo "tag=$TAG" >> "$GITHUB_OUTPUT"
+          echo "version=${TAG#v}" >> "$GITHUB_OUTPUT"
+
+      - name: Build desktop app image
+        run: ./gradlew :kuml-desktop:createDistributable
+
+      - name: Check Gradle version against the tag (warning only)
+        shell: bash
+        env:
+          VERSION: ${{ steps.ver.outputs.version }}
+        run: |
+          GRADLE_VERSION="$(./gradlew -q properties | sed -n 's/^version: //p' | head -1)"
+          if [ "$GRADLE_VERSION" != "$VERSION" ]; then
+            echo "::warning::build.gradle.kts version '$GRADLE_VERSION' differs from the tag version '$VERSION'"
+          fi
+
+      - name: Download pinned appimagetool and runtime (SHA-256 verified)
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p "$RUNNER_TEMP/appimage-tools"
+          cd "$RUNNER_TEMP/appimage-tools"
+          curl -fsSL --retry 3 -o appimagetool "$APPIMAGETOOL_URL"
+          curl -fsSL --retry 3 -o runtime-x86_64 "$APPIMAGE_RUNTIME_URL"
+          echo "$APPIMAGETOOL_SHA256  appimagetool" | sha256sum -c -
+          echo "$APPIMAGE_RUNTIME_SHA256  runtime-x86_64" | sha256sum -c -
+          chmod +x appimagetool
+
+      - name: Build AppImage
+        shell: bash
+        env:
+          APPIMAGE_EXTRACT_AND_RUN: "1"
+          VERSION: ${{ steps.ver.outputs.version }}
+        run: |
+          set -euo pipefail
+          mkdir -p build/appimage
+          APPIMAGETOOL="$RUNNER_TEMP/appimage-tools/appimagetool" \
+          APPIMAGE_RUNTIME="$RUNNER_TEMP/appimage-tools/runtime-x86_64" \
+          bash .appimage-tooling/kuml-packaging/src/main/appimage/build-appimage.sh \
+            kuml-desktop/build/compose/binaries/main/app/kuml-desktop \
+            kuml-desktop/src/jvmMain/resources/icons/kuml-desktop.png \
+            "$VERSION" \
+            "build/appimage/kuml-desktop-$VERSION-x86_64.AppImage"
+
+      - name: Smoke test AppImage
+        shell: bash
+        env:
+          SMOKE_GUI: "1"
+          VERSION: ${{ steps.ver.outputs.version }}
+        run: |
+          bash .appimage-tooling/kuml-packaging/src/main/appimage/smoke-appimage.sh \
+            "build/appimage/kuml-desktop-$VERSION-x86_64.AppImage" "$VERSION"
+
+      - name: Upload AppImage
+        uses: actions/upload-artifact@v4
+        with:
+          name: linux-appimage
+          path: build/appimage/*.AppImage
+          if-no-files-found: error
+
+      - name: Attach AppImage to the GitHub Release
+        # Same wait loop as build-linux: release.yml creates the Release in
+        # parallel for the same tag.
+        shell: bash
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAG: ${{ steps.ver.outputs.tag }}
+        run: |
+          shopt -s nullglob
+          FILES=(build/appimage/*.AppImage)
+          if [ "${#FILES[@]}" -ne 1 ]; then
+            echo "::error::expected exactly one AppImage in build/appimage (got ${#FILES[@]})"
+            exit 1
+          fi
+          for attempt in $(seq 1 30); do
+            if gh release view "$TAG" >/dev/null 2>&1; then
+              if gh release upload "$TAG" "${FILES[@]}" --clobber; then
+                exit 0
+              fi
+              echo "::warning::gh release upload attempt $attempt failed for $TAG"
+            else
+              echo "Release $TAG does not exist yet (attempt $attempt/30)"
+            fi
+            sleep 30
+          done
+          echo "::error::could not attach the AppImage to release $TAG"
+          exit 1
 
   # ── macOS: DMG (unsigned — Phase 2 adds Apple Developer signing) ─────────────
   build-macos:

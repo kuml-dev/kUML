@@ -1,0 +1,5 @@
+#!/bin/sh
+# AppImage entry point: starts the jpackage launcher of kUML Desktop.
+set -e
+HERE="$(dirname "$(readlink -f "$0")")"
+exec "$HERE/opt/kuml-desktop/bin/kuml-desktop" "$@"
