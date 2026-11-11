@@ -1633,6 +1633,16 @@ ends are visible; the matching rows leave the feature compartment. Blocks show `
 * **Value and enumeration types need no `include`:** an attribute typed by an attribute definition or an enumeration
   already shows type, value and unit in its line, so kUML draws no edge from the block to the type. Include the type only
   when you want its own box in the diagram.
+* **Enumeration literals inline:** when the enumeration type of an attribute is *not* in the diagram, its literals are
+  shown after the type, `mode : Mode {Off | On | Standby}`, before the multiplicity and the default. At most four literals
+  are listed, the rest as `+N` (`{A | B | C | D | +3}`); long literals are clipped. If the enumeration is `include`d, its own
+  box shows the literals and the line stays `mode : Mode`. Without a diagram nothing is added. The box width grows with
+  the line. The notation `{0..10 V}` is reserved for a future range type (never `[ ]`, which is the multiplicity); ranges are
+  not supported yet, use two attributes (minimum, maximum) or prose.
+* **Derived attributes:** `attribute("total", mass.id, derived = true)` is shown with a leading slash, `/total : Mass`,
+  and printed back as `derived = true`.
+* **External blocks:** `partDef("Supplier", external = true) { ... }` is drawn with the stereotype `<<part def, external>>`
+  (also in the LaTeX export) and printed back as `external = true`.
 * **Action definitions** in a BDD are blocks with `<<action def>>`. An `allocate` edge docks at the line of the
   allocated action in the `actions` compartment of the target block when the flow is `Right` or `Left`.
 * **Roles and multiplicities:** the role name of a composition or reference is a label in the middle of the line (placed

@@ -6,6 +6,41 @@ All notable changes to this project are documented here. Format follows
 
 ## [Unreleased]
 
+### Nacharbeit 72: BDD compact enum literals, derived marker, external block stereotype (items b, g1, g2; e and g3 not fixed)
+
+**Why.** Reproduced with a generic fixture (partDef with attributes typed by a not-included enumeration, an included one, a
+derived attribute, an external block, an attribute definition with unit). (b) An attribute typed by an enumeration whose box
+is not in the diagram showed only the type name, the reader could not see the possible values. (g1) There was no way to mark
+an attribute as derived (`/name`). (g2) There was no way to mark a block as external. (e) range type and (g3) parametrizable
+attribute are gaps in the metamodel (see Not fixed).
+
+**Change.** (b) `BddProjection.drawnDefinitionIds` (the ids of `diagram.elementIds`); `sysml2BddBoxContent` appends
+` {A | B | C}` after the type when the type is an enumeration with literals that is not drawn: at most 4 literals, then
+`| +N`, each literal clipped to 16 characters, order `name : Type {..} [mult] = default`. Pure helper
+`compactLiteralSuffix`. No projection (no diagram) means no literals. The layout bridge already measures
+`featureLines`, so the box widens automatically. (g1) `attribute(..., derived = true)` on all three overloads stores the
+metadata flag `kuml.derived`; the BDD line starts with `/`; `Sysml2DslPrinter` prints `derived = true`. (g2)
+`partDef(..., external = true)` stores `kuml.external`; the stereotype is `<<part def, external>>`; shared function
+`bddStereotype` is used by the SVG renderer, the layout bridge width, and the LaTeX renderer, so they cannot drift;
+`Sysml2DslPrinter` prints `external = true`. Handbook: `sysml2.adoc` (block definition diagrams). Reserved notation for a
+future range type: `{0..10 V}` after the type (never `[ ]`, which is the multiplicity).
+
+**Verification.** New tests: `BddEnumLiteralDisplayTest` (literal display, included enum, no projection, `+N`, empty enum,
+default and multiplicity order, `compactLiteralSuffix`, stereotype, printer output, JSON round trip of both flags),
+`Sysml2BddValueWidthTest` (box width covers the literal line and the external stereotype),
+`Sysml2BddExternalStereotypeTest` (SVG text). Text and width relations only, no pixel comparison. Full local check (`clean check detekt ktlintCheck`,
+no build cache) green, LaTeX skip guard passed.
+
+**Not verified.** Intel Mac, Windows, a real desktop MCP run. Evaluating a printed script back into a model (only the
+printed text is checked, plus the JSON round trip). Other places that draw `<<part def>>` (REQ compact box, IBD) were not
+touched and do not show `external`.
+
+**Not fixed.** (e) range type: `AttributeDefinition` has only `unit`; a real fix needs a metamodel field, DSL parameter,
+printer, validation and serialization. Workaround: two attributes or prose. (g3) parametrizable attribute: no notation in
+SysML 2 / UML, semantics unclear. Drawing enumeration or value type boxes that are not `include`d (projection change, per
+design decision). The printer still drops `default` / `defaultLiteral` of attributes (existing TODO). The presentation
+repo SVG copy was not run.
+
 ### Nacharbeit 71: activity diagrams: aspect-ratio report measured on the final image, note dog-ear proven (items i, j)
 
 **Why.** Reproduced with a generic fixture (3 lanes, 6 actions, 3 notes including a `NoteKind.WARNING`, `layout { aspectRatio = 1.6 }`)

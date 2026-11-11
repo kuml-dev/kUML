@@ -45,6 +45,8 @@ data class BddProjection(
     val drawnCalcs: Set<String> = emptySet(),
     /** Ids of the analyses whose subject is drawn as a dashed edge (wave 2I-b); they have no `subject` compartment line. */
     val drawnSubjects: Set<String> = emptySet(),
+    /** Ids of the definitions whose box is in the diagram (`diagram.elementIds`); an enum type outside shows its literals inline. */
+    val drawnDefinitionIds: Set<String> = emptySet(),
 ) {
     companion object {
         const val MAX_COMPARTMENT_LINES: Int = 20
@@ -190,6 +192,7 @@ fun sysml2BddProjection(
         flowsByDef = flows,
         drawnCalcs = drawnCalcs,
         drawnSubjects = drawnSubjects,
+        drawnDefinitionIds = visible,
     )
 }
 

@@ -2,15 +2,18 @@ package dev.kuml.sysml2.projection
 
 import dev.kuml.core.model.KumlMetaValue
 import dev.kuml.kerml.KermlFeature
+import dev.kuml.sysml2.ActionDefinition
 import dev.kuml.sysml2.AnalysisCaseDefinition
 import dev.kuml.sysml2.AttributeDefinition
 import dev.kuml.sysml2.CalcParameter
 import dev.kuml.sysml2.CalcParameterDirection
 import dev.kuml.sysml2.CalculationDefinition
+import dev.kuml.sysml2.ConnectionDefinition
 import dev.kuml.sysml2.EnumerationDefinition
 import dev.kuml.sysml2.FlowPropertyUsage
 import dev.kuml.sysml2.PartDefinition
 import dev.kuml.sysml2.PartUsage
+import dev.kuml.sysml2.PortDefinition
 import dev.kuml.sysml2.PortDirection
 import dev.kuml.sysml2.PortUsage
 import dev.kuml.sysml2.Sysml2Definition
@@ -137,7 +140,7 @@ fun sysml2BddBoxContent(
     for (f in def.features) {
         if (f.id in hidden) continue
         val usage = model.usages.firstOrNull { it.id == f.id }
-        full += formatFeature(f = f, usage = usage, withDefault = true, model = model)
+        full += formatFeature(f = f, usage = usage, withDefault = true, model = model, drawnIds = projection?.drawnDefinitionIds)
     }
     if (def is AttributeDefinition && def.unit != null) {
         full += "unit = ${def.unit}"
@@ -262,6 +265,60 @@ const val DEFAULT_LITERAL_META_KEY: String = "kuml.defaultLiteral"
 /** True when [metadata] carries the [DEFAULT_LITERAL_META_KEY] flag. */
 fun isDefaultLiteral(metadata: Map<String, KumlMetaValue>): Boolean = metadata[DEFAULT_LITERAL_META_KEY] == KumlMetaValue.Flag(value = true)
 
+/** Metadata key marking a derived attribute (`derived = true`), displayed with a leading `/`. */
+const val DERIVED_META_KEY: String = "kuml.derived"
+
+/** True when [metadata] carries the [DERIVED_META_KEY] flag. */
+fun isDerived(metadata: Map<String, KumlMetaValue>): Boolean = metadata[DERIVED_META_KEY] == KumlMetaValue.Flag(value = true)
+
+/** Metadata key marking an external block (`partDef(external = true)`), shown as `«part def, external»`. */
+const val EXTERNAL_META_KEY: String = "kuml.external"
+
+/** True when [metadata] carries the [EXTERNAL_META_KEY] flag. */
+fun isExternal(metadata: Map<String, KumlMetaValue>): Boolean = metadata[EXTERNAL_META_KEY] == KumlMetaValue.Flag(value = true)
+
+/**
+ * Stereotype text of a BDD box (without the guillemets). Shared by the SVG renderer and the layout bridge so that box
+ * width and drawn text can not drift apart.
+ */
+fun bddStereotype(def: Sysml2Definition): String {
+    val base =
+        when (def) {
+            is EnumerationDefinition -> "enumeration"
+            is ActionDefinition -> "action def"
+            is AttributeDefinition -> "attribute def"
+            is PortDefinition -> "port def"
+            is ConnectionDefinition -> "connection def"
+            is CalculationDefinition -> "calc def"
+            is AnalysisCaseDefinition -> "analysis def"
+            else -> "part def"
+        }
+    return if (def is PartDefinition && isExternal(metadata = def.metadata)) "$base, external" else base
+}
+
+/** Maximum number of enumeration literals shown in the compact `{A | B | C}` suffix. */
+const val BDD_LITERAL_MAX: Int = 4
+
+/** Maximum characters of one literal in the compact suffix (hostile input); longer literals end with an ellipsis. */
+const val BDD_LITERAL_CHAR_CAP: Int = 16
+
+/**
+ * Compact literal list `" {A | B | C}"` (leading space) for an attribute typed by an enumeration whose own box is not
+ * drawn. At most [max] literals, then `| +N` for the rest. Empty string for an empty list.
+ */
+fun compactLiteralSuffix(
+    literals: List<String>,
+    max: Int = BDD_LITERAL_MAX,
+): String {
+    if (literals.isEmpty()) return ""
+
+    fun clip(l: String): String = if (l.length > BDD_LITERAL_CHAR_CAP) l.take(BDD_LITERAL_CHAR_CAP) + "…" else l
+    val shown = literals.take(max).map { clip(l = it) }
+    val rest = literals.size - shown.size
+    val body = if (rest > 0) (shown + "+$rest").joinToString(separator = " | ") else shown.joinToString(separator = " | ")
+    return " {$body}"
+}
+
 /** Non-breaking space between a number and its unit (wave 2E-b); display only, never stored. */
 const val NBSP: Char = '\u00A0'
 
@@ -293,6 +350,7 @@ private fun formatFeature(
     usage: Any?,
     withDefault: Boolean,
     model: Sysml2Model,
+    drawnIds: Set<String>?,
 ): String {
     var type = f.typeId ?: "?"
     var prefix = ""
@@ -315,7 +373,11 @@ private fun formatFeature(
         } else {
             ""
         }
-    return "$prefix${f.name} : $type$multSuffix$defaultSuffix"
+    val enumDef = model.definitions.firstOrNull { it.id == f.typeId } as? EnumerationDefinition
+    val literalSuffix =
+        if (drawnIds != null && enumDef != null && f.typeId !in drawnIds) compactLiteralSuffix(literals = enumDef.literals) else ""
+    val slash = if (isDerived(metadata = f.metadata)) "/" else ""
+    return "$prefix$slash${f.name} : $type$literalSuffix$multSuffix$defaultSuffix"
 }
 
 /**

@@ -12,9 +12,11 @@ import dev.kuml.sysml2.projection.DEFAULT_LITERAL_META_KEY
 import dev.kuml.sysml2.projection.NBSP
 import dev.kuml.sysml2.projection.ibdPartAttributes
 import dev.kuml.sysml2.projection.sysml2BddBoxContent
+import dev.kuml.sysml2.projection.sysml2BddProjection
 import io.kotest.core.spec.style.FunSpec
 import io.kotest.matchers.collections.shouldContain
 import io.kotest.matchers.comparables.shouldBeGreaterThan
+import io.kotest.matchers.comparables.shouldBeGreaterThanOrEqualTo
 import io.kotest.matchers.comparables.shouldBeLessThanOrEqualTo
 import io.kotest.matchers.shouldBe
 import io.kotest.matchers.shouldNotBe
@@ -111,5 +113,24 @@ class Sysml2BddValueWidthTest :
                     partDef(name = "K") { attribute(name = "z", typeId = num.id, default = 2.0) }
                 }
             Json.encodeToString(Sysml2Model.serializer(), numericOnly) shouldNotContain DEFAULT_LITERAL_META_KEY
+        }
+
+        test("Nacharbeit 72: a literal suffix and the external stereotype widen the box") {
+            val model =
+                sysml2Model(name = "L") {
+                    val mode = enumerationDef(name = "Mode") { literal("LongLiteralOne") }
+                    partDef(name = "Kennwert", external = true) { attribute(name = "m", typeId = mode.id) }
+                    bdd(name = "BDD") { includeById(id = "Kennwert") }
+                }
+            val bdd = model.diagrams.filterIsInstance<BdDiagram>().single()
+            val def = model.definitions.single { it.id == "Kennwert" }
+            val content =
+                sysml2BddBoxContent(model = model, def = def, projection = sysml2BddProjection(model = model, diagram = bdd))
+            content.featureLines shouldBe listOf("m : Mode {LongLiteralOne}")
+            val width = widthOf(model)
+            val lineW = content.featureLines.maxOf { it.length } * Sysml2LayoutBridge.BDD_BODY_CHAR_PX
+            val stereoW = "«part def, external»".length * Sysml2LayoutBridge.IBD_STEREO_CHAR_PX
+            width shouldBeGreaterThanOrEqualTo (lineW + 2 * Sysml2LayoutBridge.IBD_H_PAD)
+            width shouldBeGreaterThanOrEqualTo (stereoW + 2 * Sysml2LayoutBridge.IBD_H_PAD)
         }
     })

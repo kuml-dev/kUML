@@ -71,6 +71,8 @@ import dev.kuml.sysml2.UcDiagram
 import dev.kuml.sysml2.UseCaseDefinition
 import dev.kuml.sysml2.UseCaseUsage
 import dev.kuml.sysml2.durationLiteral
+import dev.kuml.sysml2.projection.isDerived
+import dev.kuml.sysml2.projection.isExternal
 
 /**
  * Pretty-prints a [Sysml2Model] as a `*.kuml.kts` source string.
@@ -314,6 +316,7 @@ public object Sysml2DslPrinter {
         when (def) {
             is PartDefinition -> {
                 if (def.isAbstract) args += "isAbstract = true"
+                if (isExternal(metadata = def.metadata)) args += "external = true"
                 appendSpecializesArg(def = def, builderName = "partDef", args = args, todos = todos)
                 printDefCall(sb = sb, fnName = "partDef", varName = varName, args = args, todos = todos) { body ->
                     printNestedFeatures(sb = body, def = def, model = model)
@@ -693,6 +696,7 @@ public object Sysml2DslPrinter {
                 is AttributeUsage -> {
                     val args = mutableListOf("name = ${quote(usage.name)}", "typeId = ${quote(usage.definitionId)}")
                     multiplicityExpr(usage.multiplicity)?.let { args += "multiplicity = $it" }
+                    if (isDerived(metadata = usage.metadata)) args += "derived = true"
                     sb.appendLine("$indent attribute(${args.joinToString(", ")})")
                     if (usage.defaultExpression != null) {
                         sb.appendLine(

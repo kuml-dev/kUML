@@ -94,6 +94,8 @@ import dev.kuml.sysml2.UseCaseDefinition
 import dev.kuml.sysml2.UseCaseUsage
 import dev.kuml.sysml2.parseTimerInstant
 import dev.kuml.sysml2.projection.DEFAULT_LITERAL_META_KEY
+import dev.kuml.sysml2.projection.DERIVED_META_KEY
+import dev.kuml.sysml2.projection.EXTERNAL_META_KEY
 import dev.kuml.sysml2.projection.Sysml2PathResolver
 import dev.kuml.sysml2.units.UnitValue
 import kotlin.time.Duration
@@ -165,6 +167,7 @@ class Sysml2ModelBuilder(
         id: String = name,
         isAbstract: Boolean = false,
         specializesId: String? = null,
+        external: Boolean = false,
         block: DefinitionBuilder.() -> Unit = {},
     ): PartDefinition {
         val builder = DefinitionBuilder(parentId = id, modelBuilder = this).apply(block)
@@ -179,6 +182,7 @@ class Sysml2ModelBuilder(
                 constraints = builder.constraints(),
                 performs = builder.performs(),
                 exhibits = builder.exhibits(),
+                metadata = if (external) mapOf(EXTERNAL_META_KEY to KumlMetaValue.Flag(value = true)) else emptyMap(),
             )
         definitions += def
         return def
@@ -2577,6 +2581,15 @@ class DefinitionBuilder internal constructor(
     private val collectedConstraints = mutableListOf<dev.kuml.uml.UmlConstraint>()
     private var constraintCounter = 0
 
+    private fun attributeMetadata(
+        literal: Boolean,
+        derived: Boolean,
+    ): Map<String, KumlMetaValue> =
+        buildMap {
+            if (literal) put(DEFAULT_LITERAL_META_KEY, KumlMetaValue.Flag(value = true))
+            if (derived) put(DERIVED_META_KEY, KumlMetaValue.Flag(value = true))
+        }
+
     /**
      * Declare an attribute-usage: `mass : Mass = 1500[kg]`.
      *
@@ -2588,6 +2601,7 @@ class DefinitionBuilder internal constructor(
         typeId: String,
         multiplicity: KermlMultiplicity = KermlMultiplicity.EXACTLY_ONE,
         default: UnitValue? = null,
+        derived: Boolean = false,
     ): AttributeUsage {
         val qn = "$parentId::$name"
         val usage =
@@ -2598,6 +2612,7 @@ class DefinitionBuilder internal constructor(
                 definitionId = typeId,
                 multiplicity = multiplicity,
                 defaultExpression = default?.toSpecForm(),
+                metadata = attributeMetadata(literal = false, derived = derived),
             )
         collected += toFeature(usage = usage, typeId = typeId)
         modelBuilder.registerUsage(usage)
@@ -2614,6 +2629,7 @@ class DefinitionBuilder internal constructor(
         typeId: String,
         multiplicity: KermlMultiplicity = KermlMultiplicity.EXACTLY_ONE,
         default: Double,
+        derived: Boolean = false,
     ): AttributeUsage {
         val qn = "$parentId::$name"
         val usage =
@@ -2624,6 +2640,7 @@ class DefinitionBuilder internal constructor(
                 definitionId = typeId,
                 multiplicity = multiplicity,
                 defaultExpression = default.toString(),
+                metadata = attributeMetadata(literal = false, derived = derived),
             )
         collected += toFeature(usage = usage, typeId = typeId)
         modelBuilder.registerUsage(usage)
@@ -2636,6 +2653,7 @@ class DefinitionBuilder internal constructor(
         typeId: String,
         multiplicity: KermlMultiplicity = KermlMultiplicity.EXACTLY_ONE,
         defaultLiteral: String,
+        derived: Boolean = false,
     ): AttributeUsage {
         val qn = "$parentId::$name"
         val usage =
@@ -2646,7 +2664,7 @@ class DefinitionBuilder internal constructor(
                 definitionId = typeId,
                 multiplicity = multiplicity,
                 defaultExpression = defaultLiteral,
-                metadata = mapOf(DEFAULT_LITERAL_META_KEY to KumlMetaValue.Flag(value = true)),
+                metadata = attributeMetadata(literal = true, derived = derived),
             )
         collected += toFeature(usage = usage, typeId = typeId)
         modelBuilder.registerUsage(usage)
@@ -2914,7 +2932,7 @@ class DefinitionBuilder internal constructor(
             multiplicity = usage.multiplicity,
             defaultExpression = defaultExpr,
             // Only the verbatim-literal marker is shadowed; any other usage metadata stays on the usage.
-            metadata = usage.metadata.filterKeys { it == DEFAULT_LITERAL_META_KEY },
+            metadata = usage.metadata.filterKeys { it == DEFAULT_LITERAL_META_KEY || it == DERIVED_META_KEY },
         )
     }
 }

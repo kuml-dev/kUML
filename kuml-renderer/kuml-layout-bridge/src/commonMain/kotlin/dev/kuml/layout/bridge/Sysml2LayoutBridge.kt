@@ -68,6 +68,7 @@ import dev.kuml.sysml2.edge.IbdEdgeAdapter
 import dev.kuml.sysml2.edge.ReqEdgeAdapter
 import dev.kuml.sysml2.effectivePortDirection
 import dev.kuml.sysml2.projection.BddBoxGeometry
+import dev.kuml.sysml2.projection.bddStereotype
 import dev.kuml.sysml2.projection.sysml2BddBoxContent
 import dev.kuml.sysml2.projection.sysml2BddProjection
 import dev.kuml.sysml2.projection.sysml2IbdProjection
@@ -642,17 +643,7 @@ public object Sysml2LayoutBridge {
             if (flows.isNotEmpty()) h += EXTRA_COMPARTMENT_GAP + (flows.size + 1) * FEATURE_LINE_H
             val compartments = content?.compartments ?: emptyList()
             for (c in compartments) h += EXTRA_COMPARTMENT_GAP + (c.lines.size + 1) * FEATURE_LINE_H
-            val stereoW =
-                when (def) {
-                    is dev.kuml.sysml2.EnumerationDefinition -> "«enumeration»"
-                    is dev.kuml.sysml2.ActionDefinition -> "«action def»"
-                    is dev.kuml.sysml2.AttributeDefinition -> "«attribute def»"
-                    is dev.kuml.sysml2.PortDefinition -> "«port def»"
-                    is dev.kuml.sysml2.ConnectionDefinition -> "«connection def»"
-                    is dev.kuml.sysml2.CalculationDefinition -> "«calc def»"
-                    is dev.kuml.sysml2.AnalysisCaseDefinition -> "«analysis def»"
-                    else -> "«part def»"
-                }.length * IBD_STEREO_CHAR_PX
+            val stereoW = (def?.let { "«${bddStereotype(def = it)}»" } ?: "«part def»").length * IBD_STEREO_CHAR_PX
             val nameW = (def?.name?.length ?: 0) * IBD_TITLE_CHAR_PX
             val bodyMax =
                 ((content?.featureLines ?: emptyList()) + actions + flows).maxOfOrNull { it.length * BDD_BODY_CHAR_PX } ?: 0f

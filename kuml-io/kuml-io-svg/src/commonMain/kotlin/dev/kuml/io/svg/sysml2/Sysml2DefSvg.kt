@@ -22,6 +22,7 @@ import dev.kuml.sysml2.TestCaseDefinition
 import dev.kuml.sysml2.UseCaseDefinition
 import dev.kuml.sysml2.projection.BddBoxContent
 import dev.kuml.sysml2.projection.BddBoxGeometry
+import dev.kuml.sysml2.projection.bddStereotype
 import dev.kuml.sysml2.projection.sysml2BddBoxContent
 
 /**
@@ -53,7 +54,8 @@ internal fun renderSysml2Definition(
     context: Sysml2NodeContext? = null,
 ) {
     when (element) {
-        is PartDefinition -> renderBox(element = element, layout = layout, builder = builder, stereotype = "part def", context = context)
+        is PartDefinition ->
+            renderBox(element = element, layout = layout, builder = builder, stereotype = bddStereotype(def = element), context = context)
         is AttributeDefinition ->
             renderBox(
                 element = element,

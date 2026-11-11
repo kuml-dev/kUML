@@ -52,7 +52,9 @@ internal object Sysml2DefLatexRenderer {
     ) {
         val stereotype =
             when (definition) {
-                is PartDefinition -> "part def"
+                is PartDefinition ->
+                    dev.kuml.sysml2.projection
+                        .bddStereotype(def = definition)
                 is AttributeDefinition -> "attribute def"
                 is PortDefinition -> "port def"
                 is ConnectionDefinition -> "connection def"
