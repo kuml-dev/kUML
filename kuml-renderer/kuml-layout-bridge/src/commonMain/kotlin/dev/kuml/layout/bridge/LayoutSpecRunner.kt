@@ -482,7 +482,7 @@ public object LayoutSpecRunner {
      * An implicit target only corrects the over-stretched side (too wide when vertical, too tall when
      * horizontal). An explicit `aspectRatio` is missed on either side ([bothSides]).
      */
-    private fun isOffTarget(
+    internal fun isOffTarget(
         ratio: Double,
         target: Double,
         horizontal: Boolean,
@@ -670,4 +670,26 @@ public object LayoutSpecRunner {
         }
         return out
     }
+}
+
+/**
+ * Nacharbeit 71: `layout.aspectRatio` report for an activity diagram, measured on the FINAL image (swimlane columns,
+ * note columns and label overhang included) instead of the engine canvas the runner sees before the activity
+ * post-pass. Returns `null` when the target is met within [LayoutLimits.ASPECT_TOLERANCE] on either side.
+ * [hasNoteColumns] adds a hint, because notes beside the swimlanes widen the diagram.
+ */
+public fun actAspectFinding(
+    canvasWidth: Double,
+    canvasHeight: Double,
+    target: Double,
+    hasNoteColumns: Boolean,
+): LayoutSpecFinding? {
+    if (canvasWidth <= 0.0 || canvasHeight <= 0.0 || target <= 0.0) return null
+    val ratio = canvasWidth / canvasHeight
+    if (!LayoutSpecRunner.isOffTarget(ratio = ratio, target = target, horizontal = false, bothSides = true)) return null
+    val hint = if (hasNoteColumns) " (note columns beside the swimlanes widen the diagram)" else ""
+    return LayoutSpecFinding(
+        code = LayoutCodes.ASPECT_UNREACHED,
+        message = "layout.aspectRatio = $target could not be reached (actual ${kotlin.math.round(ratio * 100) / 100})$hint.",
+    )
 }

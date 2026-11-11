@@ -57,6 +57,7 @@ import dev.kuml.layout.bridge.SpecDiagramKind
 import dev.kuml.layout.bridge.Sysml2LayoutBridge
 import dev.kuml.layout.bridge.UmlContentSizeProvider
 import dev.kuml.layout.bridge.UmlLayoutBridge
+import dev.kuml.layout.bridge.actAspectFinding
 import dev.kuml.layout.bridge.bpmn.BpmnContentSizeProvider
 import dev.kuml.layout.bridge.bpmn.BpmnLayoutBridge
 import dev.kuml.layout.bridge.bpmn.ChoreographyGridLayout
@@ -1154,8 +1155,10 @@ internal object RenderPipeline {
                 //    midpoint of inter-layer arrows; the wider gap pushes them
                 //    out of the partition header band (24 px) underneath the
                 //    upstream partition's bottom edge.
-                val layoutResult: LayoutResult =
-                    layoutWithSpec(
+                // Nacharbeit 71: the runner measures the engine canvas, which swimlane columns and note columns change
+                // afterwards. Its ASPECT_UNREACHED is therefore dropped here and re-measured on the final image below.
+                val actOutcome =
+                    LayoutSpecRunner.layout(
                         engine = sysml2Engine,
                         graph = layoutGraph,
                         hints = Sysml2LayoutBridge.layoutHintsFor(model = model, diagram = diagram),
@@ -1163,6 +1166,22 @@ internal object RenderPipeline {
                         kind = SpecDiagramKind.SYSML2_ACT,
                         diagramName = diagram.name,
                     )
+                report(actOutcome.findings.filter { it.code != dev.kuml.core.model.layout.LayoutCodes.ASPECT_UNREACHED })
+                val layoutResult: LayoutResult = actOutcome.result
+                diagram.layout?.aspectRatio?.let { target ->
+                    val final =
+                        KumlSvgRenderer.actFinalCanvas(model = model, diagram = diagram, layoutResult = layoutResult, paddingPx = 64f)
+                    report(
+                        listOfNotNull(
+                            actAspectFinding(
+                                canvasWidth = final.width.toDouble(),
+                                canvasHeight = final.height.toDouble(),
+                                target = target,
+                                hasNoteColumns = final.hasNotes,
+                            ),
+                        ),
+                    )
+                }
                 // PAL 2F: a region frame that still overlaps a foreign node after the displacement rounds is reported as
                 // KUML-LAYOUT-W006 (the render itself still succeeds). Same normalisation the SVG renderer applies.
                 report(

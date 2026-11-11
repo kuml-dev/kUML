@@ -6,6 +6,35 @@ All notable changes to this project are documented here. Format follows
 
 ## [Unreleased]
 
+### Nacharbeit 71: activity diagrams: aspect-ratio report measured on the final image, note dog-ear proven (items i, j)
+
+**Why.** Reproduced with a generic fixture (3 lanes, 6 actions, 3 notes including a `NoteKind.WARNING`, `layout { aspectRatio = 1.6 }`)
+and the local installDist CLI, PNG at 1600 and 3200 px inspected. (i) The warning was wrong, not missing:
+`KUML-LAYOUT-W003` said "actual 0.28" while the drawn image is 1212 x 764 (1.59, target met). The runner measures the
+engine canvas; swimlane columns, orthogonal re-routing and note columns are added afterwards by the activity post-pass
+and the note placement, so the reported ratio had nothing to do with the image. The aspect target also has no effect on
+the final ACT image (same viewBox with and without it). (j) No note line touches or enters the fold of the dog-ear
+(WARNING note, all-caps line, wrapped long text all clear in the PNGs); this was already fixed by the earlier note
+waves (`H_PAD_RIGHT_DOG_EAR`, `NoteGeometryN45Test`).
+
+**Change.** (i) For activity diagrams the CLI drops the runner's `ASPECT_UNREACHED` and re-measures on the final image:
+`KumlSvgRenderer.actFinalCanvas` runs the same post-pass, note placement and label widening as `toSvg` (one shared
+helper) and returns size and a note flag; `actAspectFinding` (layout bridge) yields exactly one W003 only if the final
+ratio is off target by more than the tolerance on either side. With notes present the message ends with "(note columns
+beside the swimlanes widen the diagram)". Other diagram types keep their W003 text and measurement. (j) Test only.
+
+**Verification.** New tests: `ActAspectFindingTest` (one finding with target, actual value and hint; no hint without
+notes; target met emits nothing; too tall; degenerate input; dog-ear geometry for the three activity note bodies),
+`Sysml2ActFinalCanvasTest` (final canvas equals the drawn viewBox, note flag). CLI repro: target 1.6 now silent (1.59),
+target 3.0 gives one W003 "actual 1.59" with the hint. See the commit body for the suite results.
+
+**Not verified.** Intel Mac, Windows, a real desktop MCP run (kuml-desktop was not reachable, ECONNREFUSED).
+
+**Not fixed.** Reaching an aspect target in activity diagrams: it is not reachable while notes sit as columns beside the
+swimlanes and lanes are columns; the fix (notes placed inside the lane of their anchor, obstacle model P-COM-02/-03) is a
+larger redesign. The W003 message is now honest about it. Only the CLI path reports this; other front ends that call the
+runner for activity diagrams still see the engine-canvas ratio.
+
 ### Nacharbeit 70: activity diagrams: validation of fork and accept degrees (ACT316/317), final nodes entered from the side (items g, h)
 
 **Why.** Reproduced with generic fixtures and the local installDist CLI. (g) `kuml validate` accepted a fork with two

@@ -3091,6 +3091,57 @@ public object KumlSvgRenderer {
     }
 
     /**
+     * The final canvas of an activity diagram: swimlane columns, note columns and label overhang included, i.e. what
+     * [toSvg] draws, with [paddingPx] on both sides. The CLI uses it to report `layout.aspectRatio` against the real
+     * image instead of the engine's pre-post-pass canvas (Nacharbeit 71).
+     */
+    public fun actFinalCanvas(
+        model: Sysml2Model,
+        diagram: ActDiagram,
+        layoutResult: LayoutResult,
+        paddingPx: Float,
+    ): ActFinalCanvas {
+        val final =
+            actFinalLayout(
+                model = model,
+                diagram = diagram,
+                layoutResult = layoutResult,
+                adapter = ActEdgeAdapter(model = model, diagram = diagram),
+                padding = paddingPx,
+            )
+        return ActFinalCanvas(
+            width = final.canvas.width + 2 * paddingPx,
+            height = final.canvas.height + 2 * paddingPx,
+            hasNotes = sysml2NoteElements(model).isNotEmpty(),
+        )
+    }
+
+    private fun actFinalLayout(
+        model: Sysml2Model,
+        diagram: ActDiagram,
+        layoutResult: LayoutResult,
+        adapter: Sysml2EdgeAdapter,
+        padding: Float,
+    ): LayoutResult =
+        sysml2WidenForLabelOverhang(
+            // Wave 2F: swimlane columns, region clearance and orthogonal re-routing come first.
+            layoutResult =
+                Sysml2LayoutBridge.normalizeActLayout(model = model, diagram = diagram, layoutResult = layoutResult).let { normalized ->
+                    placeSysml2Notes(
+                        model = model,
+                        diagram = diagram,
+                        layout = normalized,
+                        adapter = adapter,
+                        // Nacharbeit 29: the strict rules (clearance, lanes, pin labels) apply to activity notes too.
+                        strictNotes = actStrictNotePolicy(model = model, layout = normalized),
+                        configure = actNoteObstacles(model = model, layout = normalized),
+                    )
+                },
+            sysml2EdgeAdapter = adapter,
+            padding = padding,
+        ).first
+
+    /**
      * Rendert ein SysML-2 ACT-Diagramm als SVG (V2.0.10).
      *
      * Wickelt das ACT in ein synthetisches [KumlDiagram] mit den sichtbaren
@@ -3151,27 +3202,10 @@ public object KumlSvgRenderer {
         // Widen the frame (and canvas) BEFORE the shape index / SvgDocument.render
         // below, so every subsequent step already sees the final geometry — see
         // sysml2WidenForLabelOverhang KDoc. Shadows the `layoutResult` parameter
-        // for the rest of this function (its own initializer still resolves to
-        // the un-widened parameter, standard Kotlin shadowing).
+        // for the rest of this function.
         @Suppress("NAME_SHADOWING")
         val layoutResult =
-            sysml2WidenForLabelOverhang(
-                // Wave 2F: swimlane columns, region clearance and orthogonal re-routing come first.
-                layoutResult =
-                    Sysml2LayoutBridge.normalizeActLayout(model = model, diagram = diagram, layoutResult = layoutResult).let { normalized ->
-                        placeSysml2Notes(
-                            model = model,
-                            diagram = diagram,
-                            layout = normalized,
-                            adapter = adapter,
-                            // Nacharbeit 29: the strict rules (clearance, lanes, pin labels) apply to activity notes too.
-                            strictNotes = actStrictNotePolicy(model = model, layout = normalized),
-                            configure = actNoteObstacles(model = model, layout = normalized),
-                        )
-                    },
-                sysml2EdgeAdapter = adapter,
-                padding = options.paddingPx,
-            ).first
+            actFinalLayout(model = model, diagram = diagram, layoutResult = layoutResult, adapter = adapter, padding = options.paddingPx)
 
         // V2.0.46: Index der Activity-Knoten-Formen für den Edge-Clipper.
         //          ELK liefert Edge-Endpunkte auf dem Rand der achsparallelen
@@ -6899,3 +6933,10 @@ private fun unusedImportSuppressor(
     a: NodeId,
     b: EdgeId,
 ) = Unit
+
+/** Final size of an activity diagram image (padding included) and whether it carries notes. */
+public data class ActFinalCanvas(
+    val width: Float,
+    val height: Float,
+    val hasNotes: Boolean,
+)
