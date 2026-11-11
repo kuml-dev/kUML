@@ -31,11 +31,11 @@ jobs:
           if command -v apt-get >/dev/null 2>&1; then
             export DEBIAN_FRONTEND=noninteractive
             apt-get update
-            apt-get install -y --no-install-recommends ca-certificates curl git xvfb desktop-file-utils \
+            apt-get install -y --no-install-recommends ca-certificates curl git xvfb xauth desktop-file-utils \
               util-linux procps libx11-6 libxext6 libxrender1 libxtst6 libxi6 libfreetype6 libfontconfig1
             apt-get install -y --no-install-recommends libasound2t64 || apt-get install -y --no-install-recommends libasound2
           else
-            dnf install -y ca-certificates curl git xorg-x11-server-Xvfb desktop-file-utils util-linux procps-ng \
+            dnf install -y ca-certificates curl git xorg-x11-server-Xvfb xorg-x11-xauth desktop-file-utils util-linux procps-ng \
               libX11 libXext libXrender libXtst libXi freetype fontconfig alsa-lib
           fi
 
