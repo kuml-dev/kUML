@@ -208,6 +208,11 @@ compose.desktop {
                 if (winIcon.exists()) iconFile.set(winIcon)
                 menuGroup = "kUML"
                 upgradeUuid = "C4F2B3D1-A1E5-4B8C-9D7F-6E3A2C8B4F1E"
+                // The MSI reports the real project version ("0.57.0") instead of the
+                // jpackage mapping ("57.0.0"); only macOS needs a first number of at
+                // least 1. Verified on a Windows runner (ProductVersion and
+                // "Apps and features" both show 0.56.0).
+                msiPackageVersion = project.version.toString()
             }
             linux {
                 val linuxIcon = file("src/jvmMain/resources/icons/kuml-desktop.png")

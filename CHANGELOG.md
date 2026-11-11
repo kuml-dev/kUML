@@ -6,6 +6,29 @@ All notable changes to this project are documented here. Format follows
 
 ## [Unreleased]
 
+### Nacharbeit 78: the desktop MSI carries the real project version
+
+**Why.** `versionForJpackage` maps `0.x.y` to `x.y.0` because macOS needs a first number of at least 1. The Windows MSI
+used the same mapping, so release 0.56.0 shipped an MSI that Windows and WinGet show as `56.0.0`. WinGet cannot match
+that to the package version `0.56.0`, and the scheme would break at 1.0.0 (`1.0.0` is lower than `99.0.0`).
+
+**Change.** `kuml-desktop/build.gradle.kts`: `windows { msiPackageVersion = project.version.toString() }`. macOS keeps
+the mapping.
+
+**Verification.** A manual Windows run (`test-msi-version.yml`, `windows-latest`) built the MSI with the change applied
+on the runner: the MSI property `ProductVersion` is `0.56.0`, a silent `msiexec /qn` install succeeds, and "Apps and
+features" shows `kuml-desktop 0.56.0`. The product code differs from the one of the `56.0.0` MSI.
+
+**Upgrade note.** Anyone who installed a desktop MSI older than this change (version `56.0.0` or lower numbers like
+`55.x.y`) must uninstall it once before installing the new one: Windows sees `0.57.0` as older than `56.0.0` and refuses to
+upgrade. This is a one-time break before 1.0.0.
+
+**Not verified.** An upgrade over an installed older MSI was not run; the refusal is derived from the MSI version
+ordering. The unchanged macOS DMG was not built.
+
+**Not fixed.** The Linux DEB/RPM already use the real version (Nacharbeit 75). The WinGet manifest of the staging repo
+still carries the old `56.0.0` entry for the existing 0.56.0 MSI.
+
 ### Nacharbeit 77: AppImage of the desktop app (Linux x86_64) in the release pipeline
 
 **Why.** Linux users had only DEB/RPM; there was no distro-independent desktop package.
