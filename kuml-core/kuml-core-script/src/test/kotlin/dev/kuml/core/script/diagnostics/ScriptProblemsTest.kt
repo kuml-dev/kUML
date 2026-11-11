@@ -48,6 +48,24 @@ class ScriptProblemsTest :
             }
         }
 
+        test("note() inside a softwareSystem block explains where to declare it") {
+            val ps =
+                problems(
+                    """
+                    c4Model(name = "M") {
+                        val x = softwareSystem(name = "X")
+                        val a = softwareSystem(name = "A") {
+                            note("text", x)
+                        }
+                    }
+                    """.trimIndent(),
+                )
+            val hint = ps.mapNotNull { it.hint }.firstOrNull()
+            withClue(ps.toString()) {
+                (hint?.contains("this@c4Model.note(") == true && hint.contains("Declare notes at model level")) shouldBe true
+            }
+        }
+
         test("a type mismatch names the enclosing call") {
             val p =
                 problems(

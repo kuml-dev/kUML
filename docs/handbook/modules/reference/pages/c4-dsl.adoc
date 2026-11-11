@@ -363,7 +363,9 @@ with white text so that they stand out from your own system.
 
 Relationship labels (`description` plus `technology`) wrap at 36 characters on word boundaries and are never
 shortened. They sit on a translucent background beside their line, and the diagram canvas grows with them.
-Two edges between the same two elements, for example a request and its answer, are drawn 24 px apart.
+Two or more edges between the same two elements, for example a request and its answer, are all drawn, 24 px apart.
+Every `relationship(...)` call between the same pair produces its own edge (the first keeps the id `rel::a->b`, later
+ones get `~2`, `~3`); none is merged away. Declaring the same relationship twice with identical properties draws it twice.
 
 === Layout block and relationships in a system block
 
@@ -371,4 +373,6 @@ Two edges between the same two elements, for example a request and its answer, a
 layout block), see xref:layout.adoc[layout]. A `relationship(...)` is declared at model level; inside the
 `softwareSystem { }` block call it with an explicit receiver, `this@c4Model.relationship(...)`. The scripts
 report this as "Declare relationships at model level, or call `this@c4Model.relationship(...)` inside the
-softwareSystem block."
+softwareSystem block." The same applies to `note(...)`: the hint reads "Declare notes at model level after the
+softwareSystem block, or call `this@c4Model.note(...)` inside it." Handles of containers declared inside the block are
+not visible outside it; reference them through `this@c4Model` calls inside the block instead.

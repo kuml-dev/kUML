@@ -418,4 +418,35 @@ class C4ModelBuilderTest :
             component.codeElements shouldHaveSize 1
             component.codeElements.first() shouldBe codeElements.first().id
         }
+
+        test(name = "DSL: parallel relationships between one pair get distinct ids, the first keeps the plain id") {
+            val model =
+                c4Model(name = "Test") {
+                    val a = person(name = "A")
+                    val b = softwareSystem(name = "B")
+                    relationship(source = a, target = b) { description = "One" }
+                    relationship(source = a, target = b) { description = "Two" }
+                    relationship(source = a, target = b) { description = "Three" }
+                }
+            val ids = model.relationships.map { it.id }
+            ids.toSet() shouldHaveSize 3
+            val first = ids.first()
+            first shouldBe "rel::" + model.relationships.first().source + "->" + model.relationships.first().target
+            ids[1] shouldBe "$first~2"
+            ids[2] shouldBe "$first~3"
+            model.relationships.map { it.description } shouldBe listOf("One", "Two", "Three")
+        }
+
+        test(name = "DSL: a single relationship keeps the plain id") {
+            val model =
+                c4Model(name = "Test") {
+                    val a = person(name = "A")
+                    val b = softwareSystem(name = "B")
+                    val c = softwareSystem(name = "C")
+                    relationship(source = a, target = b)
+                    relationship(source = a, target = c)
+                }
+            model.relationships.map { it.id }.none { it.contains("~") } shouldBe true
+            model.relationships.map { it.id }.toSet() shouldHaveSize 2
+        }
     })

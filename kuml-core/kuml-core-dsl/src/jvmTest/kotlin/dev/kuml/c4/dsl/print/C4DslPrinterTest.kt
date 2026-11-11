@@ -63,6 +63,23 @@ class C4DslPrinterTest :
             dsl shouldContain "description = \"Uses via API\""
         }
 
+        test("parallel relationships between the same pair are all printed in declaration order") {
+            val model =
+                c4Model(name = "Test") {
+                    val a = person(name = "A")
+                    val b = softwareSystem(name = "B")
+                    relationship(source = a, target = b) { description = "One" }
+                    relationship(source = a, target = b) { description = "Two" }
+                    relationship(source = a, target = b) { description = "Three" }
+                }
+            val dsl = C4DslPrinter.print(model)
+            Regex("""relationship\(""").findAll(dsl).count() shouldBe 3
+            val one = dsl.indexOf("description = \"One\"")
+            val two = dsl.indexOf("description = \"Two\"")
+            val three = dsl.indexOf("description = \"Three\"")
+            (one in 0 until two && two < three) shouldBe true
+        }
+
         test("nested container referenced by a relationship gets a lateinit var, unreferenced sibling does not") {
             lateinit var webAppRef: C4Container
             val model =

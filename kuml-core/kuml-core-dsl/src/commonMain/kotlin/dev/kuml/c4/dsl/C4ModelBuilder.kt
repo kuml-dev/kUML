@@ -179,7 +179,13 @@ class C4ModelBuilder(
         val scope = RelationshipScopeImpl()
         scope.apply(block)
 
-        val relationshipId = C4Ids.relationship(sourceId = source.id, targetId = target.id)
+        // Parallel relationships between the same pair must stay distinct: the first keeps the plain
+        // id, later ones get "~2", "~3", ... so that no ID-keyed lookup downstream collapses them.
+        val relationshipId =
+            C4Ids.disambiguate(
+                candidate = C4Ids.relationship(sourceId = source.id, targetId = target.id),
+                taken = relationships.map { it.id }.toSet(),
+            )
         val relationship =
             C4Relationship(
                 id = relationshipId,

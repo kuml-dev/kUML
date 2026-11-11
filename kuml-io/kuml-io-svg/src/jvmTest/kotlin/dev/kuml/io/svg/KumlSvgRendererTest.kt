@@ -4,9 +4,11 @@ import dev.kuml.c4.model.C4Container
 import dev.kuml.c4.model.C4Interaction
 import dev.kuml.c4.model.C4Model
 import dev.kuml.c4.model.C4Person
+import dev.kuml.c4.model.C4Relationship
 import dev.kuml.c4.model.C4SoftwareSystem
 import dev.kuml.c4.model.ContainerDiagram
 import dev.kuml.c4.model.DynamicDiagram
+import dev.kuml.c4.model.SystemContextDiagram
 import dev.kuml.core.model.DiagramType
 import dev.kuml.core.model.KumlDiagram
 import dev.kuml.core.model.PackageDiagramConfig
@@ -167,6 +169,51 @@ class KumlSvgRendererTest :
             containerRectCount shouldBe 2
 
             SampleOutput.write(filename = "c4/container-diagram-with-system-group.svg", content = svg)
+        }
+
+        test("KumlSvgRenderer draws every parallel C4 relationship between one pair with its label") {
+            val person = C4Person(id = "pa", name = "Alice")
+            val system = C4SoftwareSystem(id = "sb", name = "Shop")
+            val labels = listOf("One", "Two", "Three")
+            val rels =
+                labels.mapIndexed { i, label ->
+                    val id = "rel::pa->sb" + if (i == 0) "" else "~${i + 1}"
+                    C4Relationship(id = id, source = "pa", target = "sb", label = label, description = label)
+                }
+            val model = C4Model(id = "m", name = "Parallel", elements = listOf(person, system), relationships = rels)
+            val diagram =
+                SystemContextDiagram(
+                    id = "d",
+                    name = "Ctx",
+                    elements = listOf("pa", "sb"),
+                    relationships = rels.map { it.id },
+                )
+            val layoutResult =
+                LayoutResult(
+                    engineId = LayoutEngineId("test"),
+                    seed = null,
+                    canvas = Size(width = 400f, height = 400f),
+                    nodes =
+                        mapOf(
+                            NodeId("pa") to
+                                NodeLayout(bounds = Rect(origin = Point(x = 20f, y = 20f), size = Size(width = 300f, height = 60f))),
+                            NodeId("sb") to
+                                NodeLayout(bounds = Rect(origin = Point(x = 20f, y = 300f), size = Size(width = 300f, height = 60f))),
+                        ),
+                    edges =
+                        rels
+                            .mapIndexed { i, r ->
+                                val x = 80f + i * 100f
+                                EdgeId(r.id) to
+                                    EdgeRoute.Direct(source = Point(x = x, y = 80f), target = Point(x = x, y = 300f))
+                            }.toMap(),
+                    groups = emptyMap(),
+                )
+
+            val svg = KumlSvgRenderer.toSvg(diagram = diagram, model = model, layoutResult = layoutResult, theme = PlainTheme())
+
+            labels.forEach { Regex(">\\s*$it\\s*<").containsMatchIn(svg) shouldBe true }
+            "class=\"kuml-edge\"".toRegex().findAll(svg).count() shouldBe 3
         }
 
         test("KumlSvgRenderer renders a package diagram with folder tabs, names, and contained classes") {

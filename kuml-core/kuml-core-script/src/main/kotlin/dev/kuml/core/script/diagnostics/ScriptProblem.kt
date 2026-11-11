@@ -128,6 +128,8 @@ public object ScriptProblems {
         when {
             code == ScriptProblemCode.RECEIVER_SCOPE && fn == "relationship" ->
                 "Declare relationships at model level, or call `this@c4Model.relationship(...)` inside the softwareSystem block."
+            code == ScriptProblemCode.RECEIVER_SCOPE && fn == "note" ->
+                "Declare notes at model level after the softwareSystem block, or call `this@c4Model.note(...)` inside it."
             else -> null
         }
 

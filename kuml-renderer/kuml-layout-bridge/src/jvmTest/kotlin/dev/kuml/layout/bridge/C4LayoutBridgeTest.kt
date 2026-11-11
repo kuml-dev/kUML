@@ -68,6 +68,35 @@ class C4LayoutBridgeTest :
             edge.target.nodeId shouldBe NodeId("cB")
         }
 
+        test("C4LayoutBridge emits one edge per parallel relationship between the same pair") {
+            val containerA = C4Container(id = "cA", name = "Service A")
+            val containerB = C4Container(id = "cB", name = "Service B")
+            val rels =
+                listOf("rel::cA->cB", "rel::cA->cB~2", "rel::cA->cB~3").mapIndexed { i, id ->
+                    C4Relationship(id = id, source = "cA", target = "cB", label = "Call $i")
+                }
+            val model =
+                C4Model(
+                    id = "model",
+                    name = "Test Model",
+                    elements = listOf(containerA, containerB),
+                    relationships = rels,
+                )
+            val diagram =
+                ContainerDiagram(
+                    id = "diag1",
+                    name = "Container View",
+                    system = "sys1",
+                    elements = listOf("cA", "cB"),
+                    relationships = rels.map { it.id },
+                )
+
+            val graph = C4LayoutBridge.toLayoutGraph(diagram = diagram, model = model)
+
+            graph.edges shouldHaveSize 3
+            graph.edges.map { it.id }.toSet() shouldHaveSize 3
+        }
+
         test("C4LayoutBridge skips unresolvable relationship ids") {
             val containerA = C4Container(id = "cA", name = "Service A")
             val containerB = C4Container(id = "cB", name = "Service B")

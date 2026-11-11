@@ -6,6 +6,36 @@ All notable changes to this project are documented here. Format follows
 
 ## [Unreleased]
 
+### Nacharbeit 76: parallel C4 relationships are all drawn, `note()` scope hint
+
+**Why.** Several `relationship(a, b)` calls between the same two elements all got the id `rel::a->b`. Every ID-keyed
+lookup (layout bridge, SVG and LaTeX renderers) then collapsed them, so only the last one was drawn. Reproduced with
+three relationships "One"/"Two"/"Three" between a person and a system: the diagram showed a single edge "Three".
+Separately, `note(...)` inside a `softwareSystem { }` block fails with the K2 receiver-scope message and gave no hint.
+
+**Change.**
+- `C4ModelBuilder.relationship()`: the id is disambiguated against the existing relationship ids. The first keeps
+  `rel::a->b` unchanged, later ones get `~2`, `~3`. No new DSL parameter.
+- `ScriptProblem`: new hint for `RECEIVER_SCOPE` on `note`: "Declare notes at model level after the softwareSystem
+  block, or call `this@c4Model.note(...)` inside it." (the `this@c4Model.note(...)` form was compiled in a repro).
+- Tests: `C4ModelBuilderTest` (distinct ids, first id unchanged, single relationship unchanged), `C4DslPrinterTest`
+  (three parallel relationships printed in order), `C4LayoutBridgeTest` (3 edges), `KumlSvgRendererTest` (3 edges and
+  3 labels, no byte comparison), `ScriptProblemsTest` (note hint).
+- Handbook `c4-dsl.adoc`: parallel relationships, note hint, handle visibility.
+
+**Verification.** Before/after PNG of the repro (3 edges drawn 24 px apart after the fix, 1 edge before), the touched
+module tests, detekt, ktlint and `./gradlew clean check --no-build-cache` (see the commit for the result).
+
+**Not verified.** The LaTeX renderer was not run on a duplicate pair; it keys on the same relationship id, which is now
+unique, and no LaTeX code was changed. The labels of the first two edges ("One", "Two") sit close together in the PNG
+(not overlapping).
+
+**Not fixed.** No validate warning for exact duplicate relationships: there is no C4 model check in the validate path
+(it only covers style and layout), and building one is out of scope. A container handle used outside its
+`softwareSystem { }` block gives a generic diagnostic (for example "Expression expected, but package name found" or an
+argument type mismatch) that is not mapped to a hint; redesigning handle visibility is out of scope. Also not touched:
+container-diagram layout hints, system-context direction layouts, spacing for 6+ parallel edges.
+
 ### Nacharbeit 75: Linux desktop DEB/RPM, kuml on PATH after apt install
 
 **Why.** The Linux release job built only the CLI DEB/RPM; the desktop app had no Linux package, and after
