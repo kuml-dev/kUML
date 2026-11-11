@@ -1,0 +1,60 @@
+name: Test AppImage
+
+# Runs the kUML Desktop AppImage of a release in clean Linux containers
+# (Ubuntu, Debian, Fedora): structure check plus a short start under xvfb.
+# Manual only. The smoke script comes from the default branch, the AppImage
+# from the release of the given tag.
+on:
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "Release tag that carries the AppImage (e.g. v0.56.0)"
+        required: true
+
+permissions:
+  contents: read
+
+jobs:
+  appimage:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      matrix:
+        image: ["ubuntu:22.04", "ubuntu:24.04", "debian:12", "fedora:latest"]
+    container:
+      image: ${{ matrix.image }}
+    steps:
+      - name: Install tools and the libraries a desktop JVM needs
+        shell: sh
+        run: |
+          if command -v apt-get >/dev/null 2>&1; then
+            export DEBIAN_FRONTEND=noninteractive
+            apt-get update
+            apt-get install -y --no-install-recommends ca-certificates curl git xvfb desktop-file-utils \
+              util-linux procps libx11-6 libxext6 libxrender1 libxtst6 libxi6 libfreetype6 libfontconfig1
+            apt-get install -y --no-install-recommends libasound2t64 || apt-get install -y --no-install-recommends libasound2
+          else
+            dnf install -y ca-certificates curl git xorg-x11-server-Xvfb desktop-file-utils util-linux procps-ng \
+              libX11 libXext libXrender libXtst libXi freetype fontconfig alsa-lib
+          fi
+
+      - uses: actions/checkout@v4
+
+      - name: Download the AppImage
+        shell: sh
+        run: |
+          tag="${{ github.event.inputs.tag }}"
+          version="${tag#v}"
+          curl -fsSL -o kuml-desktop.AppImage \
+            "https://github.com/kuml-dev/kUML/releases/download/${tag}/kuml-desktop-${version}-x86_64.AppImage"
+          chmod +x kuml-desktop.AppImage
+          ls -l kuml-desktop.AppImage
+          sha256sum kuml-desktop.AppImage
+          echo "VERSION=${version}" >> "$GITHUB_ENV"
+
+      - name: Smoke test with a GUI start
+        shell: bash
+        run: |
+          cat /etc/os-release | head -3
+          SMOKE_GUI=1 kuml-packaging/src/main/appimage/smoke-appimage.sh ./kuml-desktop.AppImage "$VERSION"
