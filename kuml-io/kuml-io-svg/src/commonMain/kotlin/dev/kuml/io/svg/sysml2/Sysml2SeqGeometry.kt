@@ -50,6 +50,7 @@ internal class SeqRowOffsets(
                             it.kind != MessageKind.Lost
                     }.map { it.seqNo }
                     .toSet()
+            val messageSeqNos = messages.map { it.seqNo }.toSet()
             val tree = SeqFragmentTree(fragments)
             val ends = HashMap<Int, Float>()
             for (f in fragments) {
@@ -75,7 +76,12 @@ internal class SeqRowOffsets(
             }
             // a self loop right before the first row of a fragment must not touch its frame (frame top is 19 px below the row)
             for (row in selfRows) {
-                if (fragments.any { f -> f.operands.minOfOrNull { it.startSeqNo } == row + 1 } && (ends[row] ?: 0f) < 9f) ends[row] = 9f
+                val fragmentStartsNext = fragments.any { f -> f.operands.minOfOrNull { it.startSeqNo } == row + 1 }
+                if (fragmentStartsNext && (ends[row] ?: 0f) < 9f) ends[row] = 9f
+                // a plain message right after the loop: its label background must not cover the arrowhead
+                if (!fragmentStartsNext && row + 1 in messageSeqNos) {
+                    ends[row] = maxOf(ends[row] ?: 0f, SYSML2_SELF_CALL_FOLLOW_GAP)
+                }
             }
             for ((row, px) in ends) gaps += row to px
             return SeqRowOffsets(
@@ -95,6 +101,9 @@ internal const val SYSML2_REF_HEIGHT: Float = 28f
 
 /** Height of the loop of a self message (wave 2F). */
 internal const val SYSML2_SELF_CALL_HEIGHT: Float = 20f
+
+/** Clearance (px) below a self-call loop so that the label of the next message does not cover its arrowhead. */
+internal const val SYSML2_SELF_CALL_FOLLOW_GAP: Float = 12f
 
 /** Horizontal inset per nesting level of a combined fragment. */
 internal const val SYSML2_FRAGMENT_INDENT: Float = 10f

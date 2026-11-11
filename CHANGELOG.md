@@ -6,6 +6,25 @@ All notable changes to this project are documented here. Format follows
 
 ## [Unreleased]
 
+### Nacharbeit 67: SysML 2 sequence diagrams: clearance after a self message, loop nested in `par`
+
+**Why.** Reproduced with a generic fixture (self message at seqNo 1, next message at seqNo 2, rendered to PNG): the label
+background of the next message started 1 px below the loop's arrowhead, so label and arrowhead nearly touched. Item (g),
+a `loop` nested in an operand of `par` (operand 1 and operand 2), was rendered and inspected: no defect.
+
+**Change.** `SeqRowOffsets.of` adds `SYSML2_SELF_CALL_FOLLOW_GAP` (12 px) after a self-message row when a message exists at
+`seqNo + 1` and no fragment starts there; it combines with the existing fragment rules via `max`, never adds. No gap
+when the next message has a seqNo gap. Handbook (`reference/pages/sysml2.adoc`) documents both points.
+
+**Verification.** New `Sysml2SeqSelfCallGapSvgTest` (font independent geometry: label clearance, seqNo gap, row-offset unit
+test, fragment-start unchanged, loop in `par` operands inset/containment). `:kuml-io:kuml-io-svg:jvmTest` green. Not
+verified: Windows, CI (no push in this wave), PNGs viewed on macOS only.
+
+**Not fixed.** Items (f), (h), (i); several messages in the same seqNo row as a self call; a self call on an active
+execution bar (loop starts at the lifeline axis, not at the bar edge); width-aware spacing; other diagram types; UML
+sequence path if separate; stale ref numbers in the handbook ("48 px high frame", "Following rows move down by 16 px"
+versus `SYSML2_REF_HEIGHT` 28 and `SYSML2_REF_EXTRA_HEIGHT` 0) left for a later wave.
+
 ### Nacharbeit 66: sequence diagrams: lifeline head wrapping, labels across foreign execution bars
 
 **Why.** Reproduced with a generic fixture and the local installDist CLI: a long lifeline name widened its head column

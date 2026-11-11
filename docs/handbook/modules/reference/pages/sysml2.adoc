@@ -1018,6 +1018,14 @@ combinedFragment("retry", CombinedFragmentOperator.Loop) {
         }
     }
 }
+combinedFragment("both", CombinedFragmentOperator.Par) {
+    operand(guard = "a", start = 1, end = 3) {
+        combinedFragment("poll", CombinedFragmentOperator.Loop) {
+            operand(guard = "n", start = 2, end = 2)
+        }
+    }
+    operand(guard = "b", start = 4, end = 5)
+}
 interactionUse(name = "auth", refersTo = "Authenticate", lifelines = listOf(user, browser), seqNo = 8)
 durationConstraint(lifeline = user, from = 0, to = 2, expression = "0..3s")
 timeObservation(lifeline = browser, seqNo = 0, name = "t0")
@@ -1026,6 +1034,10 @@ lostMessage(label = "drop", source = browser, seqNo = 10)
 ----
 
 * A nested frame is inset by 10 px per level on both sides and starts one header band below its parent.
+* Any operator can be nested in any operand, including the operands of `par`; the nested frame is inset 10 px
+  and starts one header band below the operand's guard.
+* A self message (loop on one lifeline) is followed by 12 px extra clearance when the next message is at `seqNo + 1`,
+  so the next label does not cover the arrowhead; skipping a `seqNo` as a workaround is no longer needed.
 * `interactionUse` (`ref`) draws a 48 px high frame from the leftmost to the rightmost covered lifeline
   (+16 px); the referenced name is plain text, never a link. Following rows move down by 16 px. When `name` differs from `refersTo`,
   the frame reads `name : refersTo`.
