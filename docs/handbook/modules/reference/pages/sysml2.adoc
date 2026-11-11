@@ -954,6 +954,14 @@ Time-ordered interaction between blocks: lifelines, messages, execution
 specifications, and combined fragments (`alt`, `loop`, ...). Rendered live below
 (vault source: `03 Bereiche/kUML/Beispiele/06 SysML 2 SEQ – Login Flow.md`):
 
+.Lifeline head text and labels across execution bars
+A lifeline name longer than 24 characters wraps at a space, or after `-` or `/`, into at most two lines (the second
+line is cut with an ellipsis if it is still too long); the full name stays in the head's `<title>`. The first `"\n"` in
+a name is a hard line break. A head is at most 240 px wide. As soon as one head wraps, the `«lifeline»` keyword is
+dropped from every head of the diagram. A message label that would run across the execution bar of a lifeline the
+message only passes is moved to the nearest free stretch beside the bar; if no stretch is wide enough, the label keeps
+its place and its white background leaves the bar uncovered.
+
 [source,kuml]
 ----
 import dev.kuml.sysml2.CombinedFragmentOperand

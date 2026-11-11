@@ -444,9 +444,9 @@ public object UmlLayoutBridge {
                         // long names (e.g. "Hostsprachen-Compiler") overflow the box. Falls
                         // back to the SEQ_LIFELINE_WIDTH default for short names.
                         val nameWidth =
-                            lifeline.name.length * UmlContentSizeProvider.TITLE_CHAR_PX +
+                            seqHeadLines(name = lifeline.name).maxOf { it.length } * UmlContentSizeProvider.TITLE_CHAR_PX +
                                 UmlContentSizeProvider.BOX_H_PADDING
-                        val lifelineWidth = maxOf(Sysml2LayoutBridge.SEQ_LIFELINE_WIDTH, nameWidth)
+                        val lifelineWidth = minOf(maxOf(Sysml2LayoutBridge.SEQ_LIFELINE_WIDTH, nameWidth), SEQ_HEAD_MAX_WIDTH)
                         nodes.add(
                             LayoutNode(
                                 id = NodeId(lifeline.id),

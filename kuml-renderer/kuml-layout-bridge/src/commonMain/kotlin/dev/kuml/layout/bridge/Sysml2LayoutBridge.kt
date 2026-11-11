@@ -2289,19 +2289,21 @@ public object Sysml2LayoutBridge {
      * overrides the *height* from the message-count calculation, unaffected
      * by this provider.
      */
-    public fun seqContentAwareSizeProvider(model: Sysml2Model): SizeProvider =
-        SizeProvider { id, kindHint ->
+    public fun seqContentAwareSizeProvider(model: Sysml2Model): SizeProvider {
+        // Diagram-level rule shared with the renderer: when any head wraps, the «lifeline» keyword is dropped
+        // everywhere, so it no longer counts towards the width.
+        val showKeyword = model.definitions.filterIsInstance<LifelineDefinition>().none { seqHeadLines(name = it.name).size > 1 }
+        return SizeProvider { id, kindHint ->
             when (kindHint) {
                 "LifelineDefinition" -> {
                     val lifeline = model.definitions.firstOrNull { it.id == id } as? LifelineDefinition
-                    val stereoW = "«lifeline»".length * IBD_STEREO_CHAR_PX
-                    val nameW = (lifeline?.name?.length ?: 0) * IBD_TITLE_CHAR_PX
-                    val contentW = maxOf(stereoW, nameW) + 2 * IBD_H_PAD
-                    dev.kuml.layout.Size(width = maxOf(contentW, SEQ_LIFELINE_WIDTH), height = SEQ_LIFELINE_HEAD_HEIGHT)
+                    val width = seqHeadWidth(name = lifeline?.name.orEmpty(), showKeyword = showKeyword)
+                    dev.kuml.layout.Size(width = width, height = SEQ_LIFELINE_HEAD_HEIGHT)
                 }
                 else -> dev.kuml.layout.Size(width = SEQ_LIFELINE_WIDTH, height = SEQ_LIFELINE_HEAD_HEIGHT)
             }
         }
+    }
 
     /**
      * Default-[SizeProvider] für ACT-Diagramme (V2.0.10) — gibt je nach

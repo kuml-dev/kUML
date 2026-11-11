@@ -3,6 +3,14 @@
 
 10 tasks. Back to xref:gallery/index.adoc[all diagram families].
 
+.Lifeline head text and labels across execution bars
+A lifeline name longer than 24 characters wraps at a space, or after `-` or `/`, into at most two lines (the second
+line is cut with an ellipsis if it is still too long); the full name stays in the head's `<title>`. The first `"\n"` in
+a name is a hard line break. A head is at most 240 px wide. As soon as one head wraps, the `«lifeline»` keyword is
+dropped from every head of the diagram. A message label that would run across the execution bar of a lifeline the
+message only passes is moved to the nearest free stretch beside the bar; if no stretch is wide enough, the label keeps
+its place and its white background leaves the bar uncovered.
+
 == SEQ-S-01 — User Login (Simple)
 
 A user enters their credentials into the login interface, which forwards them to the authentication service for verification. The authentication service loads the matching record from the user database and internally verifies the password hash. The interface then receives an access token in return and notifies the user of the successful login.

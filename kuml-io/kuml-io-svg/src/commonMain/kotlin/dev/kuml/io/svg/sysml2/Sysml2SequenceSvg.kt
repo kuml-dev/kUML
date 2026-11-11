@@ -107,16 +107,30 @@ internal fun renderLifelineHead(
     @Suppress("UNUSED_PARAMETER") theme: KumlTheme,
     builder: SvgBuilder,
     createOffsetY: Float = 0f,
+    showKeyword: Boolean = true,
 ) {
     val x = layout.bounds.origin.x
     val y = layout.bounds.origin.y
     val w = layout.bounds.size.width
     val h = layout.bounds.size.height
+    val headLines =
+        dev.kuml.layout.bridge
+            .seqHeadLines(name = element.name)
 
     builder.tag(
         name = "g",
         attrs = mapOf("id" to xmlEscapeAttr(element.id), "transform" to "translate(${fmt(x)},${fmt(y)})"),
     ) {
+        if (dev.kuml.layout.bridge
+                .seqHeadIsChanged(name = element.name)
+        ) {
+            tag(name = "title") {
+                text(
+                    dev.kuml.layout.bridge
+                        .seqHeadFullName(name = element.name),
+                )
+            }
+        }
         // 1. Lifeline-Kopf-Box — bei Create-Targets um `createOffsetY` nach
         //    unten verschoben, damit der Pfeil der Create-Nachricht (gezeichnet
         //    bei `srcHeadBottom + (createSeqNo + 1) * ROW`) genau die untere
@@ -132,30 +146,40 @@ internal fun renderLifelineHead(
                 ),
         )
 
-        // 2. Stereotyp-Zeile — wandert mit dem Kopf nach unten.
-        tag(
-            name = "text",
-            attrs =
-                mapOf(
-                    "class" to "kuml-stereotype",
-                    "x" to fmt(w / 2f),
-                    "y" to fmt(14f + createOffsetY),
-                    "text-anchor" to "middle",
-                ),
-        ) { text("«lifeline»") }
+        // 2. Stereotyp-Zeile — wandert mit dem Kopf nach unten. Entfällt diagrammweit, sobald ein Kopf umbricht.
+        if (showKeyword) {
+            tag(
+                name = "text",
+                attrs =
+                    mapOf(
+                        "class" to "kuml-stereotype",
+                        "x" to fmt(w / 2f),
+                        "y" to fmt(14f + createOffsetY),
+                        "text-anchor" to "middle",
+                    ),
+            ) { text("«lifeline»") }
+        }
 
-        // 3. Name-Zeile — wandert mit dem Kopf nach unten.
+        // 3. Name-Zeile(n) — wandern mit dem Kopf nach unten.
         val nameClass = if (element.isAbstract) "kuml-title kuml-title-abstract" else "kuml-title"
-        tag(
-            name = "text",
-            attrs =
-                mapOf(
-                    "class" to nameClass,
-                    "x" to fmt(w / 2f),
-                    "y" to fmt(30f + createOffsetY),
-                    "text-anchor" to "middle",
-                ),
-        ) { text(element.name) }
+        val nameYs =
+            when {
+                headLines.size > 1 -> listOf(17f, 33f)
+                showKeyword -> listOf(30f)
+                else -> listOf(25f)
+            }
+        for ((i, line) in headLines.withIndex()) {
+            tag(
+                name = "text",
+                attrs =
+                    mapOf(
+                        "class" to nameClass,
+                        "x" to fmt(w / 2f),
+                        "y" to fmt(nameYs[i] + createOffsetY),
+                        "text-anchor" to "middle",
+                    ),
+            ) { text(line) }
+        }
 
         // 4. Vertikale gestrichelte Zeit-Achse — beginnt am unteren Rand der
         //    (ggf. verschobenen) Kopf-Box und endet am unteren Bounds-Rand.
@@ -202,7 +226,15 @@ internal fun renderSysml2SeqMessages(
     nodeLayouts: Map<NodeId, NodeLayout>,
     builder: SvgBuilder,
     rows: SeqRowOffsets = SeqRowOffsets.NONE,
+    /** Execution bars of the visible lifelines; a label that would cross a foreign bar is moved or split. */
+    execSpecs: List<ExecutionSpecificationUsage> = emptyList(),
 ) {
+    val bars =
+        execSpecs.mapNotNull { es ->
+            val layout = nodeLayouts[NodeId(es.lifelineId)] ?: return@mapNotNull null
+            val (yTop, yBottom) = execSpecYRange(execSpec = es, lifelineLayout = layout, rows = rows)
+            SeqBarSpan(cx = layout.bounds.origin.x + layout.bounds.size.width / 2f, yTop = yTop, yBottom = yBottom)
+        }
     val visible =
         messages
             .filter {
@@ -225,6 +257,7 @@ internal fun renderSysml2SeqMessages(
             rowOffset = rowOffset,
             leftmostX = leftmostX,
             rightmostX = rightmostX,
+            bars = bars,
         )
     }
 }
@@ -265,6 +298,7 @@ internal fun renderMessage(
     rowOffset: Float = 0f,
     leftmostX: Float = Float.NEGATIVE_INFINITY,
     rightmostX: Float = Float.POSITIVE_INFINITY,
+    bars: List<SeqBarSpan> = emptyList(),
 ) {
     val srcCx = srcLayout.bounds.origin.x + srcLayout.bounds.size.width / 2f
     val tgtCx = tgtLayout.bounds.origin.x + tgtLayout.bounds.size.width / 2f
@@ -302,11 +336,11 @@ internal fun renderMessage(
     // V2.0.15: lifecycle messages need their own visual treatment.
     when (msg.kind) {
         MessageKind.Create -> {
-            renderCreateMessage(msg = msg, srcCx = srcCx, tgtCx = tgtCx, tgtLayout = tgtLayout, y = y, builder = builder)
+            renderCreateMessage(msg = msg, srcCx = srcCx, tgtCx = tgtCx, tgtLayout = tgtLayout, y = y, builder = builder, bars = bars)
             return
         }
         MessageKind.Destroy -> {
-            renderDestroyMessage(msg = msg, srcCx = srcCx, tgtCx = tgtCx, tgtLayout = tgtLayout, y = y, builder = builder)
+            renderDestroyMessage(msg = msg, srcCx = srcCx, tgtCx = tgtCx, tgtLayout = tgtLayout, y = y, builder = builder, bars = bars)
             return
         }
         else -> Unit
@@ -337,16 +371,25 @@ internal fun renderMessage(
 
         // 2. Label über dem Pfeil — VOR der Pfeilspitze zeichnen, damit die
         //    Pfeilspitze oben liegt und nicht vom weißen Hintergrund verdeckt wird.
-        val labelX = (srcCx + tgtCx) / 2f
         val labelY = y - 4f
         val availableWidth = (abs(tgtCx - srcCx) - 8f).coerceAtLeast(20f)
+        val placement =
+            placeSeqLabelAcrossBars(
+                label = msg.messageLabel,
+                srcX = srcCx,
+                dstX = tgtCx,
+                foreignBars = foreignSeqBars(bars = bars, srcX = srcCx, dstX = tgtCx, baselineY = labelY),
+                hPad = LABEL_BG_HPAD,
+                maxWidth = availableWidth,
+            )
         drawSeqLabelWithWhiteBackground(
             label = msg.messageLabel,
-            x = labelX,
+            x = placement.centerX,
             y = labelY,
             anchor = "middle",
             builder = this,
             maxWidth = availableWidth,
+            excludeXRanges = placement.excludeXRanges,
         )
 
         // 3. Pfeilspitze am Target-Ende — nach dem Label, damit sie oben liegt.
@@ -482,6 +525,7 @@ internal fun drawSeqLabelWithWhiteBackground(
     cssClass: String = "kuml-body",
     maxWidth: Float? = null,
     hPad: Float = LABEL_BG_HPAD,
+    excludeXRanges: List<ClosedFloatingPointRange<Float>> = emptyList(),
 ) {
     val textW = label.length * BODY_CHAR_WIDTH
     val constrainedW = if (maxWidth != null && textW > maxWidth) maxWidth else textW
@@ -497,18 +541,29 @@ internal fun drawSeqLabelWithWhiteBackground(
     // Baseline — knapp genug, um Nachrichten-Pfeile (4 px unterhalb der
     // Baseline gezeichnet) NICHT zu überdecken.
     val bgY = y - BODY_TEXT_ASCENT
-    builder.tag(
-        name = "rect",
-        attrs =
-            mapOf(
-                "x" to fmt(bgX),
-                "y" to fmt(bgY),
-                "width" to fmt(bgW),
-                "height" to fmt(bgH),
-                "fill" to "white",
-                "stroke" to "none",
-            ),
-    )
+    // Background x-segments: the whole rect, minus [excludeXRanges] (execution bars the label passes over).
+    val bgSegments = mutableListOf<Pair<Float, Float>>()
+    var segFrom = bgX
+    for (ex in excludeXRanges.sortedBy { it.start }) {
+        if (ex.endInclusive <= segFrom || ex.start >= bgX + bgW) continue
+        if (ex.start > segFrom) bgSegments += segFrom to ex.start
+        segFrom = maxOf(segFrom, ex.endInclusive)
+    }
+    if (segFrom < bgX + bgW) bgSegments += segFrom to (bgX + bgW)
+    for ((segA, segB) in bgSegments) {
+        builder.tag(
+            name = "rect",
+            attrs =
+                mapOf(
+                    "x" to fmt(segA),
+                    "y" to fmt(bgY),
+                    "width" to fmt(segB - segA),
+                    "height" to fmt(bgH),
+                    "fill" to "white",
+                    "stroke" to "none",
+                ),
+        )
+    }
     val baseAttrs =
         if (anchor == "start") {
             mapOf("class" to cssClass, "x" to fmt(x), "y" to fmt(y))
@@ -583,6 +638,7 @@ private fun renderCreateMessage(
     tgtLayout: NodeLayout,
     y: Float,
     builder: SvgBuilder,
+    bars: List<SeqBarSpan> = emptyList(),
 ) {
     // Arrow ends at the side of the target head-box (mid-left if arrow points
     // right, mid-right if arrow points left). This makes the `Create`
@@ -614,7 +670,16 @@ private fun renderCreateMessage(
         renderOpenArrowhead(tipX = arrowEndX, y = y, baseDx = arrowDx, builder = this)
 
         // 3. Stereotype + label above the arrow.
-        val labelX = (srcCx + arrowEndX) / 2f
+        val placement =
+            placeSeqLabelAcrossBars(
+                label = msg.messageLabel,
+                srcX = srcCx,
+                dstX = arrowEndX,
+                foreignBars = foreignSeqBars(bars = bars, srcX = srcCx, dstX = arrowEndX, baselineY = y - 4f),
+                hPad = LABEL_BG_HPAD,
+                maxWidth = null,
+            )
+        val labelX = placement.centerX
         tag(
             name = "text",
             attrs =
@@ -631,6 +696,7 @@ private fun renderCreateMessage(
             y = y - 4f,
             anchor = "middle",
             builder = this,
+            excludeXRanges = placement.excludeXRanges,
         )
     }
 }
@@ -658,6 +724,7 @@ private fun renderDestroyMessage(
     @Suppress("UNUSED_PARAMETER") tgtLayout: NodeLayout,
     y: Float,
     builder: SvgBuilder,
+    bars: List<SeqBarSpan> = emptyList(),
 ) {
     val arrowDx = if (tgtCx >= srcCx) -8f else 8f
     builder.tag(
@@ -712,7 +779,17 @@ private fun renderDestroyMessage(
         //    (before, they were centred on the whole arrow and a short arrow made «destroy» touch the X).
         val dir = if (srcCx <= tgtCx) -1f else 1f // direction from the target back towards the source
         val available = abs(tgtCx - srcCx) - DESTROY_LABEL_CLEARANCE
-        val labelX = (srcCx + tgtCx + dir * DESTROY_LABEL_CLEARANCE) / 2f
+        val labelStretchEnd = tgtCx + dir * DESTROY_LABEL_CLEARANCE
+        val placement =
+            placeSeqLabelAcrossBars(
+                label = msg.messageLabel,
+                srcX = srcCx,
+                dstX = labelStretchEnd,
+                foreignBars = foreignSeqBars(bars = bars, srcX = srcCx, dstX = tgtCx, baselineY = y - 6f),
+                hPad = LABEL_BG_HPAD,
+                maxWidth = (available - 4f).coerceAtLeast(40f),
+            )
+        val labelX = placement.centerX
         tag(
             name = "text",
             attrs =
@@ -730,6 +807,7 @@ private fun renderDestroyMessage(
             anchor = "middle",
             builder = this,
             maxWidth = (available - 4f).coerceAtLeast(40f),
+            excludeXRanges = placement.excludeXRanges,
         )
     }
 }
@@ -757,17 +835,11 @@ internal fun renderExecutionSpec(
     nextLifelineCx: Float? = null,
 ) {
     val cx = lifelineLayout.bounds.origin.x + lifelineLayout.bounds.size.width / 2f
-    val headBottom = lifelineLayout.bounds.origin.y + SEQ_RENDERER_HEAD_HEIGHT
     // Apply the same fragment-header offset the messages use so the activation
     // bar stays aligned with the message arrows that start/end it.
-    val yStart =
-        headBottom + (execSpec.startSeqNo + 0.5f) * SEQ_RENDERER_MESSAGE_ROW_HEIGHT +
-            rows.offsetAt(execSpec.startSeqNo)
-    val yEnd =
-        headBottom + (execSpec.endSeqNo + 1.5f) * SEQ_RENDERER_MESSAGE_ROW_HEIGHT +
-            rows.offsetAt(execSpec.endSeqNo)
+    val (yStart, yBottom) = execSpecYRange(execSpec = execSpec, lifelineLayout = lifelineLayout, rows = rows)
     val w = EXEC_SPEC_WIDTH
-    val h = (yEnd - yStart).coerceAtLeast(SEQ_RENDERER_MESSAGE_ROW_HEIGHT / 2f)
+    val h = yBottom - yStart
 
     builder.tag(
         name = "g",
@@ -805,6 +877,104 @@ internal fun renderExecutionSpec(
                 )
             }
         }
+    }
+}
+
+/** Top and bottom y of an execution bar (shared by the bar renderer and the label placement). */
+internal fun execSpecYRange(
+    execSpec: ExecutionSpecificationUsage,
+    lifelineLayout: NodeLayout,
+    rows: SeqRowOffsets,
+): Pair<Float, Float> {
+    val headBottom = lifelineLayout.bounds.origin.y + SEQ_RENDERER_HEAD_HEIGHT
+    val yStart =
+        headBottom + (execSpec.startSeqNo + 0.5f) * SEQ_RENDERER_MESSAGE_ROW_HEIGHT +
+            rows.offsetAt(execSpec.startSeqNo)
+    val yEnd =
+        headBottom + (execSpec.endSeqNo + 1.5f) * SEQ_RENDERER_MESSAGE_ROW_HEIGHT +
+            rows.offsetAt(execSpec.endSeqNo)
+    return yStart to (yStart + (yEnd - yStart).coerceAtLeast(SEQ_RENDERER_MESSAGE_ROW_HEIGHT / 2f))
+}
+
+/** An execution bar on a lifeline axis [cx], spanning [yTop] to [yBottom]. */
+internal data class SeqBarSpan(
+    val cx: Float,
+    val yTop: Float,
+    val yBottom: Float,
+)
+
+/** Where a message label goes: its centre, and the background x-segments it must not cover (empty = none). */
+internal data class SeqLabelPlacement(
+    val centerX: Float,
+    val excludeXRanges: List<ClosedFloatingPointRange<Float>>,
+)
+
+/** Clearance (px) kept between a moved label background and a foreign execution bar. */
+private const val SEQ_BAR_LABEL_CLEARANCE: Float = 6f
+
+/**
+ * The x-ranges of execution bars on lifelines strictly between [srcX] and [dstX] whose y-range meets the label
+ * background around [baselineY]. Bars on the source or target lifeline are not foreign.
+ */
+internal fun foreignSeqBars(
+    bars: List<SeqBarSpan>,
+    srcX: Float,
+    dstX: Float,
+    baselineY: Float,
+): List<ClosedFloatingPointRange<Float>> {
+    val lo = minOf(srcX, dstX)
+    val hi = maxOf(srcX, dstX)
+    val top = baselineY - BODY_TEXT_ASCENT
+    val bottom = baselineY + BODY_TEXT_DESCENT
+    return bars
+        .filter { it.cx > lo + 0.5f && it.cx < hi - 0.5f && it.yTop < bottom && it.yBottom > top }
+        .map { (it.cx - EXEC_SPEC_WIDTH / 2f)..(it.cx + EXEC_SPEC_WIDTH / 2f) }
+        .sortedBy { it.start }
+}
+
+/**
+ * Places a message label that would run across execution bars of lifelines it merely passes. Step 1 moves the label
+ * into the free stretch (6 px clear of each bar) that fits its full background, nearest to the natural centre.
+ * Step 2, when no stretch fits, keeps the position and returns the x-ranges to cut out of the background so the bar
+ * stays visible. No foreign bars: unchanged. No font measurement, only [BODY_CHAR_WIDTH].
+ */
+internal fun placeSeqLabelAcrossBars(
+    label: String,
+    srcX: Float,
+    dstX: Float,
+    foreignBars: List<ClosedFloatingPointRange<Float>>,
+    hPad: Float,
+    maxWidth: Float?,
+    originalCenter: Float = (srcX + dstX) / 2f,
+): SeqLabelPlacement {
+    if (foreignBars.isEmpty()) return SeqLabelPlacement(centerX = originalCenter, excludeXRanges = emptyList())
+    val lo = minOf(srcX, dstX)
+    val hi = maxOf(srcX, dstX)
+    val textW = label.length * BODY_CHAR_WIDTH
+    val bgW = (if (maxWidth != null && textW > maxWidth) maxWidth else textW) + 2f * hPad
+    val stretches = mutableListOf<Pair<Float, Float>>()
+    var from = lo
+    for (bar in foreignBars) {
+        val to = bar.start - SEQ_BAR_LABEL_CLEARANCE
+        if (to > from) stretches += from to to
+        from = maxOf(from, bar.endInclusive + SEQ_BAR_LABEL_CLEARANCE)
+    }
+    if (hi > from) stretches += from to hi
+    var best: Float? = null
+    var bestDist = Float.MAX_VALUE
+    for ((a, b) in stretches) {
+        if (b - a < bgW) continue
+        val center = originalCenter.coerceIn(a + bgW / 2f, b - bgW / 2f)
+        val dist = abs(center - originalCenter)
+        if (dist < bestDist) {
+            best = center
+            bestDist = dist
+        }
+    }
+    return if (best != null) {
+        SeqLabelPlacement(centerX = best, excludeXRanges = emptyList())
+    } else {
+        SeqLabelPlacement(centerX = originalCenter, excludeXRanges = foreignBars)
     }
 }
 

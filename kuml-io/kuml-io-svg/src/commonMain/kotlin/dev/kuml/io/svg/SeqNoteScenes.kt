@@ -69,6 +69,12 @@ internal object SeqNoteScenes {
 
         val heads =
             SeqSceneCapture.capture { sb ->
+                val showKeyword =
+                    lifelines.none {
+                        dev.kuml.layout.bridge
+                            .seqHeadLines(name = it.name)
+                            .size > 1
+                    }
                 for (l in lifelines) {
                     val nl = layouts[NodeId(l.id)] ?: continue
                     dev.kuml.io.svg.sysml2.renderLifelineHead(
@@ -77,6 +83,7 @@ internal object SeqNoteScenes {
                         theme = theme,
                         builder = sb,
                         createOffsetY = createOffset[l.id] ?: 0f,
+                        showKeyword = showKeyword,
                     )
                 }
             }
@@ -158,6 +165,7 @@ internal object SeqNoteScenes {
                     nodeLayouts = layouts,
                     builder = sb,
                     rows = rows,
+                    execSpecs = execSpecs,
                 )
             },
         )
@@ -192,10 +200,22 @@ internal object SeqNoteScenes {
 
         val heads =
             SeqSceneCapture.capture { sb ->
+                val showKeyword =
+                    interaction.lifelines.none {
+                        dev.kuml.layout.bridge
+                            .seqHeadLines(name = it.name)
+                            .size > 1
+                    }
                 for (l in interaction.lifelines) {
                     val nl = layouts[NodeId(l.id)] ?: continue
                     dev.kuml.io.svg.uml
-                        .renderUmlLifelineHead(element = l, layout = nl, theme = PlainTheme(), builder = sb)
+                        .renderUmlLifelineHead(
+                            element = l,
+                            layout = nl,
+                            theme = PlainTheme(),
+                            builder = sb,
+                            showKeyword = showKeyword,
+                        )
                 }
             }
         val (headRects, stems) = SeqSceneCapture.headsAndStems(heads)

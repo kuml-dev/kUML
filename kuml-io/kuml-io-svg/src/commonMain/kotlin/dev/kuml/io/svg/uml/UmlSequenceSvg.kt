@@ -185,19 +185,43 @@ internal fun renderUmlLifelineHead(
     layout: NodeLayout,
     @Suppress("UNUSED_PARAMETER") theme: KumlTheme,
     builder: SvgBuilder,
+    showKeyword: Boolean = true,
 ) {
     val x = layout.bounds.origin.x
     val y = layout.bounds.origin.y
     val w = layout.bounds.size.width
     val h = layout.bounds.size.height
+    val headLines =
+        dev.kuml.layout.bridge
+            .seqHeadLines(name = element.name)
     builder.tag(name = "g", attrs = mapOf("id" to xmlEscapeAttr(element.id), "transform" to "translate(${fmt(x)},${fmt(y)})")) {
+        if (dev.kuml.layout.bridge
+                .seqHeadIsChanged(name = element.name)
+        ) {
+            tag(name = "title") {
+                text(
+                    dev.kuml.layout.bridge
+                        .seqHeadFullName(name = element.name),
+                )
+            }
+        }
         tag(name = "rect", attrs = mapOf("width" to fmt(w), "height" to fmt(SEQ_HEAD_HEIGHT), "class" to "kuml-class"))
         val stereotypeLabel = if (element.isActor) "«actor»" else "«lifeline»"
-        tag(name = "text", attrs = mapOf("class" to "kuml-stereotype", "x" to fmt(w / 2f), "y" to "14", "text-anchor" to "middle")) {
-            text(stereotypeLabel)
+        if (showKeyword) {
+            tag(name = "text", attrs = mapOf("class" to "kuml-stereotype", "x" to fmt(w / 2f), "y" to "14", "text-anchor" to "middle")) {
+                text(stereotypeLabel)
+            }
         }
-        tag(name = "text", attrs = mapOf("class" to "kuml-title", "x" to fmt(w / 2f), "y" to "30", "text-anchor" to "middle")) {
-            text(element.name)
+        val nameYs =
+            when {
+                headLines.size > 1 -> listOf("17", "33")
+                showKeyword -> listOf("30")
+                else -> listOf("25")
+            }
+        for ((i, line) in headLines.withIndex()) {
+            tag(name = "text", attrs = mapOf("class" to "kuml-title", "x" to fmt(w / 2f), "y" to nameYs[i], "text-anchor" to "middle")) {
+                text(line)
+            }
         }
         tag(
             name = "line",

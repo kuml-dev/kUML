@@ -1140,9 +1140,21 @@ public object KumlSvgRenderer {
             // 3. NOW render the lifeline heads + dashed time axes on top of the
             //    fragment background. The dashed verticals stay visible inside
             //    every alt/opt/loop frame.
+            val umlHeadShowKeyword =
+                interaction.lifelines.none {
+                    dev.kuml.layout.bridge
+                        .seqHeadLines(name = it.name)
+                        .size > 1
+                }
             for ((nodeId, shifted) in shiftedLayouts) {
                 val lifeline = interaction.lifelines.find { it.id == nodeId.value } ?: continue
-                NodeRendererDispatcher.dispatch(element = lifeline, layout = shifted, theme = theme, builder = nodesBuilder)
+                dev.kuml.io.svg.uml.renderUmlLifelineHead(
+                    element = lifeline,
+                    layout = shifted,
+                    theme = theme,
+                    builder = nodesBuilder,
+                    showKeyword = umlHeadShowKeyword,
+                )
             }
 
             // 3b. Guard labels (`[k ≤ 3]`, `[kompiliert]` …) paint AFTER the lifelines,
@@ -3963,6 +3975,15 @@ public object KumlSvgRenderer {
             //    Andere Diagrammtypen (BDD/IBD/STM/UC) verwenden weiterhin den
             //    Dispatcher-Pfad; dort gibt es keine Create-Nachrichten und
             //    damit auch keinen Offset.
+            val headShowKeyword =
+                shiftedLayouts.keys.none { id ->
+                    (synthetic.elements.find { it.id == id.value } as? LifelineDefinition)
+                        ?.let {
+                            dev.kuml.layout.bridge
+                                .seqHeadLines(name = it.name)
+                                .size > 1
+                        } == true
+                }
             for ((nodeId, shifted) in shiftedLayouts) {
                 val element =
                     synthetic.elements.find { it.id == nodeId.value } as? LifelineDefinition
@@ -3973,6 +3994,7 @@ public object KumlSvgRenderer {
                     theme = theme,
                     builder = nodesBuilder,
                     createOffsetY = createOffsetById[nodeId.value] ?: 0f,
+                    showKeyword = headShowKeyword,
                 )
             }
 
@@ -4056,6 +4078,7 @@ public object KumlSvgRenderer {
                 nodeLayouts = shiftedLayouts,
                 builder = edgesBuilder,
                 rows = rows,
+                execSpecs = execSpecs,
             )
 
             // 6. Notes + anchor links, placed by Sysml2NotePlacement (see placeSeqNotes).

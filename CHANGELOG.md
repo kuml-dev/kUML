@@ -6,6 +6,42 @@ All notable changes to this project are documented here. Format follows
 
 ## [Unreleased]
 
+### Nacharbeit 66: sequence diagrams: lifeline head wrapping, labels across foreign execution bars
+
+**Why.** Reproduced with a generic fixture and the local installDist CLI: a long lifeline name widened its head column
+without limit, and a newline in a name was not a line break. A message label centred between two lifelines was drawn
+with an opaque white background over the execution bar of a lifeline in between.
+
+**Change.**
+- `seqHeadLines` / `seqHeadWidth` (kuml-layout-bridge, new `SeqHeadText.kt`), shared by the width providers and the
+  renderers: the first `"\n"` is a hard break; names over 24 characters wrap at a space or after `-` / `/` (no camel-case
+  splitting, a single long word stays whole); at most two lines, an overflowing second line is cut to 23 characters plus
+  an ellipsis; head width capped at 240 px. Applies to the SysML provider (`seqContentAwareSizeProvider`) and to the UML
+  sequence width in `UmlLayoutBridge`.
+- SysML and UML heads draw two name lines (y 17 / 33) when wrapped; the `«lifeline»` / `«actor»` keyword is dropped
+  in every head of the diagram when any head wraps (the one-line name then sits at y 25). A `<title>` with the full name
+  is added only to heads that were wrapped, broken or cut; the head height stays 40 px. Unchanged heads are byte-identical.
+- SysML only (the UML sequence path has no execution bars): a message, create or destroy label that would cross the bar
+  of a lifeline strictly between source and target is moved to the nearest free stretch (6 px clearance to each bar);
+  if none fits the full background, the label stays and its background rect is split so the bar remains uncovered
+  (`drawSeqLabelWithWhiteBackground` got `excludeXRanges`; default output unchanged). Self-calls and fragment guards are
+  not touched.
+- LaTeX: no sequence renderer exists there, so it is not affected.
+- Handbook: `sysml2.adoc` (SEQ) and `gallery/sequence-diagrams.adoc` describe the rules.
+- Tests: `SeqHeadTextTest` (bridge: normalisation, wrap points, cap, ellipsis, provider agreement),
+  `Sysml2SeqHeadWrapSvgTest` (c1-c3, d1, d2), `UmlSeqHeadWrapSvgTest`; structural, font independent.
+
+**Verification.** See the final run recorded with the commit; PNGs of c1 and d2 inspected by eye.
+
+**Not verified.** Goldens and renders on other operating systems.
+
+**Not fixed.**
+- A layout block with `rowSpacing`, `aspectRatio` and `notePlacement` (redesign, own wave).
+- Note columns left and right widening the image to 3.4:1 to 4.5:1.
+- Head height above 40 px, or more than two head lines.
+- Items (e), (g), (h), (i) and other diagram types.
+- A name that is one unbreakable word over about 28 characters is capped at 240 px and may still overflow its head.
+
 ### Nacharbeit 65: parametric diagrams: lane clearance of 12 px, part-attribute bindings end at the attribute row
 
 **Why.** Measured on a generic fixture (outer constraint with two inner constraints, a part with attributes) with the
