@@ -1,0 +1,74 @@
+name: Test MSI version
+
+# Builds the kuml-desktop MSI on Windows and checks that its ProductVersion and
+# the "Apps and features" version equal the project version (e.g. 0.56.0, not
+# the jpackage mapping 56.0.0). With apply_change the msiPackageVersion line is
+# added on the runner first, so the change can be tested before it is committed.
+on:
+  workflow_dispatch:
+    inputs:
+      apply_change:
+        description: "Add msiPackageVersion to kuml-desktop/build.gradle.kts on the runner before building"
+        type: boolean
+        default: true
+
+permissions:
+  contents: read
+
+jobs:
+  msi:
+    runs-on: windows-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-java@v4
+        with:
+          java-version: '21'
+          distribution: 'temurin'
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - uses: gradle/actions/setup-gradle@v4
+
+      - name: Add msiPackageVersion on the runner
+        if: ${{ github.event.inputs.apply_change == 'true' }}
+        shell: pwsh
+        run: |
+          $f = "kuml-desktop/build.gradle.kts"
+          $t = Get-Content $f -Raw
+          if ($t -match 'msiPackageVersion') { Write-Host "already present"; exit 0 }
+          $new = $t -replace '(upgradeUuid = "[^"]+")', "`$1`n                msiPackageVersion = project.version.toString()"
+          if ($new -eq $t) { throw "upgradeUuid line not found" }
+          Set-Content $f $new -NoNewline
+          git diff -- $f
+
+      - name: Build the MSI
+        shell: pwsh
+        run: ./gradlew :kuml-desktop:packageMsi
+
+      - name: Check the version and install silently
+        shell: pwsh
+        run: |
+          $expected = ((Select-String -Path build.gradle.kts -Pattern '^\s*version = "([^"]+)"').Matches[0].Groups[1].Value)
+          $msi = (Get-ChildItem kuml-desktop/build/compose/binaries/main/msi/*.msi | Select-Object -First 1).FullName
+          Write-Host "MSI: $msi"
+          $wi = New-Object -ComObject WindowsInstaller.Installer
+          $db = $wi.GetType().InvokeMember("OpenDatabase", "InvokeMethod", $null, $wi, @($msi, 0))
+          $view = $db.GetType().InvokeMember("OpenView", "InvokeMethod", $null, $db, "SELECT Value FROM Property WHERE Property='ProductVersion'")
+          $view.GetType().InvokeMember("Execute", "InvokeMethod", $null, $view, $null)
+          $rec = $view.GetType().InvokeMember("Fetch", "InvokeMethod", $null, $view, $null)
+          $productVersion = $rec.GetType().InvokeMember("StringData", "GetProperty", $null, $rec, 1)
+          Write-Host "ProductVersion in the MSI: $productVersion (project version $expected)"
+          if ($productVersion -ne $expected) { throw "ProductVersion $productVersion does not equal $expected" }
+          $p = Start-Process msiexec.exe -ArgumentList "/i `"$msi`" /qn /norestart /l*v `"$PWD\install.log`"" -PassThru
+          if (-not $p.WaitForExit(600000)) { $p | Stop-Process -Force; throw "msiexec still running after 10 minutes" }
+          if ($p.ExitCode -ne 0) { throw "msiexec exit code $($p.ExitCode)" }
+          $arp = Get-ItemProperty "HKLM:\Software\Microsoft\Windows\CurrentVersion\Uninstall\*" | Where-Object { $_.DisplayName -eq "kuml-desktop" }
+          Write-Host "Apps and features: $($arp.DisplayName) $($arp.DisplayVersion)"
+          if ($arp.DisplayVersion -ne $expected) { throw "DisplayVersion $($arp.DisplayVersion) does not equal $expected" }
+          $product = [regex]::Match((Get-Content install.log -Raw), 'Property\(S\): ProductCode = (\{[^}]+\})').Groups[1].Value
+          Write-Host "ProductCode: $product"
+          Start-Process msiexec.exe -ArgumentList "/x $product /qn /norestart" -Wait
