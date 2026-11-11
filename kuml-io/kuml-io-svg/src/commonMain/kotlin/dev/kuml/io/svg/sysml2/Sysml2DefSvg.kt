@@ -21,6 +21,7 @@ import dev.kuml.sysml2.Sysml2Definition
 import dev.kuml.sysml2.TestCaseDefinition
 import dev.kuml.sysml2.UseCaseDefinition
 import dev.kuml.sysml2.projection.BddBoxContent
+import dev.kuml.sysml2.projection.BddBoxGeometry
 import dev.kuml.sysml2.projection.sysml2BddBoxContent
 
 /**
@@ -162,7 +163,7 @@ private fun renderBox(
     ) {
         tag(name = "rect", attrs = mapOf("width" to fmt(w), "height" to fmt(h), "class" to "kuml-class"))
 
-        var cy = 16f
+        var cy = BddBoxGeometry.STEREOTYPE_BASELINE_Y
 
         // Stereotype line — guillemets so the SysML-2-‹‹kind››-Konvention bleibt erhalten.
         tag(
@@ -175,7 +176,7 @@ private fun renderBox(
                     "text-anchor" to "middle",
                 ),
         ) { text("«$stereotype»") }
-        cy += 14f
+        cy += BddBoxGeometry.NAME_BASELINE_STEP
 
         // Type name (bold, centered). Abstract definitions get the italics-via-style hint.
         val nameClass = if (element.isAbstract) "kuml-title kuml-title-abstract" else "kuml-title"
@@ -188,14 +189,14 @@ private fun renderBox(
                 if (element.isAbstract) put("font-style", "italic")
             }
         tag(name = "text", attrs = nameAttrs) { text(element.name) }
-        cy += 12f
+        cy += BddBoxGeometry.DIVIDER_STEP
 
         fun divider() {
             tag(
                 name = "line",
                 attrs = mapOf("x1" to "0", "y1" to fmt(cy), "x2" to fmt(w), "y2" to fmt(cy), "class" to "kuml-divider"),
             )
-            cy += 14f
+            cy += BddBoxGeometry.FIRST_BASELINE_STEP
         }
 
         if (featureLines.isNotEmpty()) {
@@ -205,7 +206,7 @@ private fun renderBox(
                     name = "text",
                     attrs = mapOf("class" to "kuml-body", "x" to "6", "y" to fmt(cy)),
                 ) { text(line) }
-                cy += 13f
+                cy += BddBoxGeometry.FEATURE_LINE_H
             }
         }
         // Welle B: extra compartments, only when non-empty.

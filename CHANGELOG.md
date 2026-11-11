@@ -6,6 +6,47 @@ All notable changes to this project are documented here. Format follows
 
 ## [Unreleased]
 
+### Nacharbeit 65: parametric diagrams: lane clearance of 12 px, part-attribute bindings end at the attribute row
+
+**Why.** Measured on a generic fixture (outer constraint with two inner constraints, a part with attributes) with the
+local installDist CLI: nested-binding lanes ran 6 px from the inner edge of the owner box and 8 px from the sibling they
+leave; bindings to `Part::attr` ended at the top or bottom edge of the part box, up to 60 px away from the row.
+
+**Change.**
+- `ParCompositeLayout.PAR_LANE_CLEARANCE = 12f`; `LANE_X0` uses it, so owner corridors keep 12 px to the owner frame, and
+  the short lane between two sibling constraints starts 12 px from the child it leaves. Gaps between siblings grow by 4 px
+  where lane slots decide the gap. `LANE_PITCH` (8 px), `APPROACH` (8 px) and the label planning are unchanged.
+- Part attributes: a binding that names `Part::attr` ends at the row centre of that attribute on a side edge of the part
+  box (West when the other end is an `in` pin, East otherwise). The bridge adds one invisible anchor port per referenced
+  attribute (`<part>::attr::<name>`, size 0, no pin drawn); parts without attribute bindings get no port, so those
+  diagrams are unchanged. Endpoints without `::attr`, with an unknown attribute name, or on a part without that row
+  keep the old behaviour.
+- `BddBoxGeometry` (kuml-metamodel-sysml2) holds the vertical geometry of a BDD-style box; `Sysml2DefSvg.renderBox` and the
+  bridge both use it, so the anchor row and the drawn row cannot drift apart. Values are the previous literals.
+- `ParEnd.attributeIndex` and an optional `partAttributes` argument of `parResolveEnd`.
+- Handbook (`sysml2.adoc`): clearance and attribute docking described.
+- Tests: `Sysml2ParAttributeAnchorSvgTest` (new: end at row centre +-2 px on the correct side, three distinct rows,
+  no ports for whole-part or unknown-attribute bindings, no ports without attribute bindings, owner-lane clearance >= 12 px
+  and sibling-lane clearance >= 12 px); font independent.
+
+**Effect on other renderers.** `KumlLatexRenderer` uses only `ParEdgeAdapter`, not `toLayoutGraph`, `parResolveEnd` or
+`parEnrich`: the LaTeX PAR renderer is not affected. `check_latex_tests.py` passes.
+
+**Verification.** `./gradlew clean check --no-build-cache --continue` (25 min, 10026 tests aggregated over all modules, 0
+failures, 5 skipped); the only failing task of that run was a ktlint line length in the new test, fixed, ktlint, detekt and
+`Sysml2Par*` tests re-run green afterwards. Repro with the local CLI on vault examples 28 and 51: ends sit at the row
+centre; 51 measured before/after: lane to owner frame 6 -> 12 px, lane to sibling 8 -> 12 px. Vault-examples tests
+(including examples 28, 51, 56) pass unchanged; no golden had to change (they are invariant checks, no byte goldens). Sizes of
+PAR boxes with nested constraints change (outer box 4-6 px wider).
+
+**Not verified.** Real pdflatex build; Windows; the full `clean check` was not repeated as a single green run after the
+ktlint line fix (targeted re-run only).
+
+**Not fixed.** Approach columns in front of inner pins still run 8 px from the child block (`APPROACH` untouched by plan);
+top/bottom lane of the channel keeps 8 px below the owner's text; the anchor side follows the first binding of an
+attribute (one port per attribute); endpoint markers on parts, a validate warning for unknown attribute names, bundle pitch
+and the remaining N-PAR-A items; labels of nested bindings still get `KUML-LAYOUT-W005` in example 51.
+
 ### Nacharbeit 64: parametric diagrams: bindings inside a nested constraint carry their names, `kuml render` prints `PAR442`
 
 **Why.** Found with the local CLI on a generic fixture: in a `parDiagram` with nested constraints, the bindings between

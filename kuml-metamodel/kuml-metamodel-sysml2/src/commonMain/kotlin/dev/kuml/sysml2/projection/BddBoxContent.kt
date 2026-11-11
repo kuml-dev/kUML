@@ -43,6 +43,37 @@ data class BddCompartment(
     val monospace: Boolean = false,
 )
 
+/**
+ * Vertical geometry of the feature compartment of a BDD-style box (`«part def»` etc.), shared by the SVG renderer and
+ * the layout bridge so that an edge can end at the centre of a feature row (parametric diagrams, part attributes).
+ * All values in px from the top of the box.
+ */
+object BddBoxGeometry {
+    /** Baseline of the stereotype line. */
+    const val STEREOTYPE_BASELINE_Y: Float = 16f
+
+    /** Distance from the stereotype baseline to the name baseline. */
+    const val NAME_BASELINE_STEP: Float = 14f
+
+    /** Distance from the name baseline to the divider above the feature compartment. */
+    const val DIVIDER_STEP: Float = 12f
+
+    /** Distance from the divider to the first feature baseline. */
+    const val FIRST_BASELINE_STEP: Float = 14f
+
+    /** Pitch of the feature baselines. */
+    const val FEATURE_LINE_H: Float = 13f
+
+    /** The visual centre of a feature row lies this far above its baseline. */
+    const val ROW_CENTRE_ABOVE_BASELINE: Float = 4f
+
+    /** Y of the divider above the feature compartment. */
+    const val DIVIDER_Y: Float = STEREOTYPE_BASELINE_Y + NAME_BASELINE_STEP + DIVIDER_STEP
+
+    /** Y of the visual centre of feature row [index] (0-based), measured from the top of the box. */
+    fun featureRowCentreY(index: Int): Float = DIVIDER_Y + FIRST_BASELINE_STEP - ROW_CENTRE_ABOVE_BASELINE + index * FEATURE_LINE_H
+}
+
 /** Characters per line before the `expression` and `objective` compartments of a BDD box wrap (wave 2I-b). */
 const val BDD_WRAP_CHARS: Int = 34
 

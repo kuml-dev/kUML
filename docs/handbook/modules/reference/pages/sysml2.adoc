@@ -1135,7 +1135,13 @@ vertical corridors along the outer frame and vertical approach columns in front 
 Lanes are never compressed; the outer box grows with the number of bindings (taller channel, wider side zones and gaps),
 and the parameter text of an outer box moves right when many corridors run along its left frame. Bindings that end on the
 same pin are shifted against each other by 2 px. The assignment depends only on the model, not on the order in which the
-bindings are declared.
+bindings are declared. The corridors along the outer frame and the lane between two sibling constraints keep at least
+12 px to the frame resp. to the block they leave; the approach columns in front of an inner pin stay 8 px from that pin's
+block.
+
+A binding that names a part attribute (`Part::attr`) ends at the row of that attribute on the side edge of the part box
+(left edge when the other end is an `in` pin, right edge for an `out`/`inout` pin), not at the top or bottom edge. No pin
+is drawn there. A binding to the part as a whole, or to an unknown attribute name, ends on the box border as before.
 
 Rendered live below (vault source: `03 Bereiche/kUML/Beispiele/51 SysML 2 PAR – Verschachtelte Constraints.md`):
 

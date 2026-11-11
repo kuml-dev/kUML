@@ -20,6 +20,7 @@ import dev.kuml.layout.NodeId
 import dev.kuml.layout.NodeLayout
 import dev.kuml.layout.Point
 import dev.kuml.layout.PortId
+import dev.kuml.layout.PortSide
 import dev.kuml.layout.Rect
 import dev.kuml.layout.Size
 import dev.kuml.layout.bridge.port.IbdObstacleRouter
@@ -66,6 +67,7 @@ import dev.kuml.sysml2.constraint.Sysml2StmChecker
 import dev.kuml.sysml2.edge.IbdEdgeAdapter
 import dev.kuml.sysml2.edge.ReqEdgeAdapter
 import dev.kuml.sysml2.effectivePortDirection
+import dev.kuml.sysml2.projection.BddBoxGeometry
 import dev.kuml.sysml2.projection.sysml2BddBoxContent
 import dev.kuml.sysml2.projection.sysml2BddProjection
 import dev.kuml.sysml2.projection.sysml2IbdProjection
@@ -2640,6 +2642,9 @@ public object Sysml2LayoutBridge {
         fun ownSize(id: String) = sizeProvider.sizeOf(elementId = id, elementKind = "ConstraintDefinition")
         val plan = ParLanePlan.of(model = model, nesting = nesting, visible = diagram.elementIds.toSet())
         val boxMemo = HashMap<String, ParBox>()
+        val partAttributes = parPartAttributes(model = model, visibleIds = diagram.elementIds)
+        val attributeAnchors =
+            parAttributeAnchors(model = model, visibleIds = diagram.elementIds, nesting = nesting, partAttributes = partAttributes)
         val nodes = mutableListOf<LayoutNode>()
         for (id in diagram.elementIds) {
             val def = model.definitions.firstOrNull { it.id == id } ?: continue
@@ -2679,7 +2684,17 @@ public object Sysml2LayoutBridge {
                         )
                     }
                 } else {
-                    emptyList()
+                    // Part: one anchor port per bound attribute row (never visible, see parAttributePortId).
+                    val bySide = attributeAnchors[def.id].orEmpty().entries.groupBy({ it.value }, { it.key })
+                    attributeAnchors[def.id].orEmpty().map { (index, side) ->
+                        LayoutPort(
+                            id = PortId(parAttributePortId(partId = def.id, attributeName = partAttributes.getValue(def.id)[index])),
+                            side = side,
+                            order = bySide.getValue(side).sorted().indexOf(index),
+                            size = Size(width = 0f, height = 0f),
+                            offset = BddBoxGeometry.featureRowCentreY(index),
+                        )
+                    }
                 }
             nodes += LayoutNode(id = NodeId(def.id), intrinsicSize = size, ports = ports)
         }
@@ -2695,8 +2710,22 @@ public object Sysml2LayoutBridge {
         // [parEnrich] nach dem Layout.
         val edges = mutableListOf<LayoutEdge>()
         for (binding in model.usages.filterIsInstance<BindingConnectorUsage>()) {
-            val src = parResolveEnd(endpoint = binding.sourceEndId, visibleIds = visibleNodeIds, nesting = nesting) ?: continue
-            val tgt = parResolveEnd(endpoint = binding.targetEndId, visibleIds = visibleNodeIds, nesting = nesting) ?: continue
+            val src =
+                parResolveEnd(
+                    endpoint = binding.sourceEndId,
+                    visibleIds = visibleNodeIds,
+                    nesting = nesting,
+                    partAttributes = partAttributes,
+                )
+                    ?: continue
+            val tgt =
+                parResolveEnd(
+                    endpoint = binding.targetEndId,
+                    visibleIds = visibleNodeIds,
+                    nesting = nesting,
+                    partAttributes = partAttributes,
+                )
+                    ?: continue
             val srcRoot = if (src.nodeId in nesting.constraints) nesting.rootOf(src.nodeId) else src.nodeId
             val tgtRoot = if (tgt.nodeId in nesting.constraints) nesting.rootOf(tgt.nodeId) else tgt.nodeId
             if (srcRoot !in layoutNodeIds || tgtRoot !in layoutNodeIds) continue
@@ -2716,6 +2745,16 @@ public object Sysml2LayoutBridge {
                 val port =
                     if (c != null && end.nodeId == root && end.parameterIndex != null) {
                         ParConstraintGeometry.portId(constraint = c, parameter = c.parameters[end.parameterIndex])
+                    } else if (c == null &&
+                        end.attributeIndex != null &&
+                        attributeAnchors[end.nodeId]?.containsKey(end.attributeIndex) == true
+                    ) {
+                        PortId(
+                            parAttributePortId(
+                                partId = end.nodeId,
+                                attributeName = partAttributes.getValue(end.nodeId)[end.attributeIndex],
+                            ),
+                        )
                     } else {
                         null
                     }
@@ -2731,6 +2770,64 @@ public object Sysml2LayoutBridge {
         }
 
         return LayoutGraph(nodes = nodes, edges = edges).withLayoutSpec(diagram = diagram)
+    }
+
+    /** Id of the invisible anchor port of a part attribute row; never drawn, it only fixes where a binding ends. */
+    internal fun parAttributePortId(
+        partId: String,
+        attributeName: String,
+    ): String = "$partId::attr::$attributeName"
+
+    /** Feature names of the visible parts in row order; the index of a name is its row in the drawn box. */
+    private fun parPartAttributes(
+        model: Sysml2Model,
+        visibleIds: List<String>,
+    ): Map<String, List<String>> =
+        model.definitions
+            .filterIsInstance<PartDefinition>()
+            .filter { it.id in visibleIds }
+            .associate { part -> part.id to part.features.map { it.name } }
+
+    /**
+     * Anchor ports of the part boxes: for every attribute row that a binding addresses (`Part::attr`) one side
+     * (`row index -> side`). The side follows the pin the binding ends at (West pin -> West, East pin -> East); any
+     * other binding uses East. Attributes that no binding references get no port, so diagrams without attribute
+     * bindings stay unchanged.
+     */
+    private fun parAttributeAnchors(
+        model: Sysml2Model,
+        visibleIds: List<String>,
+        nesting: ParNesting,
+        partAttributes: Map<String, List<String>>,
+    ): Map<String, Map<Int, PortSide>> {
+        val visible = visibleIds.toSet()
+        val out = LinkedHashMap<String, MutableMap<Int, PortSide>>()
+        for (b in model.usages.filterIsInstance<BindingConnectorUsage>()) {
+            val a =
+                parResolveEnd(endpoint = b.sourceEndId, visibleIds = visible, nesting = nesting, partAttributes = partAttributes)
+                    ?: continue
+            val z =
+                parResolveEnd(endpoint = b.targetEndId, visibleIds = visible, nesting = nesting, partAttributes = partAttributes)
+                    ?: continue
+            for ((own, other) in listOf(a to z, z to a)) {
+                val index = own.attributeIndex ?: continue
+                val pin = other.parameterIndex?.takeIf { other.nodeId in nesting.constraints && !nesting.isNested(other.nodeId) }
+                val side =
+                    if (pin != null) {
+                        ParConstraintGeometry.pinSide(
+                            nesting.constraints
+                                .getValue(other.nodeId)
+                                .parameters[pin]
+                                .direction,
+                        )
+                    } else {
+                        PortSide.East
+                    }
+                val sides = out.getOrPut(own.nodeId) { LinkedHashMap() }
+                if (index !in sides) sides[index] = side
+            }
+        }
+        return out
     }
 
     /**

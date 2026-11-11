@@ -310,15 +310,23 @@ internal class ParNesting private constructor(
 internal data class ParEnd(
     val nodeId: String,
     val parameterIndex: Int?,
+    /** For a part end: index of the addressed attribute row (its position in the part's feature list), else `null`. */
+    val attributeIndex: Int? = null,
 )
 
 internal fun parResolveEnd(
     endpoint: String,
     visibleIds: Set<String>,
     nesting: ParNesting,
+    partAttributes: Map<String, List<String>> = emptyMap(),
 ): ParEnd? {
     val id = visibleIds.filter { endpoint == it || endpoint.startsWith("$it::") }.maxByOrNull { it.length } ?: return null
-    val c = nesting.constraints[id] ?: return ParEnd(nodeId = id, parameterIndex = null)
+    val c =
+        nesting.constraints[id] ?: run {
+            val rest = endpoint.removePrefix(id).removePrefix("::")
+            val idx = partAttributes[id]?.indexOf(rest)?.takeIf { it >= 0 && rest.isNotEmpty() }
+            return ParEnd(nodeId = id, parameterIndex = null, attributeIndex = idx)
+        }
     val rest = endpoint.removePrefix(id).removePrefix("::")
     val idx = c.parameters.indexOfFirst { it.name == rest }.takeIf { it >= 0 && rest.isNotEmpty() }
     return ParEnd(nodeId = id, parameterIndex = idx)
@@ -336,7 +344,10 @@ internal object ParCompositeLayout {
     const val GUTTER: Float = 28f
     const val BOTTOM_PAD: Float = 20f
     const val APPROACH: Float = 8f
-    const val LANE_X0: Float = 6f
+
+    /** Minimum distance of a nested-binding lane to the inner edge of its owner box and to the sides of a sibling child. */
+    const val PAR_LANE_CLEARANCE: Float = 12f
+    const val LANE_X0: Float = PAR_LANE_CLEARANCE
     const val LANE_PITCH: Float = 8f
     const val CORNER_RADIUS: Float = 0f
 
@@ -381,7 +392,7 @@ internal object ParCompositeLayout {
                             plan.approachCount(child = kids[i], side = PortSide.East) +
                                 plan.shortCount(owner = id, gapIndex = i) +
                                 plan.approachCount(child = kids[i + 1], side = PortSide.West) + 1
-                        maxOf(GUTTER, LANE_PITCH * slots)
+                        maxOf(GUTTER, LANE_PITCH * slots + (PAR_LANE_CLEARANCE - LANE_PITCH))
                     }
                 val rowW = boxes.values.sumOf { it.size.width.toDouble() }.toFloat() + gaps.sum()
                 val zoneL =
@@ -757,7 +768,7 @@ internal object ParCompositeLayout {
     ): List<Point> {
         val left = if (a.rect.origin.x < z.rect.origin.x) a else z
         val nE = plan.approachCount(child = left.id, side = PortSide.East)
-        val mid = left.rect.origin.x + left.rect.size.width + LANE_PITCH * (nE + 1 + plan.shortRank(routed.id))
+        val mid = left.rect.origin.x + left.rect.size.width + PAR_LANE_CLEARANCE + LANE_PITCH * (nE + plan.shortRank(routed.id))
         return listOf(a.pin, Point(x = mid, y = a.pin.y), Point(x = mid, y = z.pin.y), z.pin)
     }
 
