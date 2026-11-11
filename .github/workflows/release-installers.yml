@@ -5,6 +5,13 @@ on:
   push:
     tags:
       - 'v*.*.*'
+  # Manual run for an existing tag: builds only the Linux packages from that tag
+  # and attaches the DEB/RPM to its release (no Docker push, no DMG/MSI).
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "Existing release tag to build the DEB/RPM for (e.g. v0.56.0)"
+        required: true
 
 jobs:
   # ── Linux: DEB + RPM + Docker image ─────────────────────────────────────────
@@ -15,6 +22,8 @@ jobs:
       packages: write  # required to push to ghcr.io
     steps:
       - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.inputs.tag || github.ref }}
 
       - uses: actions/setup-java@v4
         with:
@@ -54,7 +63,7 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          TAG="${{ github.ref_name }}"
+          TAG="${{ github.event.inputs.tag || github.ref_name }}"
           shopt -s nullglob
           FILES=(kuml-packaging/build/dist/*.deb kuml-packaging/build/dist/*.rpm)
           if [ "${#FILES[@]}" -eq 0 ]; then
@@ -89,17 +98,20 @@ jobs:
           fi
           if ! GH_TOKEN="$APT_DISPATCH_TOKEN" gh api repos/kuml-dev/apt/dispatches \
               -f event_type=kuml-release \
-              -f "client_payload[tag]=${{ github.ref_name }}"; then
+              -f "client_payload[tag]=${{ github.event.inputs.tag || github.ref_name }}"; then
             echo "::warning::could not trigger the apt repository rebuild"
           fi
 
       - name: Log in to GitHub Container Registry
+        if: github.event_name == 'push'
         run: echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u ${{ github.actor }} --password-stdin
 
       - name: Build Docker CLI image
+        if: github.event_name == 'push'
         run: ./gradlew :kuml-packaging:dockerBuildCli
 
       - name: Push Docker image (version tag + latest)
+        if: github.event_name == 'push'
         # Strip the leading 'v' from the git tag — Gradle's dockerBuildCli task
         # tags the image with project.version (e.g. "0.6.0"), not the git ref
         # "v0.6.0". Pushing "v0.6.0" would fail with "tag does not exist".
@@ -110,6 +122,7 @@ jobs:
 
   # ── macOS: DMG (unsigned — Phase 2 adds Apple Developer signing) ─────────────
   build-macos:
+    if: github.event_name == 'push'
     runs-on: macos-latest
     steps:
       - uses: actions/checkout@v4
@@ -137,6 +150,7 @@ jobs:
 
   # ── Windows: MSI (unsigned — Phase 2 adds WiX/Authenticode signing) ──────────
   build-windows:
+    if: github.event_name == 'push'
     runs-on: windows-latest
     steps:
       - uses: actions/checkout@v4
