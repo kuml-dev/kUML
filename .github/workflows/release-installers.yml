@@ -75,6 +75,24 @@ jobs:
           echo "::error::could not attach DEB/RPM to release $TAG"
           exit 1
 
+      - name: Trigger APT repository rebuild
+        # Tells kuml-dev/apt that a new .deb is attached to the release. Never
+        # fails the release: without the token or on an API error the apt
+        # repository can be rebuilt by hand (workflow_dispatch in kuml-dev/apt).
+        shell: bash
+        env:
+          APT_DISPATCH_TOKEN: ${{ secrets.APT_DISPATCH_TOKEN }}
+        run: |
+          if [ -z "$APT_DISPATCH_TOKEN" ]; then
+            echo "::warning::APT_DISPATCH_TOKEN is not set; run the apt publish workflow by hand"
+            exit 0
+          fi
+          if ! GH_TOKEN="$APT_DISPATCH_TOKEN" gh api repos/kuml-dev/apt/dispatches \
+              -f event_type=kuml-release \
+              -f "client_payload[tag]=${{ github.ref_name }}"; then
+            echo "::warning::could not trigger the apt repository rebuild"
+          fi
+
       - name: Log in to GitHub Container Registry
         run: echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u ${{ github.actor }} --password-stdin
 
