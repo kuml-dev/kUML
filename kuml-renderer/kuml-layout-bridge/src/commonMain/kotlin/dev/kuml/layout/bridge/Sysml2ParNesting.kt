@@ -89,7 +89,7 @@ public object ParConstraintGeometry {
             }
         }
         if (west.isEmpty()) return PARAM_TEXT_INDENT
-        return maxOf(PARAM_TEXT_INDENT, ParCompositeLayout.LANE_X0 + (west.size - 1) * ParCompositeLayout.LANE_PITCH + 6f)
+        return maxOf(PARAM_TEXT_INDENT, ParCompositeLayout.LANE_X0 + (west.size - 1) * ParCompositeLayout.LANE_PITCH_X + 6f)
     }
 
     /** Average width of an 11 pt monospace glyph (expression compartment). */
@@ -343,12 +343,22 @@ internal object ParCompositeLayout {
     const val SIDE_ZONE: Float = 28f
     const val GUTTER: Float = 28f
     const val BOTTOM_PAD: Float = 20f
-    const val APPROACH: Float = 8f
+
+    /**
+     * Distance of the first approach column to the pin centre. The line ends at the pin edge (half the 8 px pin
+     * square closer), so 16 leaves a visible stub of 12 px, longer than an arrowhead.
+     */
+    const val APPROACH: Float = 16f
 
     /** Minimum distance of a nested-binding lane to the inner edge of its owner box and to the sides of a sibling child. */
     const val PAR_LANE_CLEARANCE: Float = 12f
     const val LANE_X0: Float = PAR_LANE_CLEARANCE
-    const val LANE_PITCH: Float = 8f
+
+    /** Pitch of vertical lane columns (x axis): 12 px keeps two parallel lines visibly apart. */
+    const val LANE_PITCH_X: Float = 12f
+
+    /** Pitch of horizontal lanes (y axis): label height 13 px plus 3 px air, so a label never sits on the neighbouring lane. */
+    const val LANE_PITCH_Y: Float = 16f
     const val CORNER_RADIUS: Float = 0f
 
     /** Width of a side zone: room for [corridors] owner corridor columns and [approaches] approach columns of the edge child. */
@@ -356,8 +366,8 @@ internal object ParCompositeLayout {
         corridors: Int,
         approaches: Int,
     ): Float {
-        val base = if (corridors > 0) LANE_X0 + (corridors - 1) * LANE_PITCH + LANE_PITCH else LANE_PITCH
-        return maxOf(SIDE_ZONE, base + approaches * LANE_PITCH)
+        val base = if (corridors > 0) LANE_X0 + (corridors - 1) * LANE_PITCH_X + LANE_PITCH_X else LANE_PITCH_X
+        return maxOf(SIDE_ZONE, base + approaches * LANE_PITCH_X)
     }
 
     fun box(
@@ -388,11 +398,13 @@ internal object ParCompositeLayout {
                     }
                 val gaps =
                     (0 until kids.size - 1).map { i ->
-                        val slots =
+                        val columns =
                             plan.approachCount(child = kids[i], side = PortSide.East) +
                                 plan.shortCount(owner = id, gapIndex = i) +
-                                plan.approachCount(child = kids[i + 1], side = PortSide.West) + 1
-                        maxOf(GUTTER, LANE_PITCH * slots + (PAR_LANE_CLEARANCE - LANE_PITCH))
+                                plan.approachCount(child = kids[i + 1], side = PortSide.West)
+                        // short lanes run from the left box (clearance first), approach columns from the right box
+                        // (APPROACH first); one pitch between the two groups keeps every column pair at LANE_PITCH_X.
+                        maxOf(GUTTER, PAR_LANE_CLEARANCE + APPROACH + LANE_PITCH_X * (columns - 1))
                     }
                 val rowW = boxes.values.sumOf { it.size.width.toDouble() }.toFloat() + gaps.sum()
                 val zoneL =
@@ -406,7 +418,7 @@ internal object ParCompositeLayout {
                         approaches = plan.approachCount(child = kids.last(), side = PortSide.East),
                     )
                 val w = maxOf(own.width, zoneL + rowW + zoneR)
-                val channelH = maxOf(CHANNEL_H, 8f + plan.channelCount(owner = id) * LANE_PITCH + 8f)
+                val channelH = maxOf(CHANNEL_H, 8f + plan.channelCount(owner = id) * LANE_PITCH_Y + 8f)
                 val y0 = own.height + channelH
                 var x = zoneL + (w - zoneL - rowW - zoneR) / 2f
                 val rects = LinkedHashMap<String, Rect>()
@@ -725,13 +737,13 @@ internal object ParCompositeLayout {
         return simplify(raw)
     }
 
-    /** Approach point of a child pin: column [LANE_PITCH] apart per rank, ending in a horizontal stub to the pin. */
+    /** Approach point of a child pin: column [LANE_PITCH_X] apart per rank, ending in a horizontal stub to the pin. */
     private fun approach(
         p: Inner,
         plan: ParLanePlan,
     ): Point {
         val r = plan.approachRank(child = p.id, side = p.side!!, paramIndex = p.index!!)
-        val dx = APPROACH + r * LANE_PITCH
+        val dx = APPROACH + r * LANE_PITCH_X
         return Point(x = if (p.side == PortSide.West) p.pin.x - dx + p.share else p.pin.x + dx + p.share, y = p.pin.y)
     }
 
@@ -739,7 +751,7 @@ internal object ParCompositeLayout {
         ownerRect: Rect,
         ownerHeader: Float,
         lane: Int,
-    ): Float = ownerRect.origin.y + ownerHeader + 8f + lane * LANE_PITCH
+    ): Float = ownerRect.origin.y + ownerHeader + 8f + lane * LANE_PITCH_Y
 
     private fun ownerToChild(
         owner: Inner,
@@ -751,9 +763,9 @@ internal object ParCompositeLayout {
         val j = plan.corridorRank(owner = owner.id, side = owner.side!!, paramIndex = owner.index!!) ?: 0
         val laneX =
             if (owner.side == PortSide.West) {
-                owner.rect.origin.x + LANE_X0 + LANE_PITCH * j + owner.share
+                owner.rect.origin.x + LANE_X0 + LANE_PITCH_X * j + owner.share
             } else {
-                owner.rect.origin.x + owner.rect.size.width - LANE_X0 - LANE_PITCH * j + owner.share
+                owner.rect.origin.x + owner.rect.size.width - LANE_X0 - LANE_PITCH_X * j + owner.share
             }
         val ch = channelY(ownerRect = owner.rect, ownerHeader = ownSize(owner.id).height, lane = plan.channelLane(routed.id))
         val app = approach(p = child, plan = plan)
@@ -768,7 +780,7 @@ internal object ParCompositeLayout {
     ): List<Point> {
         val left = if (a.rect.origin.x < z.rect.origin.x) a else z
         val nE = plan.approachCount(child = left.id, side = PortSide.East)
-        val mid = left.rect.origin.x + left.rect.size.width + PAR_LANE_CLEARANCE + LANE_PITCH * (nE + plan.shortRank(routed.id))
+        val mid = left.rect.origin.x + left.rect.size.width + PAR_LANE_CLEARANCE + LANE_PITCH_X * (nE + plan.shortRank(routed.id))
         return listOf(a.pin, Point(x = mid, y = a.pin.y), Point(x = mid, y = z.pin.y), z.pin)
     }
 

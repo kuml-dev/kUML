@@ -127,8 +127,8 @@ class Sysml2ParLabelInvariantTest :
                     labels.map { it.text }.toSet().containsAll(listOf("F_to_force", "m_to_mass", "a_to_acceleration")) shouldBe true
                 }
                 // no label is without a free spot
-                // (Nacharbeit 64: example 51 has three nested bindings whose labels find no clean spot, reported as W005
-                // and drawn on their line; every other example stays free of it.)
+                // (Nacharbeit 64/84: example 51 has three nested bindings whose labels find no clean spot even with the
+                // wider lane pitches, reported as W005 and drawn on their line; every other example stays free of it.)
                 val codes = VaultExampleRenderer.parLabelWarningCodes(script)
                 if (prefix == "51 ") codes.all { it == "KUML-LAYOUT-W005" } shouldBe true else codes shouldBe emptyList()
                 if (prefix == "51 ") (codes.size <= 3) shouldBe true

@@ -6,6 +6,13 @@ All notable changes to this project are documented here. Format follows
 
 ## [Unreleased]
 
+### Nacharbeit 84: PAR binding lanes get readable spacing
+
+- **Why.** Lanes of nested parametric bindings sat 8 px apart while the label text is 13 px high, so the label of one binding lay on its neighbour's line (up to three `KUML-LAYOUT-W005` in example 51), and the stub in front of a child pin was shorter than an arrowhead.
+- **Change.** `LANE_PITCH` is replaced by `LANE_PITCH_X` (12 px, vertical columns) and `LANE_PITCH_Y` (16 px, horizontal lanes); `APPROACH` is 16 px from the pin centre (a 12 px visible stub). The gap between sibling blocks is sized for short lanes (from the left block) and approach columns (from the right block) so every column pair keeps 12 px. Boxes and zones of parametric diagrams grow accordingly.
+- **Verification.** New `Sysml2ParLanePitchSvgTest` (pitch 12/16 px, stub at inner pins, one label per binding); layout-bridge, SVG and vault-example tests green.
+- **Not fixed.** No channel router with label slots (own wave). Example 51 still reports up to three `KUML-LAYOUT-W005` for nested bindings (tolerance stays 3, not raised). Labels of nested bindings can still sit closer than 4 px to a block edge. The stub at the owner pin end and at the source side of sibling short lanes is unchanged (8 px).
+
 ## [0.57.0] — 2026-11-12
 
 ### Highlights
