@@ -6,6 +6,20 @@ All notable changes to this project are documented here. Format follows
 
 ## [Unreleased]
 
+## [0.57.0] — 2026-11-12
+
+### Highlights
+
+- **Layout and label quality across the diagram families.** Notes stay clear of lines, labels and frames in UML, SysML 2, C4, BPMN and Service Blueprint; an explicit `aspectRatio` / `maxWidth` is measured on the finished image and, for state machines, block definition diagrams and use cases, may rotate the flow; long names wrap (action names, lifeline heads, Blueprint actor names); initial and final nodes are drawn as in the standard; label and edge routing was reworked for activity, state machine, sequence, parametric, requirement and internal block diagrams.
+- **Fewer silent losses.** Several `relationship()` calls between the same two C4 elements are all drawn (before, only the last survived); an explicit `multiplicity("1")` is drawn; notes that cannot be drawn are reported (`KUML-NOTE-W002`); new findings `ACT316`/`ACT317` (fork and accept degrees), `PAR442`, `KUML-LAYOUT-W008` (`first()`/`last()` against the edges) and `OKF-W-009` (same `reqId` with different text).
+- **LaTeX/TikZ export everywhere.** `--latex-standalone` for every diagram family, LaTeX export of workspaces from the CLI (`kuml workspace export --format latex`) and from kUML Desktop, a shared preamble, and a CI job that builds the exported LaTeX with a real TeX.
+- **Linux packages.** kUML Desktop as DEB, RPM and AppImage; a signed APT repository (`apt.kuml.dev`) and a signed RPM repository (`rpm.kuml.dev`); the DEB packages are built on Ubuntu 22.04 and install on Ubuntu 22.04 and 24.04 and Debian 12 (tested in clean containers); `kuml` is on the `PATH` after `apt install kuml` (the RPM does not create the link yet). Linux packages are x86_64 / amd64 only.
+- **Desktop and MCP.** The Desktop MSI carries the real version number; separate remembered directories for open and export dialogs; `kuml_desktop_workspace_get_document` reads large documents in line sections (`offset`, `limit`, `lineCount`, `hasMore`); OKF vocabulary lists `Sysml2PackageDiagram` and write-path findings carry the right severity.
+- **Upgrade note (Windows).** Anyone who installed an earlier kUML Desktop MSI (its version was shown as `56.0.0`) has to uninstall it once before installing this one: Windows treats `0.57.0` as older than `56.0.0`. This is a one-time break before 1.0.
+- **Infrastructure.** The CI skips builds that only change documentation, replaces a run that a newer push has superseded, and the release build is not repeated when the CI already passed for the tagged commit.
+
+The detailed entries below are written per work wave and keep their original wave names.
+
 ### Nacharbeit 83: BDD aspectRatio finding measured on the final image
 
 **Why.** The handbook said `KUML-LAYOUT-W003` is measured on the final image for state machines and block definition diagrams. For block definition diagrams it was not: the CLI used the plain layout runner, so the reported ratio came from the engine canvas, without the renderer padding and the edge-label overhang. The reported "actual" therefore differed from the drawn SVG (for a hub with eight `refPart`s and `aspectRatio = 1.0`: reported 1.35, drawn 1.34; with an explicit `direction`: reported 1.63, drawn 1.61).
