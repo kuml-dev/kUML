@@ -6,6 +6,32 @@ All notable changes to this project are documented here. Format follows
 
 ## [Unreleased]
 
+### Nacharbeit 82: workspace_get_document reads large documents in line sections
+
+**Why.** `kuml_desktop_workspace_get_document` always returned the whole document as one result, so a 62-78 KB document exceeded the
+token limit of MCP clients and could not be read at all.
+
+**Change.**
+- New optional integer arguments `offset` (1-based first line, default 1) and `limit` (1-2000 lines, default 500 when paging).
+- The result always has the new field `lineCount` (a trailing newline does not count as an extra line; 0 for an empty document).
+- With `offset` and/or `limit`, `content` is that section of lines with line terminators kept (`\r` is preserved), so consecutive
+  sections concatenate to the original text. The result then also has `offset`, `limit`, `returnedLines` and `hasMore`. An `offset`
+  beyond `lineCount` gives empty content, `returnedLines` 0 and `hasMore` false (not an error).
+- `revision`, `dirty` and `diskRevision` always describe the full document (or the full unsaved buffer), so `revision` stays
+  usable as `baseRevision` for `set_document`. Without parameters the result is unchanged apart from `lineCount`.
+- Tool description and handbook (`authoring-mcp.adoc`) updated.
+
+**Tests.** `DesktopMcpWorkspaceToolsTest`: backward compatibility plus `lineCount`, a 78 KB document read in 500-line pages and
+reassembled losslessly, boundaries (offset beyond the end, no trailing newline, empty document, offset only), invalid
+`offset`/`limit` values refused with INVALID_ARGUMENT, dirty buffer sliced with the revision of the full buffer. Existing tests unchanged.
+
+**Verification.** Full local check (`clean check detekt ktlintCheck`, no build cache) green, LaTeX skip guard passed. Not verified: the real desktop MCP server was not reachable
+(ECONNREFUSED), so there was no live client check; unit tests only.
+
+**Not fixed / not changed.** No `section` (heading) parameter: it needs heading parsing that skips fenced code and frontmatter;
+offset/limit already make sections readable. The MCP transport still renders results as compact one-line JSON (a transport-level
+change affecting all tools); each response is now small instead. N-WS-B is untouched. There is no CLI or other front end for this tool.
+
 ### Nacharbeit 81: OKF vocabulary lists Sysml2PackageDiagram, write-path findings no longer carry a wrong severity
 
 **Why.** (a) `Sysml2PackageDiagram` was missing from the OKF `type:` vocabulary although the diagram kind exists, so such

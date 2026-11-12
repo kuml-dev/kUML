@@ -305,6 +305,112 @@ class DesktopMcpWorkspaceToolsTest :
             }
         }
 
+        test("get: no parameters stays backward compatible and adds lineCount") {
+            withFix { f ->
+                val r = f.call("kuml_desktop_workspace_get_document", args("path" to "notes/p.md"))
+                r["content"]!!.jsonPrimitive.content shouldBe proseDoc
+                r["lineCount"]!!.jsonPrimitive.int shouldBe 5
+                r["revision"]!!.jsonPrimitive.content shouldBe DocumentRevision.of(proseDoc)
+                r["dirty"]!!.jsonPrimitive.boolean shouldBe false
+                listOf("offset", "limit", "hasMore", "returnedLines").forEach { (r.containsKey(it)) shouldBe false }
+            }
+        }
+
+        test("get: a 78 KB document is read in sections") {
+            withFix { f ->
+                val body =
+                    (1..2600).joinToString(separator = "") { n ->
+                        "Line ${n.toString().padStart(4, '0')}: filler text filler text\n"
+                    }
+                val text = "---\ntype: Concept\n---\n" + body
+                (text.toByteArray(Charsets.UTF_8).size >= 78 * 1024) shouldBe true
+                (text.toByteArray(Charsets.UTF_8).size < DesktopMcpWorkspaceTools.MAX_DOCUMENT_BYTES) shouldBe true
+                File(f.root, "big78.md").writeText(text)
+                val expectedLines = 2603
+                val sb = StringBuilder()
+                var offset = 1
+                var pages = 0
+                do {
+                    val r =
+                        f.call(
+                            "kuml_desktop_workspace_get_document",
+                            args("path" to "big78.md", "offset" to offset, "limit" to 500),
+                        )
+                    val part = r["content"]!!.jsonPrimitive.content
+                    (part.length < text.length / 4) shouldBe true
+                    sb.append(part)
+                    r["lineCount"]!!.jsonPrimitive.int shouldBe expectedLines
+                    r["revision"]!!.jsonPrimitive.content shouldBe DocumentRevision.of(text)
+                    offset += r["returnedLines"]!!.jsonPrimitive.int
+                    pages++
+                    val more = r["hasMore"]!!.jsonPrimitive.boolean
+                } while (more)
+                sb.toString() shouldBe text
+                pages shouldBe 6
+            }
+        }
+
+        test("get: offset/limit boundaries") {
+            withFix { f ->
+                File(f.root, "four.md").writeText("a\nb\nc\nd\n")
+                val r = f.call("kuml_desktop_workspace_get_document", args("path" to "four.md", "offset" to 3, "limit" to 2))
+                r["content"]!!.jsonPrimitive.content shouldBe "c\nd\n"
+                r["returnedLines"]!!.jsonPrimitive.int shouldBe 2
+                r["lineCount"]!!.jsonPrimitive.int shouldBe 4
+                r["hasMore"]!!.jsonPrimitive.boolean shouldBe false
+                val mid = f.call("kuml_desktop_workspace_get_document", args("path" to "four.md", "offset" to 2, "limit" to 1))
+                mid["content"]!!.jsonPrimitive.content shouldBe "b\n"
+                mid["hasMore"]!!.jsonPrimitive.boolean shouldBe true
+                val beyond = f.call("kuml_desktop_workspace_get_document", args("path" to "four.md", "offset" to 5))
+                beyond["content"]!!.jsonPrimitive.content shouldBe ""
+                beyond["returnedLines"]!!.jsonPrimitive.int shouldBe 0
+                beyond["hasMore"]!!.jsonPrimitive.boolean shouldBe false
+                File(f.root, "nonl.md").writeText("a\r\nb")
+                val n = f.call("kuml_desktop_workspace_get_document", args("path" to "nonl.md", "limit" to 1))
+                n["lineCount"]!!.jsonPrimitive.int shouldBe 2
+                n["content"]!!.jsonPrimitive.content shouldBe "a\r\n"
+                File(f.root, "empty.md").writeText("")
+                val e = f.call("kuml_desktop_workspace_get_document", args("path" to "empty.md"))
+                e["lineCount"]!!.jsonPrimitive.int shouldBe 0
+                val e2 = f.call("kuml_desktop_workspace_get_document", args("path" to "empty.md", "offset" to 1))
+                e2["content"]!!.jsonPrimitive.content shouldBe ""
+                e2["hasMore"]!!.jsonPrimitive.boolean shouldBe false
+                val bounded = f.call("kuml_desktop_workspace_get_document", args("path" to "four.md", "offset" to 1))
+                bounded["limit"]!!.jsonPrimitive.int shouldBe DesktopMcpWorkspaceTools.DEFAULT_GET_LIMIT
+                bounded["returnedLines"]!!.jsonPrimitive.int shouldBe 4
+            }
+        }
+
+        test("get: invalid offset/limit refused") {
+            withFix { f ->
+                listOf(
+                    args("path" to "notes/p.md", "offset" to 0),
+                    args("path" to "notes/p.md", "limit" to 0),
+                    args("path" to "notes/p.md", "limit" to -1),
+                    args("path" to "notes/p.md", "limit" to 2001),
+                    args("path" to "notes/p.md", "offset" to "3"),
+                ).forEach { f.code("kuml_desktop_workspace_get_document", it) shouldBe "INVALID_ARGUMENT" }
+            }
+        }
+
+        test("get: dirty buffer slices the unsaved buffer with the revision of the full buffer") {
+            withFix { f ->
+                f.ws.select(
+                    doc = f.ws.documents.first { it.relativePath == "notes/p.md" },
+                    themeName = "plain",
+                    strings = dev.kuml.desktop.i18n.Strings.EN,
+                )
+                val buffer = "l1\nl2\nl3\n"
+                f.ws.updateBuffer(buffer)
+                val r = f.call("kuml_desktop_workspace_get_document", args("path" to "notes/p.md", "offset" to 2, "limit" to 1))
+                r["content"]!!.jsonPrimitive.content shouldBe "l2\n"
+                r["dirty"]!!.jsonPrimitive.boolean shouldBe true
+                r["revision"]!!.jsonPrimitive.content shouldBe DocumentRevision.of(buffer)
+                r["diskRevision"]!!.jsonPrimitive.content shouldBe DocumentRevision.of(proseDoc)
+                r["lineCount"]!!.jsonPrimitive.int shouldBe 3
+            }
+        }
+
         test("posixRelativePath equals the parsed relativePath of a nested document on every OS") {
             withFix { f ->
                 val doc = f.ws.documents.first { it.relativePath == "notes/p.md" }

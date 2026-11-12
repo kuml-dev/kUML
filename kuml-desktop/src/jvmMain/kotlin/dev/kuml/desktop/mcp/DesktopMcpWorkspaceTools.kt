@@ -199,10 +199,16 @@ internal class DesktopMcpWorkspaceTools(
             tool(
                 name = "kuml_desktop_workspace_get_document",
                 description =
-                    "Returns {path, content, revision, dirty, diskRevision?}. If the document is open in the editor with " +
-                        "unsaved changes, content/revision describe that unsaved buffer (dirty:true) and diskRevision the file. " +
+                    "Returns {path, content, revision, dirty, lineCount, diskRevision?}. If the document is open in the editor " +
+                        "with unsaved changes, content/revision describe that unsaved buffer (dirty:true) and diskRevision the file. " +
                         "Revision = first 16 hex chars of SHA-256 of the UTF-8 content. Max 512 KiB. " +
-                        "Errors: INVALID_PATH, DOCUMENT_NOT_FOUND, DOCUMENT_TOO_LARGE.",
+                        "Without offset/limit the whole document is returned. With offset and/or limit only a section of lines " +
+                        "is returned in content (line terminators kept, so consecutive sections concatenate to the original) and " +
+                        "the result additionally has {offset, limit, returnedLines, hasMore}; continue with " +
+                        "offset = offset + returnedLines while hasMore is true. An offset beyond lineCount yields empty content. " +
+                        "revision, dirty, diskRevision and lineCount always describe the FULL document, so revision stays " +
+                        "usable as baseRevision for set_document. " +
+                        "Errors: INVALID_PATH, INVALID_ARGUMENT, DOCUMENT_NOT_FOUND, DOCUMENT_TOO_LARGE.",
                 schema =
                     schema(
                         Prop(
@@ -210,6 +216,19 @@ internal class DesktopMcpWorkspaceTools(
                             type = "string",
                             description = "Document path relative to the workspace root (.md).",
                             required = true,
+                        ),
+                        Prop(
+                            name = "offset",
+                            type = "integer",
+                            description =
+                                "First line to return, 1-based (default 1). Omit offset and limit to get the whole document.",
+                        ),
+                        Prop(
+                            name = "limit",
+                            type = "integer",
+                            description =
+                                "Maximum number of lines to return, 1-$MAX_GET_LIMIT (default $DEFAULT_GET_LIMIT when offset or " +
+                                    "limit is used).",
                         ),
                     ),
                 annotations = readOnly(),
@@ -703,12 +722,23 @@ internal class DesktopMcpWorkspaceTools(
         ) {
             throw err(code = "DOCUMENT_TOO_LARGE", "max" to MAX_DOCUMENT_BYTES)
         }
+        val paged = (args["offset"] != null && args["offset"] !is JsonNull) || (args["limit"] != null && args["limit"] !is JsonNull)
+        val offset = intArg(args = args, key = "offset", default = 1, min = 1, max = Int.MAX_VALUE)
+        val limit = intArg(args = args, key = "limit", default = DEFAULT_GET_LIMIT, min = 1, max = MAX_GET_LIMIT)
+        val slice = sliceLines(content = content, offset = offset, limit = limit)
         return buildJsonObject {
             put("path", posix)
-            put("content", content)
+            put("content", if (paged) slice.text else content)
             put("revision", DocumentRevision.of(content))
             put("dirty", dirty)
+            put("lineCount", slice.lineCount)
             if (dirty) put("diskRevision", DocumentRevision.of(diskText))
+            if (paged) {
+                put("offset", offset)
+                put("limit", limit)
+                put("returnedLines", slice.returned)
+                put("hasMore", slice.hasMore)
+            }
         }
     }
 
@@ -1403,6 +1433,43 @@ internal class DesktopMcpWorkspaceTools(
         return b ?: throw err(code = "INVALID_ARGUMENT", "argument" to key)
     }
 
+    private class LineSlice(
+        val text: String,
+        val lineCount: Int,
+        val returned: Int,
+        val hasMore: Boolean,
+    )
+
+    /** Splits on '\n' only (a '\r' stays in the text) and keeps terminators, so slices concatenate losslessly. */
+    private fun sliceLines(
+        content: String,
+        offset: Int,
+        limit: Int,
+    ): LineSlice {
+        // starts[i] = index of the first char of line i+1
+        val starts = ArrayList<Int>()
+        if (content.isNotEmpty()) {
+            starts.add(0)
+            var i = content.indexOf('\n')
+            while (i >= 0 && i + 1 < content.length) {
+                starts.add(i + 1)
+                i = content.indexOf('\n', i + 1)
+            }
+        }
+        val total = starts.size
+        val first = offset - 1
+        if (first >= total) return LineSlice(text = "", lineCount = total, returned = 0, hasMore = false)
+        val endLine = minOf(total.toLong(), first.toLong() + limit).toInt()
+        val from = starts[first]
+        val to = if (endLine >= total) content.length else starts[endLine]
+        return LineSlice(
+            text = content.substring(from, to),
+            lineCount = total,
+            returned = endLine - first,
+            hasMore = endLine < total,
+        )
+    }
+
     private fun intArg(
         args: JsonObject,
         key: String,
@@ -1511,6 +1578,8 @@ internal class DesktopMcpWorkspaceTools(
         const val MAX_RENDER_BYTES = 4L * 1024 * 1024
         const val DEFAULT_LIST_LIMIT = 500
         const val MAX_LIST_LIMIT = 2000
+        const val DEFAULT_GET_LIMIT = 500
+        const val MAX_GET_LIMIT = 2000
         const val DEFAULT_PNG_WIDTH = 1200
         const val MIN_PNG_WIDTH = 64
         const val MAX_PNG_WIDTH = 8192
