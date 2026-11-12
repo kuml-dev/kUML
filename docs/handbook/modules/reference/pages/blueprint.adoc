@@ -27,8 +27,9 @@ blueprint(name = "Membership") {
   is cut with a hyphen. A title is limited to 300 characters and 12 lines; an ellipsis marks the cut.
 * A pain point and an opportunity share one marker row above the footer (pain dot and caption left, opportunity
   dot right). The caption is one line; the tooltip has the full text.
-* A step with an actor and/or touchpoints has a *footer* row: the actor's role icon and name left (truncated with
-  an ellipsis, the tooltip names role and full name), the touchpoints right.
+* A step with an actor and/or touchpoints has a *footer* row: the actor's role icon and name left, the touchpoints
+  right. A long actor name wraps to at most three lines (then it ends in an ellipsis; the tooltip names role and
+  full name) and the card grows by the extra lines; a one-line name leaves the card height unchanged.
 * A touchpoint is a badge in the symbol shape of the touchpoint (circle, diamond, square, hexagon) with its legend
   number. Badges are 20 px apart. If they do not fit beside at least 60 px of actor name, the last ones collapse
   into one `+n` chip. The legend below the diagram lists number, symbol, channel glyph and name.

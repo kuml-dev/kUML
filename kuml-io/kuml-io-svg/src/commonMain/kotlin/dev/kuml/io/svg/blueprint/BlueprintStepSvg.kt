@@ -79,9 +79,11 @@ internal fun SvgBuilder.renderStepCard(
     val textWidth = w - 2 * inset
     val textCenterX = x + w / 2.0
     val hasFooter = actor != null || touchpoints.isNotEmpty()
-    val footerHeight = BlueprintGridConstants.CARD_FOOTER_HEIGHT
+    val nameLines = actor?.let { BlueprintGridConstants.actorNameLines(name = it.name ?: it.id, badgeCount = touchpoints.size) }
+    val footerHeight = BlueprintGridConstants.footerHeight(lineCount = (nameLines?.size ?: 1).coerceAtLeast(1))
     val footerBottomInset = BlueprintGridConstants.CARD_FOOTER_BOTTOM_INSET
-    val footerCy = y + h - footerBottomInset - footerHeight / 2.0
+    val footerTop = y + h - footerBottomInset - footerHeight
+    val firstLineCy = footerTop + BlueprintGridConstants.CARD_FOOTER_HEIGHT / 2.0
     tag(name = "g", attrs = mapOf("id" to step.id)) {
         rawXml(
             """<rect x="${f(x)}" y="${f(y)}" width="${f(w)}" height="${f(h)}" rx="6" """ +
@@ -152,13 +154,14 @@ internal fun SvgBuilder.renderStepCard(
             }
         }
 
-        if (hasFooter) renderFooter(actor = actor, touchpoints = touchpoints, x = x, w = w, cy = footerCy)
+        if (hasFooter) renderFooter(actor = actor, lines = nameLines.orEmpty(), touchpoints = touchpoints, x = x, w = w, cy = firstLineCy)
     }
 }
 
 /** Footer row: actor role icon + name on the left, numbered touchpoint badges right-aligned. */
 private fun SvgBuilder.renderFooter(
     actor: Actor?,
+    lines: List<String>,
     touchpoints: List<FooterTouchpoint>,
     x: Double,
     w: Double,
@@ -168,15 +171,7 @@ private fun SvgBuilder.renderFooter(
     val iconSize = BlueprintGridConstants.FOOTER_ICON_SIZE
     val left = x + inset
     val right = x + w - inset
-    val actorReserve =
-        if (actor != null) iconSize + BlueprintGridConstants.FOOTER_ICON_GAP + BlueprintGridConstants.FOOTER_NAME_MIN_WIDTH else 0.0
-    val badges =
-        BlueprintGridConstants.footerBadgeLayout(
-            badgeCount = touchpoints.size,
-            availableWidth = right - left,
-            reservedWidth = actorReserve,
-        )
-    val badgesWidth = badges.slots * BlueprintGridConstants.BADGE_STEP
+    val badges = BlueprintGridConstants.footerBadgeSlots(badgeCount = touchpoints.size, hasActor = actor != null)
 
     if (actor != null) {
         val icon = BlueprintActorIcons.fragmentFor(actor.role)
@@ -186,15 +181,19 @@ private fun SvgBuilder.renderFooter(
                 """<title>${xmlEscapeContent("$fullName (${actor.role})")}</title></g>""",
         )
         val nameX = left + iconSize + BlueprintGridConstants.FOOTER_ICON_GAP
-        val nameWidth = (right - badgesWidth - nameX).coerceAtLeast(0.0)
-        val shown =
-            truncateOneLine(
-                text = BlueprintGridConstants.clipText(text = fullName, max = BlueprintGridConstants.MAX_ACTOR_NAME_CHARS),
-                maxWidthPx = nameWidth,
-            )
+        val tspans =
+            if (lines.size <= 1) {
+                xmlEscapeContent(lines.firstOrNull() ?: "")
+            } else {
+                lines
+                    .mapIndexed { idx, line ->
+                        val dy = if (idx == 0) "0" else f(BlueprintGridConstants.ACTOR_LINE_HEIGHT)
+                        """<tspan x="${f(nameX)}" dy="$dy">${xmlEscapeContent(line)}</tspan>"""
+                    }.joinToString("")
+            }
         rawXml(
             """<text x="${f(nameX)}" y="${f(cy + 3.5)}" class="kuml-small" font-size="10">""" +
-                """${xmlEscapeContent(shown)}<title>${xmlEscapeContent(fullName)}</title></text>""",
+                """$tspans<title>${xmlEscapeContent(fullName)}</title></text>""",
         )
     }
 

@@ -6,6 +6,40 @@ All notable changes to this project are documented here. Format follows
 
 ## [Unreleased]
 
+### Nacharbeit 80: long actor names wrap in the Blueprint card footer; same-cell stacking and labels are covered by tests
+
+**Why.** (a) The actor name in a Service Blueprint card footer was cut to one line (about 20 characters, the full name
+only in the tooltip), so long names were unreadable. (b) A fixed English lane/line label was reported; (c) a second card
+on the same lane and phase was reported as dropped.
+
+**Change.**
+* (a) The actor name wraps to at most three lines; a longer name ends in an ellipsis on line 3 (tooltip keeps the full
+  name). The footer grows only when needed (`BlueprintGridConstants.footerHeight(lineCount)`; one line stays 22 px, so
+  cards with short names are unchanged). New shared API in `BlueprintGridConstants`: `MAX_ACTOR_NAME_LINES`,
+  `ACTOR_LINE_HEIGHT`, `ACTOR_FONT_SIZE`, `footerBadgeSlots`, `actorNameLines`, `footerHeight`, and
+  `cardHeight(step, actorName, badgeCount)` (defaults keep old callers unchanged). `layerHeights` and `stackedCards`
+  resolve the actor name and the count of resolvable touchpoints themselves, so the SVG renderer, the layout bridge
+  and the LaTeX cell geometry agree on heights; icon, badges and the "+n" chip stay aligned to line 1.
+* (b) No code change: `BlueprintLabels` (`blueprintDiagram(labels = BlueprintLabels.GERMAN)`) already reaches lane and
+  line labels through the CLI. New SVG test asserts the German labels appear and the English defaults are absent.
+* (c) No code change: two steps of one cell are both drawn and stacked with the 14 px gap. New SVG test asserts it.
+* Handbook `blueprint.adoc`: sentence on actor-name wrapping.
+* Tests: new `BlueprintActorNameWrapTest` (kuml-io-svg: wrapped text equals full name, card height, XML escaping of
+  `<` and `&`, same-cell stacking, German labels); four new cases in `BlueprintGridConstantsTest`. Changed:
+  `BlueprintWave2GcInvariantTest` (vault examples, "crowded" case) assumed a fixed 22 px footer and read the actor name from
+  a single text node; it now takes the footer height from `footerHeight(actorNameLines(...))`, counts only the title's
+  tspans and reads the widest actor-name tspan. No golden needed a change.
+
+**Verification.** Reproduced with the CLI (`installDist`, `which kuml` pointing at the local build): a 43-character
+actor name with two touchpoints renders on three lines in the PNG, German labels and both same-cell cards appear. SVG of
+vault example 33 before and after the change is byte-identical.
+
+**Not verified.** Other operating systems and fonts; PDF/PNG pixel output outside the tests.
+
+**Not fixed.** (d) Note anchor lines running vertically through cards. A `--lang`/locale-driven language choice across
+all diagram families needs its own i18n design. Duplicate step ids from non-DSL imports (JSON/OKF) would collapse
+silently in `BlueprintGeometry` (the DSL cannot produce them).
+
 ### Nacharbeit 79: an explicit `multiplicity("1")` is drawn; `first()` / `last()` against the edges is reported
 
 **Why.** (a) `Multiplicity()` defaults to `1..1`, and the renderers hid every `1..1`. An author who wrote

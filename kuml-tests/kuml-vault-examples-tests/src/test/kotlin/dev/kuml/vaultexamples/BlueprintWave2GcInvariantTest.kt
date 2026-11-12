@@ -2,6 +2,7 @@
 
 package dev.kuml.vaultexamples
 
+import dev.kuml.blueprint.model.BlueprintGridConstants
 import io.kotest.core.spec.style.FunSpec
 import io.kotest.matchers.shouldBe
 import io.kotest.matchers.string.shouldContain
@@ -117,10 +118,14 @@ class BlueprintWave2GcInvariantTest :
             val long = cs[0]
             val r = long.rect
             // title: baselines from y+20 in 14 px steps; the last baseline plus a descender stays above the marker row
-            val tspans = Regex("""<tspan x="[-0-9.]+" dy="([0-9.]+)"""").findAll(long.body).count()
+            // only the title's tspans (the wrapped actor name in the footer has tspans of its own, after the title)
+            val titlePart = long.body.substringBefore("""class="kuml-small" font-size="10"""")
+            val tspans = Regex("""<tspan x="[-0-9.]+" dy="([0-9.]+)"""").findAll(titlePart).count()
             val firstBaseline = r.y + 20.0
             val lastBaseline = firstBaseline + tspans * 14.0
-            val footerTop = r.bottom - 4.0 - 22.0
+            // the footer grows with the wrapped actor name (Nacharbeit 80): one line is 22 px, each further line adds 12 px
+            val nameLines = BlueprintGridConstants.actorNameLines(name = "Mitarbeiter Mitgliederbuero", badgeCount = 2).size
+            val footerTop = r.bottom - 4.0 - BlueprintGridConstants.footerHeight(lineCount = nameLines)
             val markerCy = footerTop - 6.0 - 5.0
             (lastBaseline + 4.0 <= markerCy - 5.0) shouldBe true
             // marker row (pain dot) above the footer
@@ -142,9 +147,10 @@ class BlueprintWave2GcInvariantTest :
             // actor name text ends before the first badge
             val actorText =
                 Regex(
-                    """<text x="([-0-9.]+)" y="[-0-9.]+" class="kuml-small" font-size="10">([^<]*)<title>""",
+                    """<text x="([-0-9.]+)" y="[-0-9.]+" class="kuml-small" font-size="10">(.*?)<title>""",
                 ).find(long.body)!!
-            val nameEnd = actorText.groupValues[1].toDouble() + actorText.groupValues[2].length * 5.4
+            val widest = Regex("""<tspan[^>]*>([^<]*)</tspan>""").findAll(actorText.groupValues[2]).maxOf { it.groupValues[1].length }
+            val nameEnd = actorText.groupValues[1].toDouble() + widest * 5.4
             (nameEnd <= numbers[0].first - 8.0 + 0.5) shouldBe true
             // the five-touchpoint card collapses the surplus into a "+n" chip and keeps the actor name
             val many = cs[1]

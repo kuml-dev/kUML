@@ -221,13 +221,85 @@ public object BlueprintGridConstants {
     /** Whether [step]'s card carries a marker row (pain point and/or opportunity). */
     public fun hasMarkerRow(step: JourneyStep): Boolean = step.painPoint != null || step.opportunity != null
 
-    /** Natural height (px) of [step]'s card: title, marker row and footer, at least [CARD_MIN_HEIGHT]. */
-    public fun cardHeight(step: JourneyStep): Double {
+    /** Most lines the actor name in the card footer wraps to; a longer name ends in an ellipsis on the last line. */
+    public const val MAX_ACTOR_NAME_LINES: Int = 3
+
+    /** Line height of the wrapped actor name in the card footer (px). */
+    public const val ACTOR_LINE_HEIGHT: Double = 12.0
+
+    /** Font size of the actor name in the card footer (px). */
+    public const val ACTOR_FONT_SIZE: Double = 10.0
+
+    /**
+     * Badge slots of a footer with [badgeCount] touchpoint badges: how many fit beside the actor
+     * (when [hasActor]) and how many collapse into a "+n" chip. Shared by the renderer and the
+     * height computation so both agree on the actor name's width.
+     */
+    public fun footerBadgeSlots(
+        badgeCount: Int,
+        hasActor: Boolean,
+    ): FooterBadges =
+        footerBadgeLayout(
+            badgeCount = badgeCount,
+            availableWidth = cardTextWidth(),
+            reservedWidth = if (hasActor) FOOTER_ICON_SIZE + FOOTER_ICON_GAP + FOOTER_NAME_MIN_WIDTH else 0.0,
+        )
+
+    /**
+     * The wrapped footer lines of the actor [name] on a card with [badgeCount] touchpoint badges:
+     * at most [MAX_ACTOR_NAME_LINES] lines, the last ending in an ellipsis when the name is longer.
+     * An empty list when [name] is null. The one line source for drawing and height computation.
+     */
+    public fun actorNameLines(
+        name: String?,
+        badgeCount: Int,
+    ): List<String> {
+        if (name == null) return emptyList()
+        val slots = footerBadgeSlots(badgeCount = badgeCount, hasActor = true).slots
+        val width = cardTextWidth() - FOOTER_ICON_SIZE - FOOTER_ICON_GAP - slots * BADGE_STEP
+        val maxChars = (width / SMALL_CHAR_WIDTH_PX).toInt().coerceAtLeast(4)
+        val lines =
+            wrapWords(text = clipText(text = name, max = MAX_ACTOR_NAME_CHARS), maxChars = maxChars, splitLongWords = true)
+        if (lines.size <= MAX_ACTOR_NAME_LINES) return lines
+        return lines.take(MAX_ACTOR_NAME_LINES - 1) + clipText(text = lines[MAX_ACTOR_NAME_LINES - 1] + "…", max = maxChars)
+    }
+
+    /** Height (px) of the footer row for [lineCount] actor-name lines; one line keeps [CARD_FOOTER_HEIGHT]. */
+    public fun footerHeight(lineCount: Int): Double = maxOf(CARD_FOOTER_HEIGHT, ACTOR_FONT_SIZE + ACTOR_LINE_HEIGHT * lineCount)
+
+    /**
+     * Natural height (px) of [step]'s card: title, marker row and footer, at least [CARD_MIN_HEIGHT].
+     * [actorName] is the resolved actor name (wrapped in the footer, which grows with its line count);
+     * [badgeCount] the number of touchpoint badges actually drawn.
+     */
+    public fun cardHeight(
+        step: JourneyStep,
+        actorName: String? = null,
+        badgeCount: Int = step.touchpointRefs.size,
+    ): Double {
         val lines = cardTitleLines(step).size
         val title = FIRST_LINE_TOP_OFFSET + (lines - 1) * TITLE_LINE_HEIGHT + BOTTOM_TEXT_CLEARANCE
         val marker = if (hasMarkerRow(step)) MARKER_ROW_RESERVE else 0.0
-        val footer = if (hasFooter(step)) CARD_FOOTER_GAP + CARD_FOOTER_HEIGHT else 0.0
+        val nameLines = actorNameLines(name = actorName, badgeCount = badgeCount).size.coerceAtLeast(1)
+        val footer = if (hasFooter(step)) CARD_FOOTER_GAP + footerHeight(lineCount = nameLines) else 0.0
         return maxOf(CARD_MIN_HEIGHT, title + marker + footer)
+    }
+
+    private fun actorNameOf(
+        model: BlueprintModel,
+        step: JourneyStep,
+    ): String? = step.actorRef?.let { ref -> model.actors.firstOrNull { it.id == ref } }?.let { it.name ?: it.id }
+
+    private fun cardHeightIn(
+        model: BlueprintModel,
+        step: JourneyStep,
+    ): Double {
+        val known = model.touchpoints.mapTo(HashSet()) { it.id }
+        return cardHeight(
+            step = step,
+            actorName = actorNameOf(model = model, step = step),
+            badgeCount = step.touchpointRefs.count { it in known },
+        )
     }
 
     /** A card placed inside its cell: [yOffset] is relative to the cell's top edge. */
@@ -237,8 +309,10 @@ public object BlueprintGridConstants {
         val height: Double,
     )
 
-    private fun naturalStackHeight(steps: List<JourneyStep>): Double =
-        steps.sumOf { cardHeight(it) } + (steps.size - 1).coerceAtLeast(0) * CARD_STACK_GAP
+    private fun naturalStackHeight(
+        steps: List<JourneyStep>,
+        model: BlueprintModel,
+    ): Double = steps.sumOf { cardHeightIn(model = model, step = it) } + (steps.size - 1).coerceAtLeast(0) * CARD_STACK_GAP
 
     /**
      * Height (px) of every layer band in [layers]: tall enough for the tallest
@@ -255,7 +329,7 @@ public object BlueprintGridConstants {
                 stepsByCell
                     .filterKeys { it.first == layer }
                     .values
-                    .maxOfOrNull { naturalStackHeight(it) } ?: 0.0
+                    .maxOfOrNull { naturalStackHeight(steps = it, model = model) } ?: 0.0
             maxOf(ROW_HEIGHT, CARD_MARGIN_TOP + tallest + CARD_MARGIN_BOTTOM)
         }
     }
@@ -275,10 +349,10 @@ public object BlueprintGridConstants {
         val steps = model.stepsIn(phaseId = phaseId, layer = layer)
         if (steps.isEmpty()) return emptyList()
         val inner = layerHeight - CARD_MARGIN_TOP - CARD_MARGIN_BOTTOM
-        val extra = ((inner - naturalStackHeight(steps)) / steps.size).coerceAtLeast(0.0)
+        val extra = ((inner - naturalStackHeight(steps = steps, model = model)) / steps.size).coerceAtLeast(0.0)
         var y = CARD_MARGIN_TOP
         return steps.map { step ->
-            val h = cardHeight(step) + extra
+            val h = cardHeightIn(model = model, step = step) + extra
             StackedCard(step = step, yOffset = y, height = h).also { y += h + CARD_STACK_GAP }
         }
     }

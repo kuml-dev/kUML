@@ -129,4 +129,49 @@ class BlueprintGridConstantsTest :
             val old = """{"type":"BlueprintDiagramFull","name":"D"}"""
             json.decodeFromString(BlueprintDiagram.serializer(), old).labels shouldBe BlueprintLabels.ENGLISH
         }
+
+        "a long actor name wraps, keeps the full text and grows the card; short names keep the classic height" {
+            val full = "Central Control Unit Station North Regional"
+            val s1 = step("a", actor = "x", tps = listOf("t1", "t2"))
+            val lines = BlueprintGridConstants.actorNameLines(name = full, badgeCount = 2)
+            (lines.size > 1) shouldBe true
+            lines.joinToString(" ") shouldBe full
+            val longH = BlueprintGridConstants.cardHeight(step = s1, actorName = full)
+            val shortH = BlueprintGridConstants.cardHeight(step = s1, actorName = "Customer")
+            longH shouldBeGreaterThan shortH
+            shortH shouldBe BlueprintGridConstants.cardHeight(step = s1)
+            BlueprintGridConstants.footerHeight(lineCount = 1) shouldBe BlueprintGridConstants.CARD_FOOTER_HEIGHT
+        }
+
+        "an 80 character actor name is capped at three lines with an ellipsis on the last" {
+            val lines = BlueprintGridConstants.actorNameLines(name = "Operations ".repeat(8).trim(), badgeCount = 2)
+            lines shouldHaveSize BlueprintGridConstants.MAX_ACTOR_NAME_LINES
+            lines.last().endsWith("…") shouldBe true
+            BlueprintGridConstants.actorNameLines(name = null, badgeCount = 0) shouldBe emptyList()
+        }
+
+        "the badge slots use the same width as the card text width" {
+            BlueprintGridConstants.cardTextWidth() shouldBe 168.0
+        }
+
+        "stacked cards with a long actor name do not overlap and the band grows" {
+            val full = "Central Control Unit Station North Regional"
+            val a = step("a", actor = "x", tps = listOf("t1", "t2"))
+            val b = step("b")
+            val m =
+                BlueprintModel(
+                    name = "M",
+                    phases = listOf(Phase(id = "p0", name = "P0", order = 0)),
+                    actors = listOf(Actor(id = "x", name = full)),
+                    touchpoints = listOf(Touchpoint(id = "t1", name = "T1"), Touchpoint(id = "t2", name = "T2")),
+                    steps = listOf(a, b),
+                )
+            val layers = listOf(BlueprintLayer.BACKSTAGE)
+            val plain = BlueprintGridConstants.layerHeights(model(a, b), layers).getValue(BlueprintLayer.BACKSTAGE)
+            val grown = BlueprintGridConstants.layerHeights(m, layers).getValue(BlueprintLayer.BACKSTAGE)
+            grown shouldBeGreaterThan plain
+            val cards = BlueprintGridConstants.stackedCards(m, "p0", BlueprintLayer.BACKSTAGE, grown)
+            cards shouldHaveSize 2
+            cards[1].yOffset shouldBeGreaterThanOrEqualTo cards[0].yOffset + cards[0].height + BlueprintGridConstants.CARD_STACK_GAP
+        }
     })
