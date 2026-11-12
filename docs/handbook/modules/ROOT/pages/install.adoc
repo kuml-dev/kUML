@@ -96,6 +96,21 @@ The release pipeline now builds the package so that its post-install script link
 to `kuml`. arm64 is not covered. The RPM of the CLI does not create the `/usr/bin/kuml` link; call
 `/opt/kuml/bin/kuml` there.
 
+=== RPM (Fedora, x86_64 only)
+
+[source,bash]
+----
+sudo curl -fsSL -o /etc/yum.repos.d/kuml.repo https://rpm.kuml.dev/kuml.repo
+sudo dnf install kuml                 # CLI
+sudo dnf install kuml-desktop         # desktop app
+----
+
+The repository is signed with the same key as the APT repository; the repo file enables `gpgcheck` and
+`repo_gpgcheck`, and `dnf` asks once to import the key. The packages are rebuilt into the repository after every
+release. The CLI RPM installs to `/opt/kuml` and does not create the `/usr/bin/kuml` link yet; call
+`/opt/kuml/bin/kuml`. A single file instead of the repository: `sudo dnf install ./<file>.rpm`. The installation
+from the repository was tested in a clean Fedora container; RHEL-compatible distributions are untested.
+
 === AppImage (Linux desktop app, x86_64 only)
 
 The desktop app is also published as a single-file AppImage that runs on most x86_64 Linux distributions
