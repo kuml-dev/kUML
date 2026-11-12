@@ -58,6 +58,7 @@ import dev.kuml.layout.bridge.Sysml2LayoutBridge
 import dev.kuml.layout.bridge.UmlContentSizeProvider
 import dev.kuml.layout.bridge.UmlLayoutBridge
 import dev.kuml.layout.bridge.actAspectFinding
+import dev.kuml.layout.bridge.bddAspectFinding
 import dev.kuml.layout.bridge.bpmn.BpmnContentSizeProvider
 import dev.kuml.layout.bridge.bpmn.BpmnLayoutBridge
 import dev.kuml.layout.bridge.bpmn.ChoreographyGridLayout
@@ -904,8 +905,10 @@ internal object RenderPipeline {
         when (val diagram = extracted.diagram) {
             is BdDiagram -> {
                 val layoutGraph = Sysml2LayoutBridge.toLayoutGraph(model = model, diagram = diagram)
-                val layoutResult: LayoutResult =
-                    layoutWithSpec(
+                // Nacharbeit 83: with an explicit aspectRatio the runner's ASPECT_UNREACHED (engine canvas) is replaced by a
+                // measurement on the final image, label overhang included. Without it the runner's behaviour is unchanged.
+                val bddOutcome =
+                    LayoutSpecRunner.layout(
                         engine = sysml2Engine,
                         graph = layoutGraph,
                         hints = Sysml2LayoutBridge.layoutHintsFor(model = model, diagram = diagram),
@@ -913,6 +916,30 @@ internal object RenderPipeline {
                         kind = SpecDiagramKind.SYSML2_BDD,
                         diagramName = diagram.name,
                     )
+                val bddTarget = diagram.layout?.aspectRatio
+                if (bddTarget == null) {
+                    report(bddOutcome.findings)
+                } else {
+                    report(bddOutcome.findings.filter { it.code != dev.kuml.core.model.layout.LayoutCodes.ASPECT_UNREACHED })
+                    val final =
+                        KumlSvgRenderer.bddFinalCanvas(
+                            model = model,
+                            diagram = diagram,
+                            layoutResult = bddOutcome.result,
+                            paddingPx = SvgRenderOptions.DEFAULT.paddingPx,
+                        )
+                    report(
+                        listOfNotNull(
+                            bddAspectFinding(
+                                canvasWidth = final.width.toDouble(),
+                                canvasHeight = final.height.toDouble(),
+                                target = bddTarget,
+                                directionExplicit = diagram.layout?.direction != null,
+                            ),
+                        ),
+                    )
+                }
+                val layoutResult: LayoutResult = bddOutcome.result
                 when (format) {
                     "svg" ->
                         writeText(

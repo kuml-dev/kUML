@@ -6,6 +6,22 @@ All notable changes to this project are documented here. Format follows
 
 ## [Unreleased]
 
+### Nacharbeit 83: BDD aspectRatio finding measured on the final image
+
+**Why.** The handbook said `KUML-LAYOUT-W003` is measured on the final image for state machines and block definition diagrams. For block definition diagrams it was not: the CLI used the plain layout runner, so the reported ratio came from the engine canvas, without the renderer padding and the edge-label overhang. The reported "actual" therefore differed from the drawn SVG (for a hub with eight `refPart`s and `aspectRatio = 1.0`: reported 1.35, drawn 1.34; with an explicit `direction`: reported 1.63, drawn 1.61).
+
+**Change.**
+- `bddAspectFinding(...)` in `LayoutSpecRunner.kt` builds the W003 finding from the final canvas, with the same direction hint as for state machines.
+- `KumlSvgRenderer`: the planning block of `toSvg(BdDiagram)` (edge adapter, labels, notes, second label pass) is extracted into a private `bddPlan(...)`, and the new `bddFinalCanvas(...)` returns the widened canvas plus padding, mirroring `ucFinalCanvas`.
+- `RenderPipeline`: for a BDD with an explicit `aspectRatio` the runner's W003 is replaced by the measurement on the final canvas. Without `aspectRatio` nothing changes.
+- Handbook `layout.adoc` states the label overhang for BDD.
+
+**Verification.** Reproduced on a generic model (hub with 8 `refPart`s typed by `P1..P8`, a 6-subtype fan) with the locally built CLI: before the change W003 said 1.35 (viewBox 1373x1028 = 1.336) and 1.63 with `direction = Down` (viewBox 1585x984 = 1.611); after, 1.34 and 1.61. The SVGs before and after are byte-identical (`cmp`), so the extraction is pure. Without options and with `aspectRatio = 3.0` no W003 appears. New tests: `BddFinalAspectCliTest` (actual equals the viewBox ratio, direction hint, unchanged without `aspectRatio`, edge labels) and `BddFinalAspectFindingTest`.
+
+**Not verified.** Linux and Windows, the PNG path, the MCP, Desktop and Gradle-plugin front ends.
+
+**Not fixed.** Trying the other direction (part 2 of the request) was already done by Nacharbeit 60 (`BddAspectRotationTest`). Label crossing with `direction = Right`, parallel spacing (P-LAY-01), the N-BDD items, `maxWidth` alone producing a tall picture, and the watermark band (not included in the measurement, as for use case diagrams).
+
 ### Nacharbeit 82: workspace_get_document reads large documents in line sections
 
 **Why.** `kuml_desktop_workspace_get_document` always returned the whole document as one result, so a 62-78 KB document exceeded the

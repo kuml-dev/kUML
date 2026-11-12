@@ -732,6 +732,25 @@ public fun stmAspectFinding(
     )
 
 /**
+ * Nacharbeit 83: `layout.aspectRatio` report for a SysML 2 block definition diagram, measured on the FINAL image
+ * (engine canvas plus label overhang plus the renderer padding) instead of the engine canvas the runner sees. Same
+ * tolerance as [actAspectFinding]; at most one finding. [directionExplicit] adds a hint, because an explicit
+ * `direction` stops the flow from rotating towards the target.
+ */
+public fun bddAspectFinding(
+    canvasWidth: Double,
+    canvasHeight: Double,
+    target: Double,
+    directionExplicit: Boolean,
+): LayoutSpecFinding? =
+    aspectFindingFor(
+        canvasWidth = canvasWidth,
+        canvasHeight = canvasHeight,
+        target = target,
+        hint = if (directionExplicit) " (direction is set explicitly; remove it to allow the flow to rotate)" else "",
+    )
+
+/**
  * Nacharbeit 74: `layout.aspectRatio` report for a SysML 2 use case diagram, measured on the FINAL image (engine canvas
  * plus label overhang plus the renderer padding) and in both directions. Same tolerance as [actAspectFinding]; at most
  * one finding. [wrapColumnsExplicit] adds a hint, because an explicit `wrapColumns` takes precedence over the aspect

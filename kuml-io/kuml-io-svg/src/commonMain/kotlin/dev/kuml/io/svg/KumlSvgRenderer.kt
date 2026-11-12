@@ -2482,27 +2482,18 @@ public object KumlSvgRenderer {
         )
     }
 
-    /**
-     * Rendert ein SysML-2-BDD als SVG (V2.0.4).
-     *
-     * Wickelt das BDD in ein synthetisches [KumlDiagram] mit den sichtbaren
-     * SysML-2-Definitionen als `elements`. Der [NodeRendererDispatcher] hat
-     * seit V2.0.4 einen Branch für [dev.kuml.sysml2.Sysml2Definition] und
-     * rendert die Vier-Sektions-BDD-Box ohne weitere Pipeline-Eingriffe.
-     *
-     * Der `DiagramType` der Hülle ist [DiagramType.CLASS] — visuell trägt die
-     * BDD genau das Layout-Profil eines UML-Klassen-Diagramms (Boxen mit
-     * Compartments + Generalisations als Edges), und ein eigener
-     * `DiagramType.SYSML2_BDD`-Eintrag ist erst sinnvoll, wenn der Renderer
-     * sich darauf konkret anders verhält.
-     */
-    public fun toSvg(
+    private class BddPlan(
+        val synthetic: KumlDiagram,
+        val adapter: BddEdgeAdapter,
+        val noted: dev.kuml.layout.bridge.note.NotePlacementResult,
+        val finalLabels: Map<String, dev.kuml.layout.bridge.label.PlacedLabel>,
+    )
+
+    private fun bddPlan(
         model: Sysml2Model,
         diagram: BdDiagram,
         layoutResult: LayoutResult,
-        theme: KumlTheme = PlainTheme(),
-        options: SvgRenderOptions = SvgRenderOptions.DEFAULT,
-    ): String {
+    ): BddPlan {
         val visible = diagram.elementIds.toSet()
         val elements = model.definitions.filter { it.id in visible }
         val synthetic =
@@ -2526,6 +2517,61 @@ public object KumlSvgRenderer {
         // Second pass: with the notes in place, the labels move away from them (and from their anchor lines).
         val bddFinalLabels =
             if (model.comments.isEmpty()) bddLabels else planSysml2EdgeLabels(layout = bddNoted.layout, adapter = bddAdapter)
+        return BddPlan(synthetic = synthetic, adapter = bddAdapter, noted = bddNoted, finalLabels = bddFinalLabels)
+    }
+
+    /**
+     * Nacharbeit 83: the final canvas of a SysML 2 block definition diagram (label overhang included), i.e. what
+     * [toSvg] draws, with [paddingPx] on both sides. The CLI uses it to report `layout.aspectRatio` against the real
+     * image.
+     */
+    public fun bddFinalCanvas(
+        model: Sysml2Model,
+        diagram: BdDiagram,
+        layoutResult: LayoutResult,
+        paddingPx: Float,
+    ): ActFinalCanvas {
+        val plan = bddPlan(model = model, diagram = diagram, layoutResult = layoutResult)
+        val widened =
+            sysml2WidenForLabelOverhang(
+                layoutResult = plan.noted.layout,
+                sysml2EdgeAdapter = plan.adapter,
+                padding = paddingPx,
+                planned = plan.finalLabels,
+            ).first
+        return ActFinalCanvas(
+            width = widened.canvas.width + 2 * paddingPx,
+            height = widened.canvas.height + 2 * paddingPx,
+            hasNotes = sysml2NoteElements(model).isNotEmpty(),
+        )
+    }
+
+    /**
+     * Rendert ein SysML-2-BDD als SVG (V2.0.4).
+     *
+     * Wickelt das BDD in ein synthetisches [KumlDiagram] mit den sichtbaren
+     * SysML-2-Definitionen als `elements`. Der [NodeRendererDispatcher] hat
+     * seit V2.0.4 einen Branch für [dev.kuml.sysml2.Sysml2Definition] und
+     * rendert die Vier-Sektions-BDD-Box ohne weitere Pipeline-Eingriffe.
+     *
+     * Der `DiagramType` der Hülle ist [DiagramType.CLASS] — visuell trägt die
+     * BDD genau das Layout-Profil eines UML-Klassen-Diagramms (Boxen mit
+     * Compartments + Generalisations als Edges), und ein eigener
+     * `DiagramType.SYSML2_BDD`-Eintrag ist erst sinnvoll, wenn der Renderer
+     * sich darauf konkret anders verhält.
+     */
+    public fun toSvg(
+        model: Sysml2Model,
+        diagram: BdDiagram,
+        layoutResult: LayoutResult,
+        theme: KumlTheme = PlainTheme(),
+        options: SvgRenderOptions = SvgRenderOptions.DEFAULT,
+    ): String {
+        val plan = bddPlan(model = model, diagram = diagram, layoutResult = layoutResult)
+        val synthetic = plan.synthetic
+        val bddAdapter = plan.adapter
+        val bddNoted = plan.noted
+        val bddFinalLabels = plan.finalLabels
         return renderSysml2Synthetic(
             synthetic = synthetic,
             rawLayoutResult = bddNoted.layout,
