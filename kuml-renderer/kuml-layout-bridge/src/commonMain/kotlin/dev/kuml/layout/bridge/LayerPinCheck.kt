@@ -22,7 +22,7 @@ internal enum class PinSide { FIRST, LAST }
 public object LayerPinCheck {
     /**
      * Edge counts per node id. Counts every edge of [graph] whose two endpoints are distinct nodes of the graph,
-     * in the engine's source-to-target orientation. Self-loops and edges to groups or unknown ids do not take part
+     * in the engine's source-to-target orientation (UML generalisations, `gen::` ids, count general -> specific). Self-loops and edges to groups or unknown ids do not take part
      * in layering and are not counted.
      */
     public fun edgeDegrees(graph: LayoutGraph): Map<String, EdgeDegree> {
@@ -30,8 +30,10 @@ public object LayerPinCheck {
         val incoming = HashMap<String, Int>()
         val outgoing = HashMap<String, Int>()
         for (edge in graph.edges) {
-            val s = edge.source.nodeId.value
-            val t = edge.target.nodeId.value
+            // Nacharbeit 85: the engine sees a UML generalisation general -> specific (the general class is drawn first).
+            val flip = edge.id.value.startsWith("gen::")
+            val s = (if (flip) edge.target else edge.source).nodeId.value
+            val t = (if (flip) edge.source else edge.target).nodeId.value
             if (s == t || s !in nodeIds || t !in nodeIds) continue
             outgoing[s] = (outgoing[s] ?: 0) + 1
             incoming[t] = (incoming[t] ?: 0) + 1

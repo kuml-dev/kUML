@@ -200,6 +200,10 @@ estimated as before.
 * **Auto wrap.** If the widest layer of a class diagram with edges holds more than 6 nodes and none of `wrapColumns`,
   `aspectRatio` or `maxWidth` is given, the layer wraps into `ceil(sqrt(n))` columns (11 nodes: 4 columns). An explicit
   `wrapColumns` always wins.
+* **General class on top.** In a UML class diagram the general classifier of a generalisation is drawn above its
+  specialisations with `direction = Down` (the default; below them with `Up`), also without `wrapColumns`. The engine is
+  given the generalisation edges general to specific, and `KUML-LAYOUT-W008` counts them the same way: `first(Shape)` on
+  a general class and `last(Circle)` on a specialisation are conflict free, `last(Shape)` is reported.
 * **Grid for wide generalisation fans.** A general classifier with more specialisations than one row holds (at least 4)
   gets them in a grid of the requested columns in declaration order, row by row. Boxes of one column share their left
   edge. Every generalisation edge is routed orthogonally and on its own: it leaves the specialisation, runs through the

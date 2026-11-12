@@ -6,6 +6,13 @@ All notable changes to this project are documented here. Format follows
 
 ## [Unreleased]
 
+### Nacharbeit 85: UML class diagram, general class on top
+
+- **Why.** In a UML class diagram the general class of a generalisation was drawn *below* its specialisations, with `direction = Down`, with `wrapColumns` and even without any layout block (reproduced with an abstract base and 3, 6 and 9 subclasses). The generalisation edges run specific to general and the engine layers a source above its target. `direction = Up` put the base on top, but with a mirrored row order and many bends.
+- **Change.** `LayoutSpecRunner.layoutUmlClass` gives the engine the `gen::` edges reversed (general to specific) and turns their routes back afterwards, so the arrowhead stays on the general class; `UmlWrapGrid`, the auto wrap and `wrapColumns` layer hints work on that orientation unchanged. `LayerPinCheck.edgeDegrees` counts generalisations the same way, so `kuml validate` and `kuml render` agree on `KUML-LAYOUT-W008`: `last(Sub)` and `first(Super)` no longer conflict, `last(Super)` and `first(Sub)` do. Behaviour change: the default direction of every UML class diagram with a generalisation changes (general class on top instead of at the bottom), so existing diagrams, Vault examples and renders can look different. Other relationships and other diagram families (SysML 2 BDD) are untouched.
+- **Verification.** `UmlGeneralizationOrientationTest` (10 tests: 3, 6 and 9 subclasses with `wrapColumns = 4`, default, `Up`, route ends, multi-level, mixed with an association, route flip, pin counting), plus the existing layout, SVG and Vault example suites.
+- **Not fixed.** (d) leaves far from their general class, (e) the enumeration type edge, (f) visibility `-`.
+
 ### Nacharbeit 84: PAR binding lanes get readable spacing
 
 - **Why.** Lanes of nested parametric bindings sat 8 px apart while the label text is 13 px high, so the label of one binding lay on its neighbour's line (up to three `KUML-LAYOUT-W005` in example 51), and the stub in front of a child pin was shorter than an arrowhead.

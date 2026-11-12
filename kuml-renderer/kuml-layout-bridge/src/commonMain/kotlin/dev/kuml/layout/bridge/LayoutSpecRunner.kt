@@ -5,8 +5,10 @@ import dev.kuml.core.model.layout.LayoutFlow
 import dev.kuml.core.model.layout.LayoutLimits
 import dev.kuml.core.model.layout.LayoutOption
 import dev.kuml.core.model.layout.LayoutSpec
+import dev.kuml.layout.EdgeRoute
 import dev.kuml.layout.KumlLayoutEngine
 import dev.kuml.layout.LayoutDirection
+import dev.kuml.layout.LayoutEdge
 import dev.kuml.layout.LayoutGraph
 import dev.kuml.layout.LayoutHints
 import dev.kuml.layout.LayoutResult
@@ -162,17 +164,19 @@ public object LayoutSpecRunner {
     ): SpecLayoutOutcome {
         val split = UmlEdgelessBand.split(graph)
         val engineGraph = split?.first ?: graph
-        val effective = withAutoWrap(spec = spec, graph = engineGraph)
+        // Nacharbeit 85: the engine sees generalisations general -> specific so the general class is laid out first (on top).
+        val oriented = reverseGeneralizations(engineGraph)
+        val effective = withAutoWrap(spec = spec, graph = oriented)
         val outcome =
             layoutInner(
                 engine = engine,
-                graph = engineGraph,
+                graph = oriented,
                 hints = hints,
                 spec = effective,
                 kind = SpecDiagramKind.UML_CLASS,
                 diagramName = diagramName,
             )
-        var result = outcome.result
+        var result = restoreGeneralizations(result = outcome.result, original = engineGraph)
         val columns = effective?.wrapColumns?.takeIf { it in 1..LayoutLimits.WRAP_COLUMNS_MAX }
         if (columns != null) {
             val direction = hintsWith(base = hints, spec = sanitize(spec = effective, findings = mutableListOf())).direction
@@ -181,6 +185,47 @@ public object LayoutSpecRunner {
         if (split != null) result = UmlEdgelessBand.place(result = result, band = split.second)
         return outcome.copy(result = result)
     }
+
+    /**
+     * Nacharbeit 85: the copy of [graph] in which every UML generalisation (`gen::` id) runs general -> specific, so the engine
+     * layers the general class above its specialisations. Other edges (and self-loops) keep their orientation.
+     */
+    internal fun reverseGeneralizations(graph: LayoutGraph): LayoutGraph {
+        if (graph.edges.none { isGeneralization(it) }) return graph
+        return graph.copy(
+            edges = graph.edges.map { if (isGeneralization(it)) it.copy(source = it.target, target = it.source) else it },
+        )
+    }
+
+    /** Turns the routes of the generalisations in [result] back to specific -> general, the orientation of [original]. */
+    internal fun restoreGeneralizations(
+        result: LayoutResult,
+        original: LayoutGraph,
+    ): LayoutResult {
+        val flipped =
+            original.edges
+                .filter { isGeneralization(it) }
+                .map { it.id }
+                .toSet()
+        if (flipped.isEmpty()) return result
+        return result.copy(edges = result.edges.mapValues { (id, route) -> if (id in flipped) reverseRoute(route) else route })
+    }
+
+    private fun isGeneralization(edge: LayoutEdge): Boolean =
+        edge.id.value.startsWith(GENERALIZATION_PREFIX) && edge.source.nodeId != edge.target.nodeId
+
+    private fun reverseRoute(route: EdgeRoute): EdgeRoute =
+        when (route) {
+            is EdgeRoute.Direct -> route.copy(source = route.target, target = route.source)
+            is EdgeRoute.OrthogonalRounded ->
+                route.copy(
+                    source = route.target,
+                    target = route.source,
+                    waypoints = route.waypoints.reversed(),
+                )
+            is EdgeRoute.TreeRounded -> route.copy(source = route.target, target = route.source, waypoints = route.waypoints.reversed())
+            is EdgeRoute.Bezier -> route.copy(source = route.target, target = route.source, controlPoints = route.controlPoints.reversed())
+        }
 
     /** Sets `wrapColumns = ceil(sqrt(n))` when the widest layer holds more than [AUTO_WRAP_THRESHOLD] nodes and nothing steers the width. */
     private fun withAutoWrap(
@@ -206,6 +251,7 @@ public object LayoutSpecRunner {
         return (spec ?: LayoutSpec()).copy(wrapColumns = columns)
     }
 
+    private const val GENERALIZATION_PREFIX = "gen::"
     private const val AUTO_WRAP_THRESHOLD = 6
 
     private fun layoutInner(
