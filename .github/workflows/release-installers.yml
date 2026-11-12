@@ -19,7 +19,11 @@ on:
 jobs:
   # ── Linux: DEB + RPM + Docker image ─────────────────────────────────────────
   build-linux:
-    runs-on: ubuntu-latest
+    # Ubuntu 22.04 on purpose: jpackage writes the build host's package names into
+    # the DEB dependencies. Built on 24.04 they ask for libasound2t64, which does
+    # not exist on Ubuntu 22.04 or Debian 12; built on 22.04 they ask for
+    # libasound2, which Ubuntu 24.04 and Debian 13 also provide.
+    runs-on: ubuntu-22.04
     permissions:
       contents: write  # gh release upload (DEB/RPM attach to the GitHub Release)
       packages: write  # required to push to ghcr.io
@@ -39,6 +43,13 @@ jobs:
 
       - name: Build shadow JAR
         run: ./gradlew :kuml-cli:shadowJar
+
+      - name: Make sure the packaging tools are present
+        run: |
+          if ! command -v rpmbuild >/dev/null 2>&1 || ! command -v fakeroot >/dev/null 2>&1; then
+            sudo apt-get update
+            sudo apt-get install -y --no-install-recommends rpm fakeroot
+          fi
 
       - name: Build DEB
         run: ./gradlew :kuml-packaging:packageDeb
