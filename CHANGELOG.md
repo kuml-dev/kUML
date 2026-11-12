@@ -17,6 +17,7 @@ All notable changes to this project are documented here. Format follows
 - **Desktop and MCP.** The Desktop MSI carries the real version number; separate remembered directories for open and export dialogs; `kuml_desktop_workspace_get_document` reads large documents in line sections (`offset`, `limit`, `lineCount`, `hasMore`); OKF vocabulary lists `Sysml2PackageDiagram` and write-path findings carry the right severity.
 - **Upgrade note (Windows).** Anyone who installed an earlier kUML Desktop MSI (its version was shown as `56.0.0`) has to uninstall it once before installing this one: Windows treats `0.57.0` as older than `56.0.0`. This is a one-time break before 1.0.
 - **Infrastructure.** The CI skips builds that only change documentation, replaces a run that a newer push has superseded, and the release build is not repeated when the CI already passed for the tagged commit.
+- **Known limits.** The Windows MSI is not code-signed, so Windows SmartScreen may show a warning. For the RPM repository only Fedora was tested; RHEL-compatible distributions are untested. There are no arm64 Linux packages for the desktop app.
 
 The detailed entries below are written per work wave and keep their original wave names.
 
