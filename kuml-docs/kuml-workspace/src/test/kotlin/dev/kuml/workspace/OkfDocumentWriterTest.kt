@@ -1,6 +1,7 @@
 package dev.kuml.workspace
 
 import io.kotest.core.spec.style.FunSpec
+import io.kotest.matchers.collections.shouldNotContain
 import io.kotest.matchers.shouldBe
 import io.kotest.matchers.types.shouldBeInstanceOf
 import java.io.File
@@ -162,6 +163,81 @@ class OkfDocumentWriterTest :
 
                 val rawBytes = Files.readAllBytes(doc.toPath())
                 rawBytes shouldBe crlfContent.toByteArray(StandardCharsets.UTF_8)
+            } finally {
+                root.deleteRecursively()
+            }
+        }
+
+        val kumlBlock = "```kuml\nsysml2Package()\n```\n"
+
+        test("create accepts Sysml2PackageDiagram without any vocabulary warning") {
+            val root = tempWorkspace()
+            try {
+                val result =
+                    OkfDocumentWriter.create(
+                        root = root,
+                        relativePath = "pkg.md",
+                        content = "---\ntype: Sysml2PackageDiagram\n---\n$kumlBlock",
+                    )
+                result.shouldBeInstanceOf<OkfWriteResult.Written>().warnings shouldBe emptyList()
+            } finally {
+                root.deleteRecursively()
+            }
+        }
+
+        test("an unknown type is reported as OKF-W-002 with WARNING severity, never ERROR") {
+            val root = tempWorkspace()
+            try {
+                val result =
+                    OkfDocumentWriter.create(
+                        root = root,
+                        relativePath = "odd.md",
+                        content = "---\ntype: Quatsch\n---\nbody",
+                    )
+                val warnings = result.shouldBeInstanceOf<OkfWriteResult.Written>().warnings
+                warnings.map { it.code } shouldBe listOf("OKF-W-002")
+                warnings.single().severity shouldBe OkfSeverity.WARNING
+            } finally {
+                root.deleteRecursively()
+            }
+        }
+
+        test("write also reports an unknown type at WARNING severity") {
+            val root = tempWorkspace()
+            try {
+                val doc = File(root, "odd.md").apply { writeText("---\ntype: Concept\n---\nold") }
+                val result =
+                    OkfDocumentWriter.save(
+                        root = root,
+                        target = doc,
+                        content = "---\ntype: Quatsch\n---\nnew",
+                        knownDocuments = listOf(doc),
+                    )
+                val written = result.shouldBeInstanceOf<OkfWriteResult.Written>()
+                written.warnings.single().severity shouldBe OkfSeverity.WARNING
+            } finally {
+                root.deleteRecursively()
+            }
+        }
+
+        test("a link to a not-yet-created document is a WARNING on write, and resolved once the target exists") {
+            val root = tempWorkspace()
+            try {
+                val a =
+                    OkfDocumentWriter.create(
+                        root = root,
+                        relativePath = "A.md",
+                        content = "---\ntype: Concept\n---\nsee [B](B.md)",
+                    )
+                val warnings = a.shouldBeInstanceOf<OkfWriteResult.Written>().warnings
+                warnings.map { it.code } shouldBe listOf("OKF-E-005")
+                warnings.single().severity shouldBe OkfSeverity.WARNING
+
+                OkfDocumentWriter
+                    .create(root = root, relativePath = "B.md", content = "---\ntype: Concept\n---\nb")
+                    .shouldBeInstanceOf<OkfWriteResult.Written>()
+                val after = OkfValidator.validate(ws = WorkspaceScanner.scan(root = root))
+                after.map { it.code } shouldNotContain "OKF-E-005"
             } finally {
                 root.deleteRecursively()
             }

@@ -35,6 +35,7 @@
     { "id": "Sysml2UseCase", "requiresKumlBlock": true, "since": "1.0", "description": "SysML 2 use case diagram." },
     { "id": "Sysml2Requirement", "requiresKumlBlock": true, "since": "1.0", "description": "SysML 2 requirement diagram." },
     { "id": "Sysml2Parametric", "requiresKumlBlock": true, "since": "1.0", "description": "SysML 2 parametric diagram." },
+    { "id": "Sysml2PackageDiagram", "requiresKumlBlock": true, "since": "1.0", "description": "SysML 2 package diagram." },
     { "id": "BpmnProcess", "requiresKumlBlock": true, "since": "1.0", "description": "BPMN 2.0 process diagram." },
     { "id": "BpmnCollaboration", "requiresKumlBlock": true, "since": "1.0", "description": "BPMN 2.0 collaboration diagram." },
     { "id": "BpmnChoreography", "requiresKumlBlock": true, "since": "1.0", "description": "BPMN 2.0 choreography diagram." },

@@ -1,6 +1,7 @@
 package dev.kuml.workspace
 
 import io.kotest.core.spec.style.FunSpec
+import io.kotest.matchers.collections.shouldContain
 import io.kotest.matchers.collections.shouldContainExactlyInAnyOrder
 import io.kotest.matchers.shouldBe
 import kotlinx.serialization.Serializable
@@ -54,5 +55,12 @@ class OkfVocabularyContractTest :
 
         test("JSON entry count matches OkfType.entries count") {
             doc.types.size shouldBe OkfType.entries.size
+        }
+
+        test("vocabulary lists Sysml2PackageDiagram and UmlStateMachine") {
+            val ids = doc.types.map { it.id }
+            ids shouldContain "Sysml2PackageDiagram"
+            ids shouldContain "UmlStateMachine"
+            OkfType.fromId("Sysml2PackageDiagram")?.requiresKumlBlock shouldBe true
         }
     })

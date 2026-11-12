@@ -6,6 +6,38 @@ All notable changes to this project are documented here. Format follows
 
 ## [Unreleased]
 
+### Nacharbeit 81: OKF vocabulary lists Sysml2PackageDiagram, write-path findings no longer carry a wrong severity
+
+**Why.** (a) `Sysml2PackageDiagram` was missing from the OKF `type:` vocabulary although the diagram kind exists, so such
+documents got an unknown-type finding. (b) The write path (`OkfDocumentWriter.write`/`create`, used by the desktop editor
+and the MCP tool `kuml_desktop_workspace_set_document`) validated with strict vocabulary, so an unknown `type:` came back in
+`warnings` with severity ERROR although it never blocks a save. (c) A link to a document that is created in the next call
+came back as an OKF-E-005 ERROR in `warnings`. (d) The handbook said OKF-W-002 blocks a save; code, KDoc and tests say it does not.
+
+**Change.**
+- `OkfType`/`kuml-okf-vocabulary.json`: added `Sysml2PackageDiagram` (since `1.0`, requires a kuml block); 30 entries. The
+  handbook count and SysML 2 table are updated.
+- `OkfDocumentWriter.write`/`create` now validate with `strictVocabulary = false`, so an unknown type is OKF-W-002 at WARNING.
+- New opt-in `deferLinks` on `OkfValidator.validate`/`validateDocument` (default `false`): OKF-E-005 keeps its code but is
+  reported at WARNING. The write path uses it; the MCP tool `kuml_desktop_workspace_validate` has a new optional boolean
+  `deferLinks`. `kuml workspace validate` and CI behave as before (a broken link is an ERROR, exit 5).
+- MCP description of `kuml_desktop_workspace_set_document` points to the vocabulary and states the warning behaviour.
+- Handbook: OKF-W-002 "Blocks a Desktop save?" corrected to No; OKF-E-005 row explains the downgrade; note on the exact ids
+  `UmlStateMachine` / `Sysml2StateMachine`.
+
+**Tests.** `OkfDocumentWriterTest` (Sysml2PackageDiagram without warning, unknown type at WARNING on create and write, link to
+a missing document is a WARNING and gone after creating the target), `OkfValidatorTest` (ERROR by default, WARNING with
+`deferLinks`), `OkfVocabularyContractTest` (both ids present), `DesktopMcpWorkspaceToolsTest` (validate with/without
+`deferLinks`, set_document warnings serialised as `warning`). Existing tests were not changed.
+
+**Verification.** `./gradlew clean check --no-build-cache` on macOS: BUILD SUCCESSFUL in 20m 47s (2060 tasks, 1951 executed); `detekt`/`ktlintCheck` for `kuml-docs:kuml-workspace` and `kuml-desktop` clean; `check_latex_tests.py` passed. Suites: OkfDocumentWriterTest 12, OkfValidatorTest 9, OkfVocabularyContractTest 4, DesktopMcpWorkspaceToolsTest 33, none skipped or failed. The real desktop MCP server was not reachable
+(ECONNREFUSED), so the MCP behaviour was checked at unit level only. The CI result of the pushed commit is not yet seen.
+
+**Not fixed / not changed.** N-WS-A (`workspace_get_document` offset/limit/lineCount for large documents) and N-WS-B
+(unconfirmed layout instability, see P-IBD-06) are not touched. No CLI `--defer-links` flag. The editor banner
+(`WorkspaceState.revalidate`) keeps `strictVocabulary = true` and ERROR for OKF-E-005. `UmlStateMachine` was already
+documented; only a pointer was added.
+
 ### Nacharbeit 80: long actor names wrap in the Blueprint card footer; same-cell stacking and labels are covered by tests
 
 **Why.** (a) The actor name in a Service Blueprint card footer was cut to one line (about 20 characters, the full name

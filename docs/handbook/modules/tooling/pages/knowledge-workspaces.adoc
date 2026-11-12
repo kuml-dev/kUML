@@ -278,8 +278,11 @@ above rather than aborting the scan.
 == The `type:` vocabulary
 
 Every document's frontmatter `type:` field is resolved against a fixed vocabulary
-(current version: `1.0`, `29` entries). Types with `requiresKumlBlock = true` must
+(current version: `1.0`, `30` entries). Types with `requiresKumlBlock = true` must
 contain exactly one ` ```kuml ` fenced code block; the others are prose/collection types.
+Note the exact ids: a UML state machine is `UmlStateMachine` (not `UmlStateMachineDiagram`) and a SysML 2
+state machine is `Sysml2StateMachine`. The authoritative machine-readable list is the JSON contract file
+described below.
 
 === UML
 
@@ -338,6 +341,7 @@ contain exactly one ` ```kuml ` fenced code block; the others are prose/collecti
 | `Sysml2UseCase` | yes
 | `Sysml2Requirement` | yes
 | `Sysml2Parametric` | yes
+| `Sysml2PackageDiagram` | yes
 |===
 
 === BPMN
@@ -390,10 +394,10 @@ blocks a save in the desktop editor either (see "The save gate"): only a missing
 | Code | Severity | Meaning | Blocks a Desktop save?
 
 | `OKF-E-001` | ERROR | Frontmatter missing or has no `type:` field. | Yes
-| `OKF-W-002` | WARNING (or ERROR under `--strict-vocabulary`) | Unrecognised `type:` value. | Yes
+| `OKF-W-002` | WARNING (or ERROR under `--strict-vocabulary`) | Unrecognised `type:` value. | No
 | `OKF-E-003` | ERROR | A diagram type has no ```kuml block. | No
 | `OKF-W-004` | WARNING | A document has more than one ```kuml block ("one file = one diagram"). | No
-| `OKF-E-005` | ERROR | A relative Markdown link to a `.md` target that does not exist. | No
+| `OKF-E-005` | ERROR (WARNING when written through the editor or the MCP write path, and with `deferLinks` on the MCP `kuml_desktop_workspace_validate` tool) | A relative Markdown link to a `.md` target that does not exist. The write path downgrades it because the target may be created right afterwards. `kuml workspace validate` always reports it as ERROR. | No
 | `OKF-W-006` | WARNING | The workspace root has no `index.md` with `type: KumlWorkspace`. | n/a — workspace-wide, never raised for a single document
 | `OKF-E-007` | ERROR | A ```kuml block failed to render, or (`validate --evaluate`) failed to evaluate or evaluates without producing a renderable diagram. | n/a — render, or validate with `--evaluate`
 | `OKF-W-008` | WARNING (or ERROR under `--strict`) | A ```kuml block produces more than one diagram; only the first is rendered. Reported by `render` and by `validate --evaluate`. | n/a — needs script evaluation

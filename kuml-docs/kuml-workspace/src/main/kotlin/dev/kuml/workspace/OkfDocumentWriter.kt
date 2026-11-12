@@ -108,7 +108,7 @@ public object OkfDocumentWriter {
         // path string downstream identity/equality checks see (bugfix, found running
         // `WorkspaceStateEditingTest` on macOS).
         val candidate = OkfDocumentParser.parse(root = root, file = target, text = content)
-        val findings = OkfValidator.validateDocument(root = root, doc = candidate, strictVocabulary = true)
+        val findings = OkfValidator.validateDocument(root = root, doc = candidate, strictVocabulary = false, deferLinks = true)
         when (val decision = OkfSaveGate.decide(findings)) {
             is OkfSaveDecision.Block -> return OkfWriteResult.Blocked(blocking = decision.blocking, warnings = decision.warnings)
             is OkfSaveDecision.Allow -> {
@@ -151,7 +151,7 @@ public object OkfDocumentWriter {
         }
 
         val candidate = OkfDocumentParser.parse(root = scanRoot, file = target, text = content)
-        val findings = OkfValidator.validateDocument(root = scanRoot, doc = candidate, strictVocabulary = true)
+        val findings = OkfValidator.validateDocument(root = scanRoot, doc = candidate, strictVocabulary = false, deferLinks = true)
         val warnings =
             when (val decision = OkfSaveGate.decide(findings)) {
                 is OkfSaveDecision.Block -> return OkfWriteResult.Blocked(blocking = decision.blocking, warnings = decision.warnings)

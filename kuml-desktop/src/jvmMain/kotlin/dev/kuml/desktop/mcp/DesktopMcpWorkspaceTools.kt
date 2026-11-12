@@ -222,7 +222,10 @@ internal class DesktopMcpWorkspaceTools(
                         "updates an existing document and fails with REVISION_CONFLICT if the file changed. Without baseRevision it " +
                         "only creates a new document (missing folders are created) and fails with REVISION_CONFLICT{reason:EXISTS} " +
                         "if the file exists. A document with unsaved editor changes is never overwritten (DOCUMENT_DIRTY). " +
-                        "Content max 512 KiB. Returns {revision, created, path, warnings}. Requires a trusted workspace. " +
+                        "Content max 512 KiB. Returns {revision, created, path, warnings}. Unknown type: values are accepted " +
+                        "with an OKF-W-002 warning (valid type ids: handbook section 'The type: vocabulary'; e.g. UmlStateMachine, " +
+                        "Sysml2PackageDiagram), and a link to a not-yet-existing .md file yields an OKF-E-005 warning, not an " +
+                        "error. Requires a trusted workspace. " +
                         "Errors: SAVE_BLOCKED, INVALID_PATH, CONTENT_TOO_LARGE, WORKSPACE_NOT_TRUSTED, WRITE_FAILED, " +
                         "OPERATION_TIMEOUT (outcome unknown).",
                 schema =
@@ -291,6 +294,13 @@ internal class DesktopMcpWorkspaceTools(
                             name = "strictVocabulary",
                             type = "boolean",
                             description = "Treat unknown type: values as errors. Default false.",
+                        ),
+                        Prop(
+                            name = "deferLinks",
+                            type = "boolean",
+                            description =
+                                "Report broken links (OKF-E-005) as warnings instead of errors, e.g. while linked " +
+                                    "documents are still being created. Default false.",
                         ),
                     ),
                 annotations = McpToolAnnotations(readOnlyHint = false, destructiveHint = false, openWorldHint = false),
@@ -820,6 +830,7 @@ internal class DesktopMcpWorkspaceTools(
         val evaluate = boolArg(args = args, key = "evaluate", default = false)
         val strict = boolArg(args = args, key = "strict", default = false)
         val strictVocabulary = boolArg(args = args, key = "strictVocabulary", default = false)
+        val deferLinks = boolArg(args = args, key = "deferLinks", default = false)
         val posix = rawPath?.let { checkedPath(it) }
         val snap = snapshot()
         snap.requireKnowledge()
@@ -833,7 +844,13 @@ internal class DesktopMcpWorkspaceTools(
                     .scanDocument(root = snap.root, relativePath = posix)
                     .getOrElse { e -> throw resolveFailure(e = e, requested = posix) }
             docs = listOf(doc)
-            findings += OkfValidator.validateDocument(root = snap.root, doc = doc, strictVocabulary = strictVocabulary)
+            findings +=
+                OkfValidator.validateDocument(
+                    root = snap.root,
+                    doc = doc,
+                    strictVocabulary = strictVocabulary,
+                    deferLinks = deferLinks,
+                )
         } else {
             val ws =
                 try {
@@ -842,7 +859,7 @@ internal class DesktopMcpWorkspaceTools(
                     throw err(code = "SCAN_FAILED", "errorClass" to e.javaClass.simpleName)
                 }
             docs = ws.documents
-            findings += OkfValidator.validate(ws = ws, strictVocabulary = strictVocabulary)
+            findings += OkfValidator.validate(ws = ws, strictVocabulary = strictVocabulary, deferLinks = deferLinks)
         }
         if (evaluate) {
             findings += runGated(timeoutMs = renderTimeoutMs) { evaluatePort.evaluate(documents = docs, strict = strict) }

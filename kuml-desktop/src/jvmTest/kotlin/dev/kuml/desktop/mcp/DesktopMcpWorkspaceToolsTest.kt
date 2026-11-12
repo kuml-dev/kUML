@@ -591,6 +591,29 @@ class DesktopMcpWorkspaceToolsTest :
             }
         }
 
+        test("validate: deferLinks turns a broken link into a warning, default keeps it an error") {
+            withFix { f ->
+                File(f.root, "linked.md").writeText("---\ntype: Concept\n---\nsee [B](missing.md)\n")
+                val strict = f.call("kuml_desktop_workspace_validate")
+                strict["ok"]!!.jsonPrimitive.boolean shouldBe false
+
+                val deferred = f.call("kuml_desktop_workspace_validate", args("deferLinks" to true))
+                deferred["ok"]!!.jsonPrimitive.boolean shouldBe true
+                deferred["errorCount"]!!.jsonPrimitive.int shouldBe 0
+                deferred["warningCount"]!!.jsonPrimitive.int shouldBe 1
+            }
+        }
+
+        test("set: a link to a missing document and an unknown type are warnings, not errors") {
+            withFix { f ->
+                val content = "---\ntype: Quatsch\n---\nsee [B](B.md)\n"
+                val r = f.call("kuml_desktop_workspace_set_document", args("path" to "A.md", "content" to content))
+                val warnings = r["warnings"]!!.jsonArray.map { it.jsonObject }
+                warnings.map { it["code"]!!.jsonPrimitive.content }.toSet() shouldBe setOf("OKF-W-002", "OKF-E-005")
+                warnings.forEach { it["severity"]!!.jsonPrimitive.content shouldBe "warning" }
+            }
+        }
+
         test("validate with evaluate answers BUSY while the eval slot is taken") {
             withFix(Fix(gateWaitMs = 100)) { f ->
                 f.tools.evalGate.acquire()

@@ -176,4 +176,17 @@ class OkfValidatorTest :
 
             root.deleteRecursively()
         }
+
+        test("a broken link is ERROR by default and WARNING (same code) with deferLinks") {
+            val root = tempWorkspace()
+            File(root, "source.md").writeText("[link](missing.md)")
+            val ws = WorkspaceScanner.scan(root = root)
+
+            val strict = OkfValidator.validate(ws = ws).single { it.code == "OKF-E-005" }
+            strict.severity shouldBe OkfSeverity.ERROR
+            val deferred = OkfValidator.validate(ws = ws, deferLinks = true).single { it.code == "OKF-E-005" }
+            deferred.severity shouldBe OkfSeverity.WARNING
+
+            root.deleteRecursively()
+        }
     })

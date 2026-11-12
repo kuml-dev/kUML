@@ -29,6 +29,8 @@ public data class OkfFinding(
  * - `OKF-E-003` — a diagram type ([OkfType.requiresKumlBlock]) has no ` ```kuml ` block.
  * - `OKF-W-004` — a document has more than one ` ```kuml ` block ("one file = one diagram" discipline).
  * - `OKF-E-005` — a relative Markdown link to a `.md` target that does not exist (cross-link integrity).
+ *   Reported at `ERROR` by default; at `WARNING` (same code) when `deferLinks` is set, for callers that
+ *   create linked documents one after another (the editor/MCP write path).
  * - `OKF-W-006` — the workspace root has no `index.md` with `type: KumlWorkspace`.
  *
  * All messages are in English, matching the kUML convention for structured
@@ -40,15 +42,19 @@ public object OkfValidator {
      *  `OKF-W-002`) is reported at [OkfSeverity.ERROR] instead of [OkfSeverity.WARNING]. The
      *  finding code stays `OKF-W-002` in both modes — only the severity changes — so JSON
      *  consumers keep a stable code space instead of forking into a parallel `OKF-E-002`.
+     * @param deferLinks When `true`, a broken link (`OKF-E-005`) is reported at [OkfSeverity.WARNING]
+     *  instead of [OkfSeverity.ERROR] (the target may be created in the same pass). The code stays
+     *  `OKF-E-005`. Defaults to `false` so CI-style validation keeps failing on broken links.
      */
     public fun validate(
         ws: OkfWorkspace,
         strictVocabulary: Boolean = false,
+        deferLinks: Boolean = false,
     ): List<OkfFinding> {
         val findings = mutableListOf<OkfFinding>()
 
         for (doc in ws.documents) {
-            findings += validateDocument(root = ws.root, doc = doc, strictVocabulary = strictVocabulary)
+            findings += validateDocument(root = ws.root, doc = doc, strictVocabulary = strictVocabulary, deferLinks = deferLinks)
         }
 
         findings += checkIndexDocument(ws)
@@ -68,13 +74,14 @@ public object OkfValidator {
         root: File,
         doc: OkfDocument,
         strictVocabulary: Boolean = false,
+        deferLinks: Boolean = false,
     ): List<OkfFinding> {
         val findings = mutableListOf<OkfFinding>()
         findings += checkFrontmatterPresence(doc)
         findings += checkKnownType(doc = doc, strictVocabulary = strictVocabulary)
         findings += checkDiagramBlockPresence(doc)
         findings += checkBlockCount(doc)
-        findings += checkLinks(root = root, doc = doc)
+        findings += checkLinks(root = root, doc = doc, deferLinks = deferLinks)
         return findings
     }
 
@@ -155,6 +162,7 @@ public object OkfValidator {
     private fun checkLinks(
         root: File,
         doc: OkfDocument,
+        deferLinks: Boolean,
     ): List<OkfFinding> {
         val findings = mutableListOf<OkfFinding>()
         for (link in doc.links) {
@@ -175,11 +183,16 @@ public object OkfValidator {
                 findings +=
                     OkfFinding(
                         code = "OKF-E-005",
-                        severity = OkfSeverity.ERROR,
+                        severity = if (deferLinks) OkfSeverity.WARNING else OkfSeverity.ERROR,
                         file = doc.relativePath,
                         line = link.line,
                         message = "Broken link: '$target' does not resolve to an existing file.",
-                        suggestion = "Fix the link target or create the missing file.",
+                        suggestion =
+                            if (deferLinks) {
+                                "Fix the link target or create the missing file; the target may be created in the same pass."
+                            } else {
+                                "Fix the link target or create the missing file."
+                            },
                     )
             }
         }

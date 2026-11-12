@@ -98,7 +98,7 @@ public enum class OkfType(
     ARTICLE("Article", false, "1.0", "Free-form prose article; no diagram content."),
     GLOSSARY("Glossary", false, "1.0", "A glossary of terms; no diagram content."),
 
-    // SysML 2 (8) — V3.6.1 / FT-2
+    // SysML 2 (9) — V3.6.1 / FT-2
     SYSML2_BLOCK_DEFINITION(
         "Sysml2BlockDefinition",
         true,
@@ -112,6 +112,7 @@ public enum class OkfType(
     SYSML2_USE_CASE("Sysml2UseCase", true, "1.0", "SysML 2 use case diagram."),
     SYSML2_REQUIREMENT("Sysml2Requirement", true, "1.0", "SysML 2 requirement diagram."),
     SYSML2_PARAMETRIC("Sysml2Parametric", true, "1.0", "SysML 2 parametric diagram."),
+    SYSML2_PACKAGE_DIAGRAM("Sysml2PackageDiagram", true, "1.0", "SysML 2 package diagram."),
 
     // BPMN (4) — V3.6.1 / FT-2
     BPMN_PROCESS("BpmnProcess", true, "1.0", "BPMN 2.0 process diagram."),
