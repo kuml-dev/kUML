@@ -8,6 +8,7 @@ on:
 
 permissions:
   contents: write   # required to create GitHub Releases & upload assets
+  actions: read     # read the CI result of the tagged commit (skips a second full build)
 
 jobs:
   # ─────────────────────────────────────────────────────────────────────────
@@ -50,7 +51,25 @@ jobs:
       - name: Install bubblewrap (Linux OS sandbox test dependency)
         run: sudo apt-get update && sudo apt-get install -y bubblewrap
 
+      # The tagged commit was normally built and tested by the CI before the tag
+      # was pushed. If that run (Build & Test and the LaTeX job) succeeded,
+      # repeating the full test build here only costs about 15 minutes.
+      # Without a green CI run for this exact commit (or if the lookup fails)
+      # the build below runs as before.
+      - name: Check whether the CI already passed for this commit
+        id: ci_green
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          green=false
+          n="$(gh run list --repo "$GITHUB_REPOSITORY" --workflow CI --commit "$GITHUB_SHA" --json status,conclusion \
+                 -q '[.[] | select(.status == "completed" and .conclusion == "success")] | length' 2>/dev/null || echo 0)"
+          if [ "${n:-0}" -ge 1 ]; then green=true; fi
+          echo "green=$green" >> "$GITHUB_OUTPUT"
+          echo "CI green for $GITHUB_SHA: $green"
+
       - name: Build everything
+        if: steps.ci_green.outputs.green != 'true'
         run: ./gradlew build -DexcludeTags=live
 
       # Maven Central is immutable: a given GAV can only be published once.

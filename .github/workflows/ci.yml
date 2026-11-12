@@ -3,8 +3,28 @@ name: CI
 on:
   push:
     branches: [ master ]
+    # A change that only touches documentation, the changelog or the manual
+    # test workflows cannot change the build result, so it skips the full
+    # build. ci.yml and the release workflows are deliberately not listed:
+    # changing them still runs the CI.
+    paths-ignore:
+      - 'docs/**'
+      - '**/*.adoc'
+      - 'CHANGELOG.md'
+      - '.github/workflows/test-*.yml'
   pull_request:
     branches: [ master ]
+    paths-ignore:
+      - 'docs/**'
+      - '**/*.adoc'
+      - 'CHANGELOG.md'
+      - '.github/workflows/test-*.yml'
+
+# A newer push to the same ref replaces a run that is still going: the
+# older commit is covered by the newer run, which builds the newer tree.
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
 
 # The build only reads the repository; no step writes to it, comments on
 # pull requests or uses the token for anything else.
