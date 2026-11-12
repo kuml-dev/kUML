@@ -125,23 +125,26 @@ jobs:
           echo "::error::could not attach DEB/RPM to release $TAG"
           exit 1
 
-      - name: Trigger APT repository rebuild
-        # Tells kuml-dev/apt that a new .deb is attached to the release. Never
-        # fails the release: without the token or on an API error the apt
-        # repository can be rebuilt by hand (workflow_dispatch in kuml-dev/apt).
+      - name: Trigger the APT and RPM repository rebuilds
+        # Tells kuml-dev/apt and kuml-dev/rpm that new .deb/.rpm files are attached
+        # to the release. Never fails the release: without the token or on an API
+        # error a repository can be rebuilt by hand (workflow_dispatch in that
+        # repository). The token has to reach both repositories.
         shell: bash
         env:
           APT_DISPATCH_TOKEN: ${{ secrets.APT_DISPATCH_TOKEN }}
         run: |
           if [ -z "$APT_DISPATCH_TOKEN" ]; then
-            echo "::warning::APT_DISPATCH_TOKEN is not set; run the apt publish workflow by hand"
+            echo "::warning::APT_DISPATCH_TOKEN is not set; run the publish workflows of kuml-dev/apt and kuml-dev/rpm by hand"
             exit 0
           fi
-          if ! GH_TOKEN="$APT_DISPATCH_TOKEN" gh api repos/kuml-dev/apt/dispatches \
-              -f event_type=kuml-release \
-              -f "client_payload[tag]=${{ github.event.inputs.tag || github.ref_name }}"; then
-            echo "::warning::could not trigger the apt repository rebuild"
-          fi
+          for repo in apt rpm; do
+            if ! GH_TOKEN="$APT_DISPATCH_TOKEN" gh api "repos/kuml-dev/${repo}/dispatches" \
+                -f event_type=kuml-release \
+                -f "client_payload[tag]=${{ github.event.inputs.tag || github.ref_name }}"; then
+              echo "::warning::could not trigger the ${repo} repository rebuild"
+            fi
+          done
 
       - name: Log in to GitHub Container Registry
         if: github.event_name == 'push'
