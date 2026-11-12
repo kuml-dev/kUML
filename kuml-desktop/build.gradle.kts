@@ -273,8 +273,15 @@ tasks.withType<Test>().configureEach { useJUnitPlatform() }
 
 // Linux only: make the desktop DEB installable on systems without a desktop menu directory
 // (servers, containers). See scripts/patch-deb-xdg.sh. Strings only, no script references (config cache).
-val patchDebScript = layout.projectDirectory.file("scripts/patch-deb-xdg.sh").asFile.absolutePath
-val debOutputDir = layout.buildDirectory.dir("compose/binaries/main/deb").get().asFile.absolutePath
+val patchDebScript =
+    layout.projectDirectory
+        .file("scripts/patch-deb-xdg.sh")
+        .asFile.absolutePath
+val debOutputDir =
+    layout.buildDirectory
+        .dir("compose/binaries/main/deb")
+        .get()
+        .asFile.absolutePath
 val patchDesktopDeb =
     tasks.register<Exec>("patchDesktopDeb") {
         group = "distribution"
