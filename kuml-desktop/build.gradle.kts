@@ -270,3 +270,20 @@ tasks.named<ProcessResources>("jvmProcessResources") {
 }
 
 tasks.withType<Test>().configureEach { useJUnitPlatform() }
+
+// Linux only: make the desktop DEB installable on systems without a desktop menu directory
+// (servers, containers). See scripts/patch-deb-xdg.sh. Strings only, no script references (config cache).
+val patchDebScript = layout.projectDirectory.file("scripts/patch-deb-xdg.sh").asFile.absolutePath
+val debOutputDir = layout.buildDirectory.dir("compose/binaries/main/deb").get().asFile.absolutePath
+val patchDesktopDeb =
+    tasks.register<Exec>("patchDesktopDeb") {
+        group = "distribution"
+        description = "Make the desktop DEB tolerate a missing desktop menu directory (Linux only)"
+        onlyIf {
+            org.gradle.internal.os.OperatingSystem
+                .current()
+                .isLinux
+        }
+        commandLine("bash", patchDebScript, debOutputDir)
+    }
+tasks.matching { it.name == "packageDeb" }.configureEach { finalizedBy(patchDesktopDeb) }
