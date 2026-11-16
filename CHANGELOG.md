@@ -6,6 +6,13 @@ All notable changes to this project are documented here. Format follows
 
 ## [Unreleased]
 
+### Nacharbeit 86: UML class diagram, visibility mark default and enumeration type edge
+
+- **Why.** Restliste K (f): attributes without an explicit visibility show `-`; (e): an attribute typed with an enumeration gets no edge to it.
+- **Change.** No behaviour change. The default is deliberate (UML attribute convention, pinned by `ClassBuilderTest`; `Visibility` in the metamodel is not nullable) and is now documented in the handbook. `attributeTypeEdges = true` (existing, off by default) draws the edge to enumerations too; this is documented as the remedy.
+- **Verification.** New `UmlVisibilitySvgTest` (all four levels for attributes and operations, default `-` / `+` without explicit visibility); `Wave2GaDslTest` enumeration cases (edge with the flag, none without); full `./gradlew clean check detekt ktlintCheck ktlintKotlinScriptCheck :kuml-cli:installDist --no-build-cache` green.
+- **Not fixed.** (f) There is still no "no visibility" state: making `visibility` nullable (no mark when unset) needs a metamodel, JSON and golden-file change and is its own wave. `ClassDiagramBuilder.showVisibility` / `visibilityFilter` are stored in the diagram config but no renderer evaluates them, so they hide nothing; this is not documented as a remedy. (e) Enumerations stay unconnected by default; an automatic edge would change the layout of every existing diagram, so it stays opt-in.
+
 ### Nacharbeit 85: UML class diagram, general class on top
 
 - **Why.** In a UML class diagram the general class of a generalisation was drawn *below* its specialisations, with `direction = Down`, with `wrapColumns` and even without any layout block (reproduced with an abstract base and 3, 6 and 9 subclasses). The generalisation edges run specific to general and the engine layers a source above its target. `direction = Up` put the base on top, but with a mirrored row order and many bends.

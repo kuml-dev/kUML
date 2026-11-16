@@ -128,6 +128,8 @@ classDiagram(name = "Domain") {
   Optional: `multiplicity`, `visibility`, `isStatic`, `defaultValue`. The default value is drawn verbatim after the
   type (`- limit: Int = -5`, no quotes added, never shortened); a static attribute or operation is underlined.
   *Visibility defaults:* attributes are `private` (`-`), operations `public` (`+`).
+  An attribute or operation that does not set `visibility` is drawn with that default mark; there is no "no mark" state.
+  All four levels are drawn: `+` public, `-` private, `#` protected, `~` package.
 
 | `operation(name)`
 | Block-form: add `parameter(...)`, `returnType`, `visibility`, `stereotype(...)`.
@@ -307,6 +309,10 @@ classDiagram(name = "Order Domain") {
 every other classifier of the diagram that one of its attributes is typed with. Several attributes of one owner with the
 same target give one edge, labelled with the attribute names joined by `", "`. No edge is added where the diagram already has
 an association between the two, for primitive or unknown types, or for an attribute typed with its own owner. Off by default.
+
+This includes enumerations of the diagram: an attribute typed with a diagram enumeration gets a dashed dependency to it.
+Without `attributeTypeEdges = true` the attribute type is only shown as text (`status: Status`) and the enumeration is drawn
+without an edge, which is the usual UML presentation.
 
 == Comments
 

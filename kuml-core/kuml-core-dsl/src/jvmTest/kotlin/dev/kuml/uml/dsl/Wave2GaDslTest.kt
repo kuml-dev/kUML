@@ -113,6 +113,20 @@ class Wave2GaDslTest :
             d.elements.filterIsInstance<UmlClass>() shouldHaveSize 3
         }
 
+        test("attributeTypeEdges also draws an edge to an enumeration type, and none without the flag") {
+            fun build(withEdges: Boolean) =
+                classDiagram(name = "T") {
+                    attributeTypeEdges = withEdges
+                    val status = enumOf(name = "Status") { literal(name = "OPEN") }
+                    classOf(name = "Order") { attribute(name = "status", type = "Status") }
+                    status.id
+                }
+            val on = build(withEdges = true).elements.filterIsInstance<UmlDependency>()
+            on.map { Triple(it.clientId, it.supplierId, it.name) } shouldContainExactly
+                listOf(Triple("Order", "Status", "status"))
+            build(withEdges = false).elements.filterIsInstance<UmlDependency>() shouldHaveSize 0
+        }
+
         test("attributeTypeEdges is off by default") {
             val d =
                 classDiagram(name = "T") {
