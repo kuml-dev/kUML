@@ -6,6 +6,14 @@ All notable changes to this project are documented here. Format follows
 
 ## [Unreleased]
 
+### Nacharbeit 91: fewer files per Maven Central release
+
+- **Why.** Maven Central caps a project at 1,000 files per release; a release had 2,884 files (limit request to Sonatype pending). Every multiplatform module published a root component plus `-jvm`, `-js` and `-wasm-js` components, each with jar, sources, javadoc, pom, module and signatures.
+- **Change.** The `js` and `wasmJs` publications of all 16 multiplatform modules are switched off in the root `build.gradle.kts` (publish and sign tasks disabled; the targets still build). `kuml-wasm-playground` joins `nonPublishedModules` (kuml.dev builds it from source). Release probe in `release.yml` checks only the `jvm` leg. Docs adjusted (`docs/release.md`, handbook `architecture.adoc`, readiness note marked historical). New `scripts/verify-central-file-count.sh` builds into a throw-away repo and fails if a `-js`/`-wasm-js` artifact is published again. **Breaking for JS/Wasm consumers:** the `dev.kuml:*-js` and `*-wasm-js` coordinates are no longer published from the next release on. `kuml-workspace` and `kuml-workspace-pdf` stay published because the published `kuml-workspace-latex` depends on them.
+- **Javadoc.** Checked at https://central.sonatype.org/publish/requirements/: a `-javadoc.jar` and `-sources.jar` per main JAR are required, placeholder jars are allowed; the empty javadoc jar stays.
+- **Verification.** `publishToMavenLocal` into a throw-away repository: 715 files and 140 artifacts before, 555 files and 108 artifacts after (local, without `.asc`/`.md5`/`.sha1`; times four this is about 2,860 before and 2,220 after, matching the 2,884 seen on Central). A JVM-only consumer project resolves `dev.kuml:kuml-core-dsl:0.57.0` against the after-repository and compiles.
+- **Not fixed.** The target of about 1,400 files is missed, about 2,200 remain; further options (workspace-latex, plugin modules, merging modules) need a decision. The root `.module` file still lists the js/wasm variants with `available-at` links to the missing components; JVM consumers never select them, but whether Central accepts that metadata only shows at the real upload. Signing tasks for the disabled publications could only be checked without a key.
+
 ### Nacharbeit 90: steerable note placement
 
 - **Why.** A note was always placed by the cost model, the author had no way to say "put this one above the pump" (remaining list PAL wave 3, section A, N2).

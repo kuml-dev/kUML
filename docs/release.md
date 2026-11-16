@@ -165,16 +165,16 @@ need its own workflow until the release cadence accelerates.
 `kuml-core-model`, `kuml-core-dsl`, `kuml-metamodel-uml`, `kuml-metamodel-c4`
 and `kuml-profile-api` are Kotlin Multiplatform modules (targets: `jvm()`,
 `js { browser(); nodejs() }`, `wasmJs { browser(); nodejs() }`). Each of these
-publishes as **four** Maven components instead of one:
+publishes as **two** Maven components instead of one (since Nacharbeit 91 the `js` and
+`wasmJs` targets stay in the build but are **not** published to Maven Central, to keep the file
+count per release under the Sonatype limit):
 
 | Coordinate                          | Contents                                                        |
 |--------------------------------------|-------------------------------------------------------------------|
 | `dev.kuml:kuml-core-dsl:<version>`         | Root/metadata module: Gradle Module Metadata (`.module`) + POM, no classes jar |
 | `dev.kuml:kuml-core-dsl-jvm:<version>`     | JVM target classes + sources jar                                 |
-| `dev.kuml:kuml-core-dsl-js:<version>`      | JS (IR) target classes + sources jar                              |
-| `dev.kuml:kuml-core-dsl-wasm-js:<version>` | Wasm/JS target classes + sources jar                              |
 
-(same pattern for the other four KMP modules — substitute the module name).
+(same pattern for the other KMP modules — substitute the module name).
 
 **Gradle consumers** (all in-repo JVM modules, e.g. `kuml-io-svg`) depend on
 the **root** coordinate via `project(...)` or, for external consumers,

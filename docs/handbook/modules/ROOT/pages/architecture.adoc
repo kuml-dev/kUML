@@ -1,8 +1,8 @@
 = Architecture and modules
 :description: How the kUML Gradle modules fit together, and what each one does.
 
-kUML is a Gradle multi-module project. Every module is published to Maven Central under
-`dev.kuml` (see xref:install.adoc[Installation]); you normally depend on a handful of them, or just
+kUML is a Gradle multi-module project. Every library module is published to Maven Central under
+`dev.kuml` (JVM artifacts only: the JS and Wasm targets of the multiplatform modules are built but not published, and the application and tooling modules are not libraries) (see xref:install.adoc[Installation]); you normally depend on a handful of them, or just
 install the CLI. This page maps the modules by layer so you can find the one you need.
 
 == The pipeline
@@ -118,7 +118,7 @@ editor, MCP server and the AI assistant sit on top.
 | Pure-SMIL animated SVG from execution traces, and export of animations to APNG, WebP or MP4 (the JVM distribution only; WebP and MP4 need external `img2webp` or `ffmpeg`).
 
 | `kuml-wasm-playground`
-| Browser-hosted (wasm) entry points that turn an already parsed diagram plus a layout, both as JSON from `kuml dump-json`, into SVG. It does not parse scripts or run ELK itself.
+| Not published to Maven Central (kuml.dev builds it from source). Browser-hosted (wasm) entry points that turn an already parsed diagram plus a layout, both as JSON from `kuml dump-json`, into SVG. It does not parse scripts or run ELK itself.
 |===
 
 == Import, export and I/O

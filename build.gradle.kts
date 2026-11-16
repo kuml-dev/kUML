@@ -4,6 +4,7 @@ import com.vanniktech.maven.publish.KotlinJvm
 import com.vanniktech.maven.publish.KotlinMultiplatform
 import com.vanniktech.maven.publish.MavenPublishBaseExtension
 import com.vanniktech.maven.publish.SourcesJar
+import org.gradle.api.publish.maven.tasks.AbstractPublishToMaven
 
 plugins {
     // `base` gives the root project its own lifecycle `check` task (it has no
@@ -226,6 +227,7 @@ val nonPublishedModules =
         "kuml-web",
         "kuml-desktop",        // V3.0.10 — Compose Desktop app (not published to Maven Central)
         "kuml-detekt-rules",   // build tooling — custom Detekt ruleset, never published
+        "kuml-wasm-playground", // Nacharbeit 91 — built from source by kuml.dev, not published to Maven Central
         "kuml-scaffold",       // V3.x (FT-Desktop-New-Workspace) — internal {{var}} template-scaffold engine, never published
         // Test sub-modules (path-aware listing — Gradle subprojects iteration
         // sees them as separate projects with these leaf names).
@@ -425,6 +427,17 @@ subprojects {
         configureKumlPublishing()
         configure<MavenPublishBaseExtension> {
             configure(KotlinMultiplatform(javadocJar = JavadocJar.Empty()))
+        }
+        // Nacharbeit 91: the js/wasmJs targets stay in the build but are no longer
+        // published to Maven Central (Sonatype file-count limit, 1,000 files/release).
+        // The publication name is the target name ("js", "wasmJs").
+        // Matched by task name (publishJsPublicationTo*, publishWasmJsPublicationTo*):
+        // the publication property is not yet populated when this callback runs.
+        tasks.withType<AbstractPublishToMaven>().configureEach {
+            if (name.startsWith("publishJsPublicationTo") || name.startsWith("publishWasmJsPublicationTo")) enabled = false
+        }
+        tasks.configureEach {
+            if (name.startsWith("signJs") || name.startsWith("signWasmJs")) enabled = false
         }
     }
 }

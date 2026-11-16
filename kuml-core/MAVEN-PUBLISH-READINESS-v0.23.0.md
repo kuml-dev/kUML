@@ -1,5 +1,7 @@
 # Maven Central Multi-Target Publish Readiness — v0.23.0
 
+> **Historical (Nacharbeit 91):** since Nacharbeit 91 the `-js` and `-wasm-js` artifacts described below are no longer published to Maven Central (file-count limit); only the root and `-jvm` components are.
+
 Status: **verification only — production publish NOT executed, pending manual approval.**
 
 This document records the local verification performed for V3.2.15 of the

@@ -90,14 +90,16 @@ jobs:
       # retry see `already_published=true` and skip publishToMavenCentral
       # entirely, permanently orphaning the missing legs for that version
       # (Central is immutable, so only a version bump recovers). We now
-      # probe all three legs of the representative module and only report
+      # probe the legs of the representative module and only report
       # already_published=true if ALL of them are already live.
+      # Nacharbeit 91: js and wasm-js are no longer published (Central file-count
+      # limit), so only the `jvm` leg is probed.
       - name: Check if libraries already on Maven Central
         id: mc_check
         run: |
           VERSION="${GITHUB_REF_NAME#v}"
           ALL_PUBLISHED=true
-          for LEG in jvm js wasm-js; do
+          for LEG in jvm; do
             POM_URL="https://repo1.maven.org/maven2/dev/kuml/kuml-core-dsl-${LEG}/${VERSION}/kuml-core-dsl-${LEG}-${VERSION}.pom"
             HTTP_STATUS=$(curl -sI -o /dev/null -w "%{http_code}" "$POM_URL")
             echo "Maven Central probe ($LEG): $POM_URL → HTTP $HTTP_STATUS"
@@ -107,7 +109,7 @@ jobs:
           done
           if [ "$ALL_PUBLISHED" = "true" ]; then
             echo "already_published=true" >> $GITHUB_OUTPUT
-            echo "::notice::v${VERSION} already on Maven Central (jvm+js+wasm-js all present) — skipping publishToMavenCentral"
+            echo "::notice::v${VERSION} already on Maven Central (jvm leg present) — skipping publishToMavenCentral"
           else
             echo "already_published=false" >> $GITHUB_OUTPUT
             echo "::notice::v${VERSION} not fully published yet (or partially published) — running publishToMavenCentral"
