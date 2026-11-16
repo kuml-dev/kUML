@@ -1069,7 +1069,9 @@ jobs:
           ORIG=$(ls kuml-desktop/build/compose/binaries/main/msi/kuml-desktop-*.msi | head -n1)
           APP_VERSION=$(basename "$ORIG" .msi | sed 's/^kuml-desktop-//')
           OUT="kuml-desktop/build/compose/binaries/main/msi/kuml-desktop-${VERSION}.msi"
-          cp "$ORIG" "$OUT"
+          # The MSI already carries the project version in its name since the MSI version
+          # became the real one (0.x.y); copying a file onto itself makes cp fail.
+          if [ ! "$ORIG" -ef "$OUT" ]; then cp "$ORIG" "$OUT"; fi
           # windows-latest Git Bash has neither sha256sum nor shasum reliably —
           # same fallback cascade already proven in the package-runtime job.
           if command -v sha256sum >/dev/null 2>&1; then
