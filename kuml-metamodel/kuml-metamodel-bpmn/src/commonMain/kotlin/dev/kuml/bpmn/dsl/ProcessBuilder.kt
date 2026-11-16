@@ -18,6 +18,7 @@ import dev.kuml.bpmn.model.GatewayType
 import dev.kuml.bpmn.model.SequenceFlow
 import dev.kuml.bpmn.model.TaskType
 import dev.kuml.core.model.note.NoteKind
+import dev.kuml.core.model.note.NotePlacement
 import dev.kuml.uml.UmlConstraint
 
 /**
@@ -337,6 +338,7 @@ class ProcessBuilder(
         vararg anchors: String,
         id: String? = null,
         kind: NoteKind = NoteKind.NOTE,
+        placement: NotePlacement? = null,
     ): String {
         val (annotation, links) =
             buildTextAnnotation(
@@ -346,6 +348,7 @@ class ProcessBuilder(
                 anchors = anchors,
                 id = id,
                 kind = kind,
+                placement = placement,
             )
         textAnnotations += annotation
         associations += links
@@ -358,7 +361,8 @@ class ProcessBuilder(
         vararg anchors: String,
         id: String? = null,
         kind: NoteKind = NoteKind.NOTE,
-    ): String = textAnnotation(text = text, *anchors, id = id, kind = kind)
+        placement: NotePlacement? = null,
+    ): String = textAnnotation(text = text, *anchors, id = id, kind = kind, placement = placement)
 
     // ── Constraints (V3.2.23) ───────────────────────────────────────────────────
 

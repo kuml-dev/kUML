@@ -1,6 +1,8 @@
 package dev.kuml.layout.bridge.note
 
 import dev.kuml.core.model.note.NoteKind
+import dev.kuml.core.model.note.NotePlacement
+import dev.kuml.core.model.note.isHint
 import dev.kuml.layout.EdgeId
 import dev.kuml.layout.EdgeRoute
 import dev.kuml.layout.LayoutResult
@@ -150,6 +152,8 @@ public data class NotePlacementInput(
     val body: String,
     val anchors: List<NoteAnchorRef>,
     val kind: NoteKind = NoteKind.NOTE,
+    /** Soft side wish (N2); only ABOVE/BELOW/LEFT/RIGHT are evaluated, `null` and NEAR leave the placement untouched. */
+    val placement: NotePlacement? = null,
 )
 
 /** An anchor whose target the layout does not show. */
@@ -175,6 +179,8 @@ public data class NotePlacementResult(
     val crossings: Int = 0,
     /** Notes the diagram declares but did not draw (`KUML-NOTE-W002`); empty when the placer ran no draw check. */
     val undrawn: List<UndrawnNote> = emptyList(),
+    /** Notes whose placement hint could not be honoured (`KUML-NOTE-W004`); empty when no note carried a hint or all were honoured. */
+    val hintNotHonoured: List<PlacementHintMiss> = emptyList(),
 )
 
 /**
@@ -340,6 +346,7 @@ public object NotePlacer {
         val loose = mutableListOf<Pair<NotePlacementInput, Size>>()
         val placedRects = mutableListOf<Rect>()
         val usedAlong = HashMap<String, MutableList<Point>>()
+        val hintMisses = mutableListOf<PlacementHintMiss>()
 
         for (note in limited) {
             val size = measure.measure(body = note.body, maxWidth = config.maxNoteWidth, kind = note.kind)
@@ -363,8 +370,34 @@ public object NotePlacer {
                 loose += note to size
                 continue
             }
+            // N2: a side hint is tried first; without one (null / NEAR) the path below is the unchanged default.
+            val hint = note.placement?.takeIf { it.isHint() }
+            val hinted =
+                if (hint == null) {
+                    null
+                } else {
+                    preferredPlan(
+                        noteId = note.noteId,
+                        hint = hint,
+                        size = size,
+                        anchors = resolved,
+                        extent = extent,
+                        baseExtent = baseExtent,
+                        obstacles = obstacles,
+                        config = config,
+                        budget = budget,
+                    )
+                }
             val plan =
-                homePlan(noteId = note.noteId, size = size, anchors = resolved, obstacles = obstacles, config = config, budget = budget)
+                hinted
+                    ?: homePlan(
+                        noteId = note.noteId,
+                        size = size,
+                        anchors = resolved,
+                        obstacles = obstacles,
+                        config = config,
+                        budget = budget,
+                    )
                     ?: choosePlan(
                         size = size,
                         anchors = resolved,
@@ -374,6 +407,12 @@ public object NotePlacer {
                         config = config,
                         budget = budget,
                     )
+            if (hint != null && hinted == null) {
+                val box = anchorsBox(resolved)
+                if (!onSide(rect = plan.rect, box = box, side = hint)) {
+                    hintMisses += PlacementHintMiss(noteId = note.noteId, wanted = hint, placed = sideOf(rect = plan.rect, box = box))
+                }
+            }
             if (plan.stripExhausted) truncated += note.noteId
             nodes[NodeId(note.noteId)] = NodeLayout(bounds = plan.rect)
             obstacles.addRect(kind = ObstacleKind.NOTE, r = plan.rect, ownerId = note.noteId)
@@ -421,7 +460,129 @@ public object NotePlacer {
             truncated = truncated,
             dx = dx,
             dy = dy,
+            hintNotHonoured = hintMisses,
         )
+    }
+
+    // ---------------------------------------------------------------- placement hint (N2)
+
+    /** Union of the boxes of all anchors (a port: its square; a point anchor, stem or line: the representative point). */
+    private fun anchorsBox(anchors: List<Anchor>): Rect {
+        fun boxOf(a: Anchor): Rect =
+            when (val g = a.geometry) {
+                is AnchorGeometry.Around -> g.r
+                is AnchorGeometry.Ellipse -> g.bounds
+                is AnchorGeometry.Port -> g.box
+                else -> rectOf(left = a.rep.x, top = a.rep.y, right = a.rep.x, bottom = a.rep.y)
+            }
+        var box = boxOf(anchors.first())
+        anchors.forEach { box = box.union(boxOf(it)) }
+        return box
+    }
+
+    /** True if [rect] lies in the half plane of [side] relative to [box] (0.5 px tolerance). */
+    private fun onSide(
+        rect: Rect,
+        box: Rect,
+        side: NotePlacement,
+    ): Boolean =
+        when (side) {
+            NotePlacement.ABOVE -> rect.bottom <= box.top + WIDTH_EPS
+            NotePlacement.BELOW -> rect.top >= box.bottom - WIDTH_EPS
+            NotePlacement.LEFT -> rect.right <= box.left + WIDTH_EPS
+            NotePlacement.RIGHT -> rect.left >= box.right - WIDTH_EPS
+            NotePlacement.NEAR -> true
+        }
+
+    /** The first side (ABOVE, BELOW, LEFT, RIGHT) [rect] lies on, or NEAR when it lies on none. */
+    private fun sideOf(
+        rect: Rect,
+        box: Rect,
+    ): NotePlacement =
+        listOf(NotePlacement.ABOVE, NotePlacement.BELOW, NotePlacement.LEFT, NotePlacement.RIGHT)
+            .firstOrNull { onSide(rect = rect, box = box, side = it) } ?: NotePlacement.NEAR
+
+    /**
+     * N2: the first position on the wished [hint] side that obeys every hard rule, or null (the default search then
+     * decides). Candidates are the area of the note (if it has one) and the usual candidate set, filtered to the half
+     * plane and ordered by distance, centred before diagonal. The hard rules are never relaxed: no overlap with a note
+     * or part, with edge clearance (state machines) the clearance rule, otherwise no node, port, label, title, frame
+     * band or edge under the rectangle; the anchor lines must be routable.
+     */
+    private fun preferredPlan(
+        noteId: String,
+        hint: NotePlacement,
+        size: Size,
+        anchors: List<Anchor>,
+        extent: Rect,
+        baseExtent: Rect,
+        obstacles: ObstacleIndex,
+        config: NotePlacementConfig,
+        budget: ObstacleIndex.Budget,
+    ): Plan? {
+        val box = anchorsBox(anchors)
+        val clearance = config.edgeClearance
+
+        fun accept(rect: Rect): Plan? {
+            if (obstacles.overlapsNote(rect)) return null
+            if (clearance != null) {
+                if (blocked(rect = rect, obstacles = obstacles, config = config, clearance = clearance, budget = budget)) return null
+            } else if (obstacles.hitsHardObstacle(r = rect, budget = budget, partGap = config.minPartGap)) {
+                return null
+            }
+            val plan = planFor(rect = rect, anchors = anchors, obstacles = obstacles, config = config, budget = budget)
+            if (!plan.routed) return null
+            if (clearance != null && !plan.clean) return null
+            return plan
+        }
+
+        // The reserved area of the note (requirement groups): cheapest accepted position on the wished side.
+        val home = config.noteHomes[noteId]
+        if (home != null && size.width <= home.size.width + 0.5f && size.height <= home.size.height - HOME_TOP_GAP_PX + 0.5f) {
+            var best: Plan? = null
+            var tried = 0
+            var y = home.top + HOME_TOP_GAP_PX
+            while (y + size.height <= home.bottom + 0.5f && tried < HOME_MAX_CANDIDATES) {
+                val xs = generateSequence(home.left) { it + HOME_STEP_PX }.takeWhile { it + size.width <= home.right + 0.5f }.toList()
+                for (x in xs + (home.right - size.width)) {
+                    if (tried++ >= HOME_MAX_CANDIDATES || budget.exhausted) break
+                    val rect = Rect(origin = Point(x = x, y = y), size = size)
+                    if (!onSide(rect = rect, box = box, side = hint)) continue
+                    val plan = accept(rect) ?: continue
+                    if (best == null || plan.cost < best.cost) best = plan
+                }
+                y += HOME_STEP_PX
+            }
+            if (best != null) return best
+        }
+
+        val horizontalAxis = hint == NotePlacement.ABOVE || hint == NotePlacement.BELOW
+
+        fun distance(r: Rect): Float =
+            when (hint) {
+                NotePlacement.ABOVE -> box.top - r.bottom
+                NotePlacement.BELOW -> r.top - box.bottom
+                NotePlacement.LEFT -> box.left - r.right
+                else -> r.left - box.right
+            }
+
+        fun centred(r: Rect): Boolean =
+            if (horizontalAxis) kotlin.math.abs(r.cx - box.cx) <= WIDTH_EPS else kotlin.math.abs(r.cy - box.cy) <= WIDTH_EPS
+        val ordered =
+            withinWidthBudget(
+                candidates = candidatePositions(size = size, anchors = anchors, extent = extent, config = config),
+                size = size,
+                anchors = anchors,
+                extent = extent,
+                baseExtent = baseExtent,
+                config = config,
+            ).filter { onSide(rect = it, box = box, side = hint) }
+                .sortedWith(compareBy<Rect>({ kotlin.math.round(distance(it) * 2f) }, { if (centred(it)) 0 else 1 }))
+        for (rect in ordered) {
+            if (budget.exhausted) break
+            accept(rect)?.let { return it }
+        }
+        return null
     }
 
     /** Midpoint of [pts], or the nearest of a few other points along it that lies in no label rectangle. */

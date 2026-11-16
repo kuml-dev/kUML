@@ -58,6 +58,12 @@ public object Sysml2NotePlacement {
                 placedLabels = placedLabels,
                 measure = measure,
             )
+        if (placed.hintNotHonoured.isNotEmpty()) {
+            val lines = model.comments.associate { it.id to it.note.sourceLine }
+            val misses = placed.hintNotHonoured.map { it.copy(sourceLine = lines[it.noteId]) }
+            NotePlacementMissCollector.report(misses)
+            return withUndrawn(model = model, diagram = diagram, placed = placed.copy(hintNotHonoured = misses))
+        }
         return withUndrawn(model = model, diagram = diagram, placed = placed)
     }
 
@@ -106,6 +112,7 @@ public object Sysml2NotePlacement {
                         noteId = c.id,
                         body = c.note.body,
                         kind = c.note.kind,
+                        placement = c.note.placement,
                         anchors =
                             model.commentLinks
                                 .filter { it.link.noteId == c.id }

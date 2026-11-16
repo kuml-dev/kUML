@@ -2,7 +2,7 @@ package dev.kuml.core.model.note
 
 /**
  * Stable diagnostic codes for notes, shared by every notation and every surface
- * (CLI, workspace validation, Desktop, MCP). All three are warnings: a note that
+ * (CLI, workspace validation, Desktop, MCP). All five are warnings: a note that
  * cannot be anchored is shown free-standing or not at all, it never aborts a render.
  *
  * Messages name note ids, anchor ids and diagram ids, never the note body.
@@ -19,6 +19,12 @@ object KumlNoteCodes {
 
     /** A display limit was applied: more than [MAX_ANCHORS_PER_NOTE] anchors or more than [MAX_NOTES_PER_DIAGRAM] notes. */
     const val LIMIT_APPLIED: String = "KUML-NOTE-W003"
+
+    /** A note placement hint (ABOVE/BELOW/LEFT/RIGHT) could not be honoured; the note was placed by the default rules. */
+    const val PLACEMENT_NOT_HONOURED: String = "KUML-NOTE-W004"
+
+    /** A note placement hint was given in a diagram type that does not evaluate it. */
+    const val PLACEMENT_IGNORED: String = "KUML-NOTE-W005"
 
     /** Anchors beyond this count are not drawn (first ones in declaration order win). */
     const val MAX_ANCHORS_PER_NOTE: Int = 8

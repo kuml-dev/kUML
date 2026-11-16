@@ -188,6 +188,40 @@ public class ObstacleIndex {
         return false
     }
 
+    /**
+     * N2 (placement hint, no edge clearance): true if [r] lies on something a hinted note must never cover: a part box
+     * (with [partGap]), port, label, composite title, requirement-group band, placed note, or a drawn edge or anchor
+     * line. Every test counts against [budget].
+     */
+    internal fun hitsHardObstacle(
+        r: Rect,
+        budget: Budget,
+        partGap: Float,
+    ): Boolean {
+        for (o in rects) {
+            budget.spend()
+            val hit =
+                when (o.kind) {
+                    ObstacleKind.NODE -> o.core.inflated(partGap).intersects(r)
+                    ObstacleKind.PORT, ObstacleKind.PORT_LABEL, ObstacleKind.EDGE_LABEL, ObstacleKind.MULTIPLICITY, ObstacleKind.ROLE,
+                    ObstacleKind.NOTE,
+                    -> o.rect.intersects(r)
+                    ObstacleKind.COMPOSITE_TITLE, ObstacleKind.KEEP_OUT -> o.core.intersects(r)
+                    else -> false
+                }
+            if (hit) return true
+        }
+        val zone = r.inflated(LINE_CLEARANCE)
+        for (l in lines) {
+            if (l.kind != ObstacleKind.EDGE && l.kind != ObstacleKind.ANCHOR_ROUTE) continue
+            for (i in 0 until l.points.size - 1) {
+                budget.spend()
+                if (segmentIntersectsRect(a = l.points[i], b = l.points[i + 1], r = zone)) return true
+            }
+        }
+        return false
+    }
+
     /** Number of notes placed so far. */
     internal fun noteCount(): Int = rects.count { it.kind == ObstacleKind.NOTE }
 

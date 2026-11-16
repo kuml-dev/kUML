@@ -396,6 +396,58 @@ The same `kind` argument exists on C4 `note(...)` (on the model and in all six d
 `note(...)`, with the same symbols, stripes and tones. In BPMN XML a kinded annotation is written as `kuml:kind="WARNING"`
 (see xref:bpmn-xml.adoc[BPMN XML]). Not yet supported: kinds in KerML (it has no diagram type yet).
 
+[[note-placement-hint]]
+=== Note placement hint
+
+A note verb takes an optional `placement = NotePlacement.X` that says on which side of its anchor you would like the
+note: `ABOVE`, `BELOW`, `LEFT` or `RIGHT`. `NotePlacement.NEAR` is the default behaviour (the nearest free position) and
+never warns. `NotePlacement` is imported in every script by default.
+
+[source,kotlin]
+----
+sysml2Model("Plant") {
+    val pump = partDef("Pump")
+    val controller = partDef("Controller")
+    bdd("Plant") {
+        include(pump)
+        include(controller)
+        comment("Check pressure", pump, kind = NoteKind.INFO, placement = NotePlacement.ABOVE)
+    }
+}
+----
+
+The hint is soft. The placer first looks for a position on the wished side, the first free one wins: for each distance
+ring the position centred on the anchor comes before the diagonal ones, and the margin strips come last. A position counts
+as "on the side" when the whole note lies in the half plane of that side, measured against the box around all anchors of the
+note (0.5 px tolerance). Every hard rule still applies and is never relaxed for a hint: a note never covers another note or a
+part, diagrams with a note clearance (BDD, IBD, use case, state machine, activity) keep their clearance to edges, nodes,
+labels and lanes, requirement groups keep their frame bands, and the anchor lines must be routable. In the diagram types
+without a note clearance (for example requirement and package diagrams) a position is only free when it covers no part,
+port, label, composite title, frame band, note, edge or earlier anchor line.
+If no position on the wished side is free, the note is placed by the default rules and `kuml render` reports
+`KUML-NOTE-W004` (`wanted ABOVE, placed LEFT`). A note without any resolvable anchor (free-standing) has no side to relate to
+and ignores the hint without a warning. Without a hint, or with `NEAR`, the output is byte-identical to before.
+
+Which diagram types evaluate the hint:
+
+[cols="2,1",options="header"]
+|===
+| Diagram type | Hint
+
+| SysML 2 BDD, IBD, use case, requirements, state machine, activity (every SysML 2 diagram except sequence) | evaluated
+| SysML 2 sequence diagram | ignored, `KUML-NOTE-W005`
+| UML diagrams (class comments and the other UML kinds) | ignored, `KUML-NOTE-W005`
+| C4 | ignored, `KUML-NOTE-W005`
+| Service Blueprint | ignored, `KUML-NOTE-W005`
+| BPMN | ignored, `KUML-NOTE-W005`
+| ERM | ignored, `KUML-NOTE-W005`
+|===
+
+`KUML-NOTE-W005` ("placement hint ignored in this diagram type") needs no layout, so `kuml validate` reports it as well; it
+is raised once per hinted note and never for `NEAR`. Both codes are warnings and never abort a render. The messages name the
+note id and the sides, never the note text. The hint is not written to BPMN XML (only `kuml:kind` is); it travels in the kUML JSON
+model and the DSL printers.
+
 [[formatted-note-text]]
 === Formatted note text
 

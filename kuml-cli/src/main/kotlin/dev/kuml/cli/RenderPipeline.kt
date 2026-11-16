@@ -69,6 +69,7 @@ import dev.kuml.layout.bridge.erm.ErmIdef1xLayoutBridge
 import dev.kuml.layout.bridge.erm.ErmLayoutBridge
 import dev.kuml.layout.bridge.layoutHintsFor
 import dev.kuml.layout.bridge.normalizeActLayout
+import dev.kuml.layout.bridge.note.NotePlacementMissCollector
 import dev.kuml.layout.bridge.note.NoteUndrawnCollector
 import dev.kuml.layout.bridge.stmAspectFinding
 import dev.kuml.layout.bridge.ucAspectFinding
@@ -376,25 +377,29 @@ internal object RenderPipeline {
         // but did not draw (KUML-NOTE-W002), which only the placement against the real layout can tell.
         var undrawnFindings: List<NoteChecks.Finding> = emptyList()
         try {
-            val undrawn =
+            val (rendered, undrawn) =
                 NoteUndrawnCollector
                     .collecting {
-                        renderExtracted(
-                            extracted = extracted,
-                            output = output,
-                            format = format,
-                            width = width,
-                            theme = theme,
-                            layoutEngineOverride = layoutEngineOverride,
-                            latex = latex,
-                            animated = animated,
-                            traceFile = traceFile,
-                            speed = speed,
-                            watermark = watermark,
-                            notation = notation,
-                        )
-                    }.second
-            undrawnFindings = NoteChecks.undrawn(undrawn = undrawn, alreadyReported = noteFindings)
+                        NotePlacementMissCollector.collecting {
+                            renderExtracted(
+                                extracted = extracted,
+                                output = output,
+                                format = format,
+                                width = width,
+                                theme = theme,
+                                layoutEngineOverride = layoutEngineOverride,
+                                latex = latex,
+                                animated = animated,
+                                traceFile = traceFile,
+                                speed = speed,
+                                watermark = watermark,
+                                notation = notation,
+                            )
+                        }
+                    }
+            undrawnFindings =
+                NoteChecks.undrawn(undrawn = undrawn, alreadyReported = noteFindings) +
+                NoteChecks.placementMisses(rendered.second)
             undrawnFindings.forEach { f ->
                 System.err.println("[kuml] WARNING [${f.code}] ${f.message}${f.sourceLine?.let { " (line $it)" }.orEmpty()}")
             }

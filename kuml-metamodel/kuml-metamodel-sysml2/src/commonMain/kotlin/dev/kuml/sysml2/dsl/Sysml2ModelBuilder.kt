@@ -4,6 +4,7 @@ import dev.kuml.core.model.KumlMetaValue
 import dev.kuml.core.model.note.KumlNote
 import dev.kuml.core.model.note.KumlNoteLink
 import dev.kuml.core.model.note.NoteKind
+import dev.kuml.core.model.note.NotePlacement
 import dev.kuml.core.model.note.callerScriptLine
 import dev.kuml.kerml.KermlMultiplicity
 import dev.kuml.kerml.KermlSpecialization
@@ -869,7 +870,8 @@ class Sysml2ModelBuilder(
         vararg anchors: String,
         id: String? = null,
         kind: NoteKind = NoteKind.NOTE,
-    ): Sysml2Comment = addComment(text = text, anchorIds = anchors.toList(), id = id, kind = kind)
+        placement: NotePlacement? = null,
+    ): Sysml2Comment = addComment(text = text, anchorIds = anchors.toList(), id = id, kind = kind, placement = placement)
 
     /** Adds a model-level comment anchored to the given elements. */
     fun comment(
@@ -878,7 +880,18 @@ class Sysml2ModelBuilder(
         vararg moreAnchors: Sysml2Element,
         id: String? = null,
         kind: NoteKind = NoteKind.NOTE,
-    ): Sysml2Comment = addComment(text = text, anchorIds = (listOf(firstAnchor) + moreAnchors).map { it.id }, id = id, kind = kind)
+        placement: NotePlacement? = null,
+    ): Sysml2Comment =
+        addComment(
+            text = text,
+            anchorIds =
+                (listOf(firstAnchor) + moreAnchors).map {
+                    it.id
+                },
+            id = id,
+            kind = kind,
+            placement = placement,
+        )
 
     /** Alias of [comment]. */
     fun note(
@@ -886,7 +899,8 @@ class Sysml2ModelBuilder(
         vararg anchors: String,
         id: String? = null,
         kind: NoteKind = NoteKind.NOTE,
-    ): Sysml2Comment = addComment(text = text, anchorIds = anchors.toList(), id = id, kind = kind)
+        placement: NotePlacement? = null,
+    ): Sysml2Comment = addComment(text = text, anchorIds = anchors.toList(), id = id, kind = kind, placement = placement)
 
     /** Alias of [comment]. */
     fun note(
@@ -895,16 +909,29 @@ class Sysml2ModelBuilder(
         vararg moreAnchors: Sysml2Element,
         id: String? = null,
         kind: NoteKind = NoteKind.NOTE,
-    ): Sysml2Comment = addComment(text = text, anchorIds = (listOf(firstAnchor) + moreAnchors).map { it.id }, id = id, kind = kind)
+        placement: NotePlacement? = null,
+    ): Sysml2Comment =
+        addComment(
+            text = text,
+            anchorIds =
+                (listOf(firstAnchor) + moreAnchors).map {
+                    it.id
+                },
+            id = id,
+            kind = kind,
+            placement = placement,
+        )
 
     internal fun addComment(
         text: String,
         anchorIds: List<String>,
         id: String?,
         kind: NoteKind = NoteKind.NOTE,
+        placement: NotePlacement? = null,
     ): Sysml2Comment {
         val noteId = id ?: nextCommentId()
-        val comment = Sysml2Comment(note = KumlNote(id = noteId, body = text, kind = kind, sourceLine = callerScriptLine()))
+        val comment =
+            Sysml2Comment(note = KumlNote(id = noteId, body = text, kind = kind, placement = placement, sourceLine = callerScriptLine()))
         comments += comment
         for (target in anchorIds.distinct()) {
             commentLinks +=

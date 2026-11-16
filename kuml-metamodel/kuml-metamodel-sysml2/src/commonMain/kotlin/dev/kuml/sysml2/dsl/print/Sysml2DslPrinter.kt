@@ -957,7 +957,9 @@ public object Sysml2DslPrinter {
                 model.commentLinks
                     .filter { it.link.noteId == c.id }
                     .joinToString("") { ", ${quote(it.link.targetId)}" }
-            val kindArg = if (c.note.kind != NoteKind.NOTE) ", kind = NoteKind.${c.note.kind.name}" else ""
+            val kindArg =
+                (if (c.note.kind != NoteKind.NOTE) ", kind = NoteKind.${c.note.kind.name}" else "") +
+                    (c.note.placement?.let { ", placement = NotePlacement.${it.name}" } ?: "")
             sb.appendLine("    comment(${quote(c.note.body)}$anchors, id = ${quote(c.id)}$kindArg)")
         }
     }

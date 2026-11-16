@@ -1,6 +1,7 @@
 package dev.kuml.io.svg.sysml2
 
 import dev.kuml.core.model.note.NoteKind
+import dev.kuml.core.model.note.NotePlacement
 import dev.kuml.io.svg.KumlSvgRenderer
 import dev.kuml.layout.LayoutResult
 import dev.kuml.layout.NodeId
@@ -414,6 +415,14 @@ class Sysml2ActNotesClearanceTest :
 
         test("order example: five notes keep 16 px from edges, nodes, pin labels, lane titles and each other, and respect the lanes")
             .config(timeout = 60.seconds) { check("order", orderExample()) }
+
+        for (hint in listOf(NotePlacement.ABOVE, NotePlacement.BELOW, NotePlacement.LEFT, NotePlacement.RIGHT)) {
+            test("N2: the order example with a $hint hint keeps every hard rule (clearance, lanes)")
+                .config(timeout = 60.seconds) {
+                    val m = orderExample()
+                    check("order-$hint", m.copy(comments = m.comments.map { it.copy(note = it.note.copy(placement = hint)) }))
+                }
+        }
 
         test("fork and join: notes on the bars and an action keep clear")
             .config(timeout = 60.seconds) { check("fork-join", forkJoin()) }

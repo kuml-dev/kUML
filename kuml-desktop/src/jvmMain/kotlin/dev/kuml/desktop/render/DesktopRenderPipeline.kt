@@ -30,6 +30,7 @@ import dev.kuml.layout.bridge.bpmn.BpmnContentSizeProvider
 import dev.kuml.layout.bridge.bpmn.BpmnLayoutBridge
 import dev.kuml.layout.bridge.bpmn.ChoreographyGridLayout
 import dev.kuml.layout.bridge.layoutHintsFor
+import dev.kuml.layout.bridge.note.NotePlacementMissCollector
 import dev.kuml.layout.bridge.note.NoteUndrawnCollector
 import dev.kuml.renderer.theme.core.KumlTheme
 import dev.kuml.renderer.theme.core.ThemeRegistry
@@ -225,12 +226,16 @@ internal object DesktopRenderPipeline {
                 }
             val env = RenderEnv(theme = ctx.theme, elkEngine = ctx.elkEngine, watermark = watermark)
             // The collector gathers the notes the diagram declared but did not draw (KUML-NOTE-W002).
-            val (svgOrNull, undrawn) = NoteUndrawnCollector.collecting { renderSvg(extracted = ctx.extracted, env = env) }
-            val svg = svgOrNull ?: return DesktopRenderResult.Error(ERM_NOT_SUPPORTED_MESSAGE)
+            val (rendered, undrawn) =
+                NoteUndrawnCollector.collecting {
+                    NotePlacementMissCollector.collecting { renderSvg(extracted = ctx.extracted, env = env) }
+                }
+            val svg = rendered.first ?: return DesktopRenderResult.Error(ERM_NOT_SUPPORTED_MESSAGE)
             val undrawnWarnings =
-                NoteChecks
-                    .undrawn(undrawn = undrawn, alreadyReported = NoteChecks.of(ctx.extracted))
-                    .map { "[${it.code}] ${it.message}" }
+                (
+                    NoteChecks.undrawn(undrawn = undrawn, alreadyReported = NoteChecks.of(ctx.extracted)) +
+                        NoteChecks.placementMisses(rendered.second)
+                ).map { "[${it.code}] ${it.message}" }
             DesktopRenderResult.Svg(
                 svg = svg,
                 simulatable = isSimulatable(ctx.extracted),

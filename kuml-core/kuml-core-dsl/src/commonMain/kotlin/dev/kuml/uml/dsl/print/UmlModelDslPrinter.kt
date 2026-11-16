@@ -497,6 +497,7 @@ public object UmlModelDslPrinter {
             }
             args += "id = ${quote(c.id)}"
             if (c.kind != NoteKind.NOTE) args += "kind = NoteKind.${c.kind.name}"
+            c.placement?.let { args += "placement = NotePlacement.${it.name}" }
             sb.appendLine("    comment(${args.joinToString(", ")})")
         }
     }

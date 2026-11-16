@@ -629,7 +629,10 @@ public object InterpreterUmlModelDslPrinter {
                 anchorIdsByCommentId[c.id]
                     .orEmpty()
                     .mapNotNull { identOf[it] }
-            val textArg = "text = ${quote(c.body)}" + if (c.kind != NoteKind.NOTE) ", kind = NoteKind.${c.kind.name}" else ""
+            val textArg =
+                "text = ${quote(c.body)}" +
+                    (if (c.kind != NoteKind.NOTE) ", kind = NoteKind.${c.kind.name}" else "") +
+                    (c.placement?.let { ", placement = NotePlacement.${it.name}" } ?: "")
             if (resolvedAnchors.isEmpty()) {
                 sb.appendLine("    comment($textArg)")
             } else {

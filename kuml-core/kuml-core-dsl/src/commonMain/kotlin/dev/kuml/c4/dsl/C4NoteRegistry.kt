@@ -4,6 +4,7 @@ import dev.kuml.c4.model.C4Element
 import dev.kuml.core.model.note.KumlNote
 import dev.kuml.core.model.note.KumlNoteLink
 import dev.kuml.core.model.note.NoteKind
+import dev.kuml.core.model.note.NotePlacement
 import dev.kuml.core.model.note.callerScriptLine
 
 /**
@@ -20,10 +21,11 @@ class C4NoteRegistry {
         anchors: List<C4Element>,
         id: String?,
         kind: NoteKind = NoteKind.NOTE,
+        placement: NotePlacement? = null,
     ): String {
         val noteId = id ?: "note-${notes.size + 1}"
         require(notes.none { it.id == noteId }) { "duplicate note id '$noteId'" }
-        notes += KumlNote(id = noteId, body = text, kind = kind, sourceLine = callerScriptLine())
+        notes += KumlNote(id = noteId, body = text, kind = kind, placement = placement, sourceLine = callerScriptLine())
         for (a in anchors) links += KumlNoteLink(id = "note-link:$noteId::${a.id}", noteId = noteId, targetId = a.id)
         return noteId
     }

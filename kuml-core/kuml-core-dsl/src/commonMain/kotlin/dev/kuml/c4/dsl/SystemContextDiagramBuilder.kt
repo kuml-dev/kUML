@@ -8,6 +8,7 @@ import dev.kuml.c4.model.ElementId
 import dev.kuml.c4.model.SystemContextDiagram
 import dev.kuml.core.dsl.KumlDsl
 import dev.kuml.core.model.note.NoteKind
+import dev.kuml.core.model.note.NotePlacement
 
 /**
  * Scope for building a System Context Diagram.
@@ -41,6 +42,7 @@ interface SystemContextDiagramBuilder {
         vararg anchors: C4Element,
         id: String? = null,
         kind: NoteKind = NoteKind.NOTE,
+        placement: NotePlacement? = null,
     )
 }
 
@@ -105,8 +107,9 @@ class SystemContextDiagramBuilderImpl(
         vararg anchors: C4Element,
         id: String?,
         kind: NoteKind,
+        placement: NotePlacement?,
     ) {
-        diagramNoteIds += noteRegistry.add(text = text, anchors = anchors.toList(), id = id, kind = kind)
+        diagramNoteIds += noteRegistry.add(text = text, anchors = anchors.toList(), id = id, kind = kind, placement = placement)
     }
 
     /**

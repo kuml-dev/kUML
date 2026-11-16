@@ -48,4 +48,19 @@ class NoteKindSysml2Test :
                 }
             Sysml2DslPrinter.print(plain) shouldNotContain "NoteKind"
         }
+
+        test("N2: placement reaches the model, is printed when set and absent otherwise") {
+            val m =
+                sysml2Model(name = "M") {
+                    val v = partDef("V")
+                    comment("a", v, placement = dev.kuml.core.model.note.NotePlacement.ABOVE)
+                    note("b", v, placement = dev.kuml.core.model.note.NotePlacement.NEAR)
+                    comment("plain", v)
+                }
+            m.comments.map { it.note.placement } shouldBe
+                listOf(dev.kuml.core.model.note.NotePlacement.ABOVE, dev.kuml.core.model.note.NotePlacement.NEAR, null)
+            val printed = Sysml2DslPrinter.print(m)
+            printed shouldContain "placement = NotePlacement.ABOVE"
+            printed.lines().count { "NotePlacement" in it } shouldBe 2
+        }
     })

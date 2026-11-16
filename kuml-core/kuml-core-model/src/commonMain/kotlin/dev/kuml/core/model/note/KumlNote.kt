@@ -67,6 +67,24 @@ enum class NoteKind {
 }
 
 /**
+ * Soft placement hint for a note: the side of its anchor(s) the author would like it on.
+ * [NEAR] is the default behaviour (nearest free spot) and never produces a warning. The hint is
+ * serialised whenever it is set (also [NEAR]) and omitted when `null`, so existing JSON stays byte-identical.
+ * Hard layout rules (no overlap, edge clearance, frame bands) always win over the hint.
+ */
+@Serializable
+enum class NotePlacement {
+    ABOVE,
+    BELOW,
+    LEFT,
+    RIGHT,
+    NEAR,
+}
+
+/** True when this is an actual side wish (ABOVE/BELOW/LEFT/RIGHT), false for `null` and [NotePlacement.NEAR]. */
+fun NotePlacement?.isHint(): Boolean = this != null && this != NotePlacement.NEAR
+
+/**
  * Free-text note shared by the notations that have no UML comment: SysML 2,
  * BPMN and ERM. A plain value type used via composition; it deliberately does
  * not implement [dev.kuml.core.model.KumlElement].
@@ -85,6 +103,8 @@ data class KumlNote(
      * Serialised only when set, so existing JSON stays byte-identical. Used by findings (`KUML-NOTE-W001/W002`).
      */
     @EncodeDefault(EncodeDefault.Mode.NEVER) val sourceLine: Int? = null,
+    /** Soft placement hint, `null` when unset. Serialised only when set. */
+    @EncodeDefault(EncodeDefault.Mode.NEVER) val placement: NotePlacement? = null,
 ) {
     init {
         require(id.isNotBlank()) { "Note id must not be blank" }
@@ -94,9 +114,10 @@ data class KumlNote(
     }
 
     /** Equality ignores [sourceLine]: where a note was written is not part of what the note is (round-trips through the printer differ in it). */
-    override fun equals(other: Any?): Boolean = other is KumlNote && id == other.id && body == other.body && kind == other.kind
+    override fun equals(other: Any?): Boolean =
+        other is KumlNote && id == other.id && body == other.body && kind == other.kind && placement == other.placement
 
-    override fun hashCode(): Int = 31 * (31 * id.hashCode() + body.hashCode()) + kind.hashCode()
+    override fun hashCode(): Int = 31 * (31 * (31 * id.hashCode() + body.hashCode()) + kind.hashCode()) + (placement?.hashCode() ?: 0)
 }
 
 /** Anchor link from a note ([noteId]) to the annotated element ([targetId]). */

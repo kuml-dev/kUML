@@ -63,4 +63,15 @@ class BlueprintDslPrinterTest :
             val base = blueprint(name = "N") { note("x", "step_9") }
             BlueprintDslPrinter.print(base) shouldContain "note(\"x\", \"step_9\", id = \"note-1\")"
         }
+
+        "N2: notes print the placement hint only when set" {
+            val m =
+                blueprint(name = "N") {
+                    note("a", placement = dev.kuml.core.model.note.NotePlacement.BELOW)
+                    note("b")
+                }
+            val printed = BlueprintDslPrinter.print(m)
+            printed shouldContain "placement = NotePlacement.BELOW"
+            printed.lines().count { "NotePlacement" in it } shouldBe 1
+        }
     })

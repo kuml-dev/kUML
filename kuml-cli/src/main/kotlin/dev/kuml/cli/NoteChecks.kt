@@ -3,11 +3,16 @@ package dev.kuml.cli
 import dev.kuml.bpmn.constraint.BpmnNoteChecker
 import dev.kuml.core.model.note.KumlNoteCodes
 import dev.kuml.core.model.note.KumlNoteIssue
+import dev.kuml.core.model.note.NotePlacement
+import dev.kuml.core.model.note.isHint
 import dev.kuml.core.script.ExtractedDiagram
 import dev.kuml.erm.constraint.ErmNoteChecker
 import dev.kuml.layout.bridge.NoteDiagnostics
+import dev.kuml.layout.bridge.note.PlacementHintMiss
 import dev.kuml.layout.bridge.note.UndrawnNote
+import dev.kuml.sysml2.SeqDiagram
 import dev.kuml.sysml2.constraint.Sysml2NoteChecker
+import dev.kuml.uml.UmlComment
 
 /**
  * Structural note findings (unknown anchors, ...) plus display-limit warnings
@@ -41,6 +46,82 @@ public object NoteChecks {
                     subjectId = u.noteId,
                     message = u.message(),
                     sourceLine = u.sourceLine,
+                )
+            }
+    }
+
+    /** The `KUML-NOTE-W004` findings for placement hints a render could not honour (see [dev.kuml.layout.bridge.note.NotePlacementMissCollector]). */
+    public fun placementMisses(misses: List<PlacementHintMiss>): List<Finding> =
+        misses.map { m ->
+            Finding(
+                code = KumlNoteCodes.PLACEMENT_NOT_HONOURED,
+                isError = false,
+                subjectId = m.noteId,
+                message = m.message(),
+                sourceLine = m.sourceLine,
+            )
+        }
+
+    /**
+     * `KUML-NOTE-W005`: a side hint (ABOVE/BELOW/LEFT/RIGHT) on a note of a diagram type whose placement does not evaluate
+     * it. Decidable without a layout, so `validate` reports it as well. NEAR and unset hints never warn. Only SysML 2
+     * diagrams other than sequence diagrams evaluate the hint; every other family ignores it.
+     */
+    private fun placementIgnored(extracted: ExtractedDiagram): List<Finding> {
+        val family: String
+        val notes: List<Triple<String, NotePlacement?, Int?>>
+        when (extracted) {
+            is ExtractedDiagram.Sysml2 -> {
+                val d = extracted.diagram
+                if (d !is SeqDiagram) return emptyList()
+                val inScope =
+                    d.noteIds.toSet() +
+                        extracted.model.commentLinks
+                            .filter { it.link.targetId in d.elementIds }
+                            .map { it.link.noteId }
+                family = "SEQ"
+                notes =
+                    extracted.model.comments
+                        .filter { it.id in inScope }
+                        .map { Triple(it.id, it.note.placement, it.note.sourceLine) }
+            }
+            is ExtractedDiagram.C4 -> {
+                family = "C4"
+                notes = extracted.model.notes.map { Triple(it.id, it.placement, it.sourceLine) }
+            }
+            is ExtractedDiagram.Blueprint -> {
+                family = "BLUEPRINT"
+                notes = extracted.model.notes.map { Triple(it.id, it.placement, it.sourceLine) }
+            }
+            is ExtractedDiagram.Bpmn -> {
+                family = "BPMN"
+                notes =
+                    (
+                        extracted.model.processes.flatMap { it.textAnnotations } +
+                            extracted.model.collaborations.flatMap { it.textAnnotations }
+                    ).map { Triple(it.id, it.note.placement, it.note.sourceLine) }
+            }
+            is ExtractedDiagram.Erm -> {
+                family = "ERM"
+                notes = extracted.model.notes.map { Triple(it.id, it.note.placement, it.note.sourceLine) }
+            }
+            is ExtractedDiagram.Uml -> {
+                family = "UML"
+                notes =
+                    extracted.diagram.elements
+                        .filterIsInstance<UmlComment>()
+                        .map { Triple(it.id, it.placement, null) }
+            }
+        }
+        return notes
+            .filter { (_, placement, _) -> placement.isHint() }
+            .map { (id, _, line) ->
+                Finding(
+                    code = KumlNoteCodes.PLACEMENT_IGNORED,
+                    isError = false,
+                    subjectId = id,
+                    message = "placement hint ignored in this diagram type: $id ($family)",
+                    sourceLine = line,
                 )
             }
     }
@@ -117,7 +198,7 @@ public object NoteChecks {
             truncated.map {
                 Finding(code = it.code, isError = false, subjectId = it.noteId, message = it.message, sourceLine = lines[it.noteId])
             }
-        return structural + display
+        return structural + display + placementIgnored(extracted)
     }
 
     /** Script line of each note of [extracted] (note id to line); notes without a known line are absent. */

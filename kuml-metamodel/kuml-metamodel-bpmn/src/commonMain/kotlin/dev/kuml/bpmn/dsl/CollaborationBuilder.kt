@@ -7,6 +7,7 @@ import dev.kuml.bpmn.model.BpmnParticipant
 import dev.kuml.bpmn.model.BpmnTextAnnotation
 import dev.kuml.bpmn.model.MessageFlow
 import dev.kuml.core.model.note.NoteKind
+import dev.kuml.core.model.note.NotePlacement
 
 /**
  * Builder for a [BpmnCollaboration].
@@ -107,6 +108,7 @@ class CollaborationBuilder(
         vararg anchors: String,
         id: String? = null,
         kind: NoteKind = NoteKind.NOTE,
+        placement: NotePlacement? = null,
     ): String {
         val (annotation, links) =
             buildTextAnnotation(
@@ -116,6 +118,7 @@ class CollaborationBuilder(
                 anchors = anchors,
                 id = id,
                 kind = kind,
+                placement = placement,
             )
         textAnnotations += annotation
         associations += links
@@ -128,7 +131,8 @@ class CollaborationBuilder(
         vararg anchors: String,
         id: String? = null,
         kind: NoteKind = NoteKind.NOTE,
-    ): String = textAnnotation(text = text, *anchors, id = id, kind = kind)
+        placement: NotePlacement? = null,
+    ): String = textAnnotation(text = text, *anchors, id = id, kind = kind, placement = placement)
 
     internal fun build(): BpmnCollaboration =
         BpmnCollaboration(

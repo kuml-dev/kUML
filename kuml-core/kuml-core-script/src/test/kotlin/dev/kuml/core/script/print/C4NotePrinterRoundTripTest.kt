@@ -7,6 +7,7 @@ import dev.kuml.c4.dsl.print.C4DslPrinter
 import dev.kuml.c4.model.C4Container
 import dev.kuml.c4.model.C4Model
 import dev.kuml.core.model.note.NoteKind
+import dev.kuml.core.model.note.NotePlacement
 import dev.kuml.core.script.EvaluatedScript
 import dev.kuml.core.script.ExtractedDiagram
 import dev.kuml.core.script.InProcessScriptEvaluator
@@ -33,6 +34,7 @@ class C4NotePrinterRoundTripTest :
             val id: String,
             val body: String,
             val kind: NoteKind,
+            val placement: NotePlacement?,
             val anchors: List<String>,
         )
 
@@ -44,6 +46,7 @@ class C4NotePrinterRoundTripTest :
                         id = n.id,
                         body = n.body,
                         kind = n.kind,
+                        placement = n.placement,
                         anchors = m.noteLinks.filter { it.noteId == n.id }.map { names.getValue(it.targetId) },
                     )
                 }
@@ -133,5 +136,17 @@ class C4NotePrinterRoundTripTest :
             val m = reparse(C4DslPrinter.print(original))
             m.notes shouldBe emptyList()
             m.noteLinks shouldBe emptyList()
+        }
+
+        test("N2: every placement round-trips") {
+            val original =
+                c4Model(name = "Placements") {
+                    val a = person("A")
+                    for (pl in NotePlacement.entries) note("anchored ${pl.name}", a, placement = pl)
+                    note("plain", a)
+                    systemContextDiagram("Ctx") { include(a) }
+                }
+            val printed = roundTrip(original)
+            printed.lines().count { "NotePlacement" in it } shouldBe NotePlacement.entries.size
         }
     })

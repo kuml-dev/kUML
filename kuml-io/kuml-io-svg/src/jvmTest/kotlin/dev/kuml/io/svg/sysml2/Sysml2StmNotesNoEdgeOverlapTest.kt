@@ -1,6 +1,7 @@
 package dev.kuml.io.svg.sysml2
 
 import dev.kuml.core.model.note.NoteKind
+import dev.kuml.core.model.note.NotePlacement
 import dev.kuml.io.svg.KumlSvgRenderer
 import dev.kuml.io.svg.SvgRenderOptions
 import dev.kuml.layout.LayoutResult
@@ -100,8 +101,9 @@ class Sysml2StmNotesNoEdgeOverlapTest :
             val noteIds: List<String>,
         )
 
-        fun run(): Run {
-            val m = trafficLight()
+        fun run(placement: NotePlacement? = null): Run {
+            val m0 = trafficLight()
+            val m = m0.copy(comments = m0.comments.map { it.copy(note = it.note.copy(placement = placement)) })
             val d = m.diagrams.filterIsInstance<StmDiagram>().single()
             val graph = Sysml2LayoutBridge.toLayoutGraph(model = m, diagram = d)
             val hints = Sysml2LayoutBridge.layoutHintsFor(model = m, diagram = d)
@@ -199,38 +201,51 @@ class Sysml2StmNotesNoEdgeOverlapTest :
 
         fun describe(r: Rect) = "(${r.origin.x},${r.origin.y} ${r.size.width}x${r.size.height})"
 
-        test("no note touches an edge, a node or another note, with 16 px clearance") {
-            val r = run()
-            val edges = drawnEdges(r)
-            val noteRects =
-                r.noteIds.associateWith {
-                    shifted(
-                        r.placed.nodes
-                            .getValue(dev.kuml.layout.NodeId(it))
-                            .bounds,
-                    )
-                }
-            val nodeRects =
-                r.placed.nodes
-                    .filterKeys { it.value !in r.noteIds }
-                    .mapKeys { it.key.value }
-                    .mapValues { shifted(it.value.bounds) }
-            val failures = mutableListOf<String>()
-            for ((nid, nr) in noteRects) {
-                val zone = inflate(nr, clearance)
-                for ((eid, pts) in edges) if (polylineHitsRect(pts, zone)) failures += "note $nid ${describe(nr)} within 16 px of edge $eid"
-                for ((vid, vr) in nodeRects) {
-                    if (rectsIntersect(zone, vr)) {
-                        failures +=
-                            "note $nid ${describe(nr)} within 16 px of node $vid ${describe(vr)}"
+        for (hint in listOf<NotePlacement?>(null, NotePlacement.ABOVE, NotePlacement.BELOW, NotePlacement.LEFT, NotePlacement.RIGHT)) {
+            test("no note touches an edge, a node or another note, with 16 px clearance (hint $hint)") {
+                val r = run(hint)
+                val edges = drawnEdges(r)
+                val noteRects =
+                    r.noteIds.associateWith {
+                        shifted(
+                            r.placed.nodes
+                                .getValue(dev.kuml.layout.NodeId(it))
+                                .bounds,
+                        )
+                    }
+                val nodeRects =
+                    r.placed.nodes
+                        .filterKeys { it.value !in r.noteIds }
+                        .mapKeys { it.key.value }
+                        .mapValues { shifted(it.value.bounds) }
+                val failures = mutableListOf<String>()
+                for ((nid, nr) in noteRects) {
+                    val zone = inflate(nr, clearance)
+                    for ((eid, pts) in edges) {
+                        if (polylineHitsRect(pts, zone)) {
+                            failures +=
+                                "note $nid ${describe(nr)} within 16 px of edge $eid"
+                        }
+                    }
+                    for ((vid, vr) in nodeRects) {
+                        if (rectsIntersect(zone, vr)) {
+                            failures +=
+                                "note $nid ${describe(nr)} within 16 px of node $vid ${describe(vr)}"
+                        }
+                    }
+                    for ((oid, orr) in noteRects) {
+                        if (oid != nid &&
+                            rectsIntersect(zone, orr)
+                        ) {
+                            failures += "note $nid within 16 px of note $oid"
+                        }
                     }
                 }
-                for ((oid, orr) in noteRects) if (oid != nid && rectsIntersect(zone, orr)) failures += "note $nid within 16 px of note $oid"
+                println("[nacharbeit-25] notes: " + noteRects.entries.joinToString { "${it.key}=${describe(it.value)}" })
+                println("[nacharbeit-25] failures: ${failures.size}")
+                failures.forEach { println("[nacharbeit-25]   $it") }
+                failures.shouldBeEmpty()
             }
-            println("[nacharbeit-25] notes: " + noteRects.entries.joinToString { "${it.key}=${describe(it.value)}" })
-            println("[nacharbeit-25] failures: ${failures.size}")
-            failures.forEach { println("[nacharbeit-25]   $it") }
-            failures.shouldBeEmpty()
         }
 
         test("diagnostic: how far the drawn routes deviate from the raw routes the note placer sees") {

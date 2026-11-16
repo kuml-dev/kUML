@@ -43,6 +43,7 @@ object KumlScriptCompilationConfiguration : ScriptCompilationConfiguration({
         "dev.kuml.core.model.DiagramType.*",
         // Note kinds (`comment(..., kind = NoteKind.WARNING)`)
         "dev.kuml.core.model.note.NoteKind",
+        "dev.kuml.core.model.note.NotePlacement",
         // DSL entry-points (diagram, umlModel)
         "dev.kuml.core.dsl.*",
         // UML DSL builders (classOf, interfaceOf, enumOf, `package`, association, …)

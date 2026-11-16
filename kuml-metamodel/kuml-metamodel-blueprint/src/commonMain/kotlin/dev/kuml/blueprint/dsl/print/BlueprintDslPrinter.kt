@@ -142,6 +142,7 @@ object BlueprintDslPrinter {
             model.noteLinks.filter { it.noteId == note.id }.forEach { args += ref(id = it.targetId, refVars = refVars) }
             args += "id = ${quote(note.id)}"
             if (note.kind != NoteKind.NOTE) args += "kind = NoteKind.${note.kind.name}"
+            note.placement?.let { args += "placement = NotePlacement.${it.name}" }
             sb.appendLine("    note(${args.joinToString(", ")})")
         }
 

@@ -7,6 +7,7 @@ import dev.kuml.c4.model.DeploymentDiagram
 import dev.kuml.c4.model.ElementId
 import dev.kuml.core.dsl.KumlDsl
 import dev.kuml.core.model.note.NoteKind
+import dev.kuml.core.model.note.NotePlacement
 
 /**
  * Scope for building a Deployment Diagram.
@@ -34,6 +35,7 @@ interface DeploymentDiagramBuilder {
         vararg anchors: C4Element,
         id: String? = null,
         kind: NoteKind = NoteKind.NOTE,
+        placement: NotePlacement? = null,
     )
 }
 
@@ -81,9 +83,10 @@ class DeploymentDiagramBuilderImpl(
         vararg anchors: C4Element,
         id: String?,
         kind: NoteKind,
+        placement: NotePlacement?,
     ) {
         annotations.add("NOTE: $text")
-        diagramNoteIds += noteRegistry.add(text = text, anchors = anchors.toList(), id = id, kind = kind)
+        diagramNoteIds += noteRegistry.add(text = text, anchors = anchors.toList(), id = id, kind = kind, placement = placement)
     }
 
     /**

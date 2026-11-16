@@ -3,6 +3,7 @@ package dev.kuml.sysml2.dsl
 import dev.kuml.core.model.layout.LayoutSpecBuilder
 import dev.kuml.core.model.layout.LayoutSpecCollector
 import dev.kuml.core.model.note.NoteKind
+import dev.kuml.core.model.note.NotePlacement
 import dev.kuml.sysml2.Sysml2Comment
 import dev.kuml.sysml2.Sysml2Element
 import dev.kuml.sysml2.Sysml2LayoutSpec
@@ -24,8 +25,9 @@ abstract class Sysml2NoteBuilderBase internal constructor(
         vararg anchors: String,
         id: String? = null,
         kind: NoteKind = NoteKind.NOTE,
+        placement: NotePlacement? = null,
     ): Sysml2Comment {
-        val c = modelBuilder.addComment(text = text, anchorIds = anchors.toList(), id = id, kind = kind)
+        val c = modelBuilder.addComment(text = text, anchorIds = anchors.toList(), id = id, kind = kind, placement = placement)
         noteIds += c.id
         return c
     }
@@ -37,7 +39,18 @@ abstract class Sysml2NoteBuilderBase internal constructor(
         vararg moreAnchors: Sysml2Element,
         id: String? = null,
         kind: NoteKind = NoteKind.NOTE,
-    ): Sysml2Comment = comment(text = text, *(listOf(firstAnchor) + moreAnchors).map { it.id }.toTypedArray(), id = id, kind = kind)
+        placement: NotePlacement? = null,
+    ): Sysml2Comment =
+        comment(
+            text = text,
+            *(listOf(firstAnchor) + moreAnchors)
+                .map {
+                    it.id
+                }.toTypedArray(),
+            id = id,
+            kind = kind,
+            placement = placement,
+        )
 
     /** Alias of [comment]. */
     fun note(
@@ -45,7 +58,8 @@ abstract class Sysml2NoteBuilderBase internal constructor(
         vararg anchors: String,
         id: String? = null,
         kind: NoteKind = NoteKind.NOTE,
-    ): Sysml2Comment = comment(text = text, *anchors, id = id, kind = kind)
+        placement: NotePlacement? = null,
+    ): Sysml2Comment = comment(text = text, *anchors, id = id, kind = kind, placement = placement)
 
     /** Alias of [comment]. */
     fun note(
@@ -54,7 +68,8 @@ abstract class Sysml2NoteBuilderBase internal constructor(
         vararg moreAnchors: Sysml2Element,
         id: String? = null,
         kind: NoteKind = NoteKind.NOTE,
-    ): Sysml2Comment = comment(text = text, firstAnchor = firstAnchor, *moreAnchors, id = id, kind = kind)
+        placement: NotePlacement? = null,
+    ): Sysml2Comment = comment(text = text, firstAnchor = firstAnchor, *moreAnchors, id = id, kind = kind, placement = placement)
 
     /** Lists a model-level comment in this diagram. */
     fun include(comment: Sysml2Comment) {

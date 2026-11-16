@@ -20,6 +20,7 @@ import dev.kuml.blueprint.model.TouchpointSymbol
 import dev.kuml.core.model.note.KumlNote
 import dev.kuml.core.model.note.KumlNoteLink
 import dev.kuml.core.model.note.NoteKind
+import dev.kuml.core.model.note.NotePlacement
 import dev.kuml.core.model.note.callerScriptLine
 
 /**
@@ -158,10 +159,11 @@ class BlueprintModelBuilder(
         vararg stepIds: String,
         id: String? = null,
         kind: NoteKind = NoteKind.NOTE,
+        placement: NotePlacement? = null,
     ): String {
         val noteId = id ?: "note-${notes.size + 1}"
         require(notes.none { it.id == noteId }) { "duplicate note id '$noteId'" }
-        notes += KumlNote(id = noteId, body = text, kind = kind, sourceLine = callerScriptLine())
+        notes += KumlNote(id = noteId, body = text, kind = kind, placement = placement, sourceLine = callerScriptLine())
         for (sid in stepIds) noteLinks += KumlNoteLink(id = "note-link:$noteId::$sid", noteId = noteId, targetId = sid)
         return noteId
     }

@@ -12,6 +12,7 @@ import dev.kuml.c4.model.C4SoftwareSystem
 import dev.kuml.core.dsl.KumlDsl
 import dev.kuml.core.dsl.layout.LayoutHintsBuilder
 import dev.kuml.core.model.note.NoteKind
+import dev.kuml.core.model.note.NotePlacement
 
 /**
  * Builder for a C4 model.
@@ -312,7 +313,8 @@ class C4ModelBuilder(
         vararg anchors: C4Element,
         id: String? = null,
         kind: NoteKind = NoteKind.NOTE,
-    ): String = noteRegistry.add(text = text, anchors = anchors.toList(), id = id, kind = kind)
+        placement: NotePlacement? = null,
+    ): String = noteRegistry.add(text = text, anchors = anchors.toList(), id = id, kind = kind, placement = placement)
 
     /**
      * Builds the immutable C4Model.

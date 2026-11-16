@@ -208,7 +208,9 @@ internal object ErmModelDslPrinter {
             model.noteLinks
                 .filter { it.link.noteId == note.id }
                 .joinToString("") { ", " + (valNames[it.link.targetId] ?: "\"${escape(it.link.targetId)}\"") }
-        val kindArg = if (note.note.kind != NoteKind.NOTE) ", kind = NoteKind.${note.note.kind.name}" else ""
+        val kindArg =
+            (if (note.note.kind != NoteKind.NOTE) ", kind = NoteKind.${note.note.kind.name}" else "") +
+                (note.note.placement?.let { ", placement = NotePlacement.${it.name}" } ?: "")
         sb.appendLine("    note(\"${escape(note.note.body)}\"$anchors, id = \"${escape(note.id)}\"$kindArg)")
     }
 

@@ -531,6 +531,7 @@ public object C4DslPrinter {
             args += vars
             args += "id = ${quote(note.id)}"
             if (note.kind != NoteKind.NOTE) args += "kind = NoteKind.${note.kind.name}"
+            note.placement?.let { args += "placement = NotePlacement.${it.name}" }
             sb.appendLine("${indent}note(${args.joinToString(", ")})")
         }
     }

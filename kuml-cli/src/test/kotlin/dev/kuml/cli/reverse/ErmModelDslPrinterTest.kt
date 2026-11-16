@@ -87,4 +87,18 @@ class ErmModelDslPrinterNotesTest :
             printed shouldContain "kind = NoteKind.WARNING"
             printed.lines().count { "NoteKind" in it } shouldBe 1
         }
+
+        test("N2: the placement hint is printed when set, NEAR included, and absent otherwise") {
+            val m =
+                ermModel(name = "M") {
+                    entity(name = "users") { id(name = "id", type = ErmDataType.Integer(64)) }
+                    note(text = "a", placement = dev.kuml.core.model.note.NotePlacement.ABOVE)
+                    note(text = "b", placement = dev.kuml.core.model.note.NotePlacement.NEAR)
+                    note(text = "plain")
+                }
+            val printed = ErmModelDslPrinter.print(m)
+            printed shouldContain "placement = NotePlacement.ABOVE"
+            printed shouldContain "placement = NotePlacement.NEAR"
+            printed.lines().count { "NotePlacement" in it } shouldBe 2
+        }
     })

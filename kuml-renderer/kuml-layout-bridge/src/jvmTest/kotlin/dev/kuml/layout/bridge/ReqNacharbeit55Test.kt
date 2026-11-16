@@ -2,6 +2,7 @@ package dev.kuml.layout.bridge
 
 import dev.kuml.core.model.layout.LayoutCodes
 import dev.kuml.core.model.layout.LayoutLimits
+import dev.kuml.core.model.note.NotePlacement
 import dev.kuml.layout.DiagramKind
 import dev.kuml.layout.EdgeRouteStyle
 import dev.kuml.layout.GroupId
@@ -197,12 +198,23 @@ class ReqNacharbeit55Test :
             t.card("R1").overlaps(t.frame("B")) shouldBe false
         }
 
-        fun withNotes() =
+        fun withNotes(placement: NotePlacement? = null) =
             sysml2Model(name = "M") {
                 val reqs = (1..6).map { requirementDef(name = "R$it", text = "r$it") }
-                comment(text = "Only about the first group, with a few more words so it wraps", firstAnchor = reqs[2], id = "own")
-                comment(text = "Second owned note of the first group", firstAnchor = reqs[1], id = "own2")
-                comment(text = "About two groups", firstAnchor = reqs[1], moreAnchors = arrayOf(reqs[4]), id = "cross")
+                comment(
+                    text = "Only about the first group, with a few more words so it wraps",
+                    firstAnchor = reqs[2],
+                    id = "own",
+                    placement = placement,
+                )
+                comment(text = "Second owned note of the first group", firstAnchor = reqs[1], id = "own2", placement = placement)
+                comment(
+                    text = "About two groups",
+                    firstAnchor = reqs[1],
+                    moreAnchors = arrayOf(reqs[4]),
+                    id = "cross",
+                    placement = placement,
+                )
                 reqDiagram(name = "D") {
                     group(name = "G1") {
                         include(reqs[0])
@@ -221,6 +233,20 @@ class ReqNacharbeit55Test :
         fun placed(t: Laid): LayoutResult {
             val out = Sysml2NotePlacement.place(model = t.model, diagram = t.diagram, layout = t.result).layout
             return out
+        }
+
+        test("N2: a placement hint never lets a note cover a group frame line, a card or another note") {
+            for (hint in listOf(NotePlacement.ABOVE, NotePlacement.BELOW, NotePlacement.LEFT, NotePlacement.RIGHT)) {
+                val t = laidOut(withNotes(hint))
+                val out = placed(t)
+                val ids = listOf("own", "own2", "cross")
+                for (id in ids) {
+                    val note = out.nodes.getValue(NodeId(id)).bounds
+                    for (f in out.groups.values) for (strip in bandOf(f.bounds)) note.overlaps(strip) shouldBe false
+                    for (c in (1..6).map { "R$it" }) note.overlaps(out.nodes.getValue(NodeId(c)).bounds) shouldBe false
+                    for (o in ids.filter { it != id }) note.overlaps(out.nodes.getValue(NodeId(o)).bounds) shouldBe false
+                }
+            }
         }
 
         test("(e) no note covers a group frame line (8 px band on each side)") {

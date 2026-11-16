@@ -9,6 +9,7 @@ import dev.kuml.c4.model.ContainerDiagram
 import dev.kuml.c4.model.ElementId
 import dev.kuml.core.dsl.KumlDsl
 import dev.kuml.core.model.note.NoteKind
+import dev.kuml.core.model.note.NotePlacement
 
 /**
  * Scope for building a Container Diagram.
@@ -55,6 +56,7 @@ interface ContainerDiagramBuilder {
         vararg anchors: C4Element,
         id: String? = null,
         kind: NoteKind = NoteKind.NOTE,
+        placement: NotePlacement? = null,
     )
 }
 
@@ -117,8 +119,9 @@ class ContainerDiagramBuilderImpl(
         vararg anchors: C4Element,
         id: String?,
         kind: NoteKind,
+        placement: NotePlacement?,
     ) {
-        diagramNoteIds += noteRegistry.add(text = text, anchors = anchors.toList(), id = id, kind = kind)
+        diagramNoteIds += noteRegistry.add(text = text, anchors = anchors.toList(), id = id, kind = kind, placement = placement)
     }
 
     /**

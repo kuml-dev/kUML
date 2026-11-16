@@ -539,4 +539,21 @@ class UmlModelDslPrinterTest :
             printed.lines().count { "NoteKind" in it } shouldBe 1
             UmlModelDslPrinter.print(makeDiagram(listOf(UmlComment(id = "c2", body = "plain")))) shouldNotContain "NoteKind"
         }
+
+        test("N2: placement hint printed when set, absent otherwise") {
+            val printed =
+                UmlModelDslPrinter.print(
+                    makeDiagram(
+                        listOf(
+                            UmlComment(id = "c1", body = "a", placement = dev.kuml.core.model.note.NotePlacement.ABOVE),
+                            UmlComment(id = "c2", body = "b", placement = dev.kuml.core.model.note.NotePlacement.NEAR),
+                            UmlComment(id = "c3", body = "plain"),
+                        ),
+                    ),
+                )
+            printed shouldContain "placement = NotePlacement.ABOVE"
+            printed shouldContain "placement = NotePlacement.NEAR"
+            printed.lines().count { "NotePlacement" in it } shouldBe 2
+            UmlModelDslPrinter.print(makeDiagram(listOf(UmlComment(id = "c3", body = "plain")))) shouldNotContain "NotePlacement"
+        }
     })

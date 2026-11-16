@@ -3,6 +3,7 @@ package dev.kuml.erm.dsl
 import dev.kuml.core.model.note.KumlNote
 import dev.kuml.core.model.note.KumlNoteLink
 import dev.kuml.core.model.note.NoteKind
+import dev.kuml.core.model.note.NotePlacement
 import dev.kuml.core.model.note.callerScriptLine
 import dev.kuml.erm.model.Cardinality
 import dev.kuml.erm.model.ErmCategory
@@ -132,9 +133,10 @@ class ErmModelBuilder(
         vararg anchors: String,
         id: String? = null,
         kind: NoteKind = NoteKind.NOTE,
+        placement: NotePlacement? = null,
     ): String {
         val noteId = id ?: nextNoteId()
-        notes += ErmNote(note = KumlNote(id = noteId, body = text, kind = kind, sourceLine = callerScriptLine()))
+        notes += ErmNote(note = KumlNote(id = noteId, body = text, kind = kind, placement = placement, sourceLine = callerScriptLine()))
         anchors.distinct().forEachIndexed { k, target ->
             noteLinks += ErmNoteLink(link = KumlNoteLink(id = "note_link_${notes.size - 1}_${k + 1}", noteId = noteId, targetId = target))
         }
