@@ -42,6 +42,20 @@ class NoteGeometryN45Test :
             }
         }
 
+        for (kind in NoteKind.entries) {
+            for ((label, body) in bodies) {
+                test(
+                    "bracket $kind / $label: text starts right of the bracket arm and the left padding plus gap, the height is at least MIN_H",
+                ) {
+                    val size = NoteLayout.sizeOf(body = body, frame = NoteFrameStyle.BRACKET, kind = kind)
+                    val inset = NoteLayout.textInset(frame = NoteFrameStyle.BRACKET, kind = kind)
+                    (inset >= NoteLayout.BRACKET_ARM) shouldBe true
+                    (inset >= NoteLayout.H_PAD_LEFT + NoteLayout.BRACKET_TEXT_GAP) shouldBe true
+                    (size.height >= NoteLayout.MIN_H) shouldBe true
+                }
+            }
+        }
+
         test("a one-line note is 32 px high, with and without symbol") {
             NoteLayout.sizeOf(body = "Short").height shouldBe 32f
             NoteLayout.sizeOf(body = "Short", kind = NoteKind.INFO).height shouldBe 32f

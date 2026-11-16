@@ -6,6 +6,13 @@ All notable changes to this project are documented here. Format follows
 
 ## [Unreleased]
 
+### Nacharbeit 89: note tone colours overridable per theme
+
+- **Why.** The tone colours of kinded notes (symbol, accent stripe, bracket) were fixed in `NoteSymbols` and could not be set by a theme (remaining list PAL wave 3, section A, N1).
+- **Change.** Six optional fields at the end of `KumlColors`: `noteInfo`, `noteHint`, `noteSuccess`, `noteWarning`, `noteDanger`, `noteImportant` (default `null` = built-in colour). `NoteTones.colorOf` uses a set token first, then the light or dark palette; the 3:1 contrast check against the node fill still applies to every result. `NOTE` and `DEPRECATED` (NEUTRAL) have no token and keep using `muted`. Handbook: new section "Note tone colours" in `themes.adoc`, cross-reference in `blueprint-notes.adoc`.
+- **Verification.** New `NoteToneTokensTest`: tokens set to the built-in defaults give byte-identical tone CSS to unset tokens (plain and dark theme); an override reaches every kind of its tone and leaves the other tones' CSS unchanged; an override works in a dark theme; an override below 3:1 falls back to the foreground. `SerializationRoundTripTest`: JSON without the tokens decodes with all six `null` and does not emit them; a set token round-trips. `NoteGeometryN45Test`: dog-ear cases already covered every kind and four body shapes; a bracket-frame variant (text inset, `MIN_H`) was added. No golden file changed. 3200 px render (`kuml render -f png -w 3200`, plain theme, notes `WARNING`, `ASSUMPTION`, `A1-E`, `M2`): SVG width 640, factor 5; the notes are 140 wide, the fold line lies at x = 126 (630 px), the text limit is 118 (590 px); estimated right text edges (6.6 px per character) are 76, 96, 56 and 21, so the closest line (`ASSUMPTION`) keeps about 22 px (110 px at 3200) from the limit; no overlap with the fold, no defect found. Full `./gradlew clean check detekt ktlintCheck ktlintKotlinScriptCheck :kuml-cli:installDist --no-build-cache` run, see commit.
+- **Not fixed.** (1) `DEFAULT_W` 140 stays: lowering it would move node sizes, anchors and goldens in all diagram types and the vault and playground SVGs; it belongs to N2/N3 with before/after renders. (2) LaTeX/TikZ output has no theme tokens (`NoteTikz` has no theme model, colours stay at `LIGHT_RGB`). (3) Note placement is unchanged (N2/N3). (4) NEUTRAL has deliberately no token.
+
 ### Nacharbeit 88: BDD hub edges drawn as an orthogonal fan (P-BDD-01/02)
 
 - **Why.** A block with many `refPart`/`part` edges was drawn with a tight bundle of lanes about 10 px apart, and edges to blocks of a later row ran around the outside of the whole diagram.

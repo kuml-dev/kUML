@@ -211,6 +211,28 @@ CLI and Gradle plugin pick it up:
 kuml render diagram.kuml.kts --theme company
 ----
 
+[#note-tone-colours]
+== Note tone colours
+
+The symbol, accent stripe and bracket of a kinded note (see xref:uml-dsl.adoc#note-kinds[Note kinds]) are drawn in the colour of the note's tone. A theme can override each tone with one optional field of `KumlColors`:
+
+[cols="2,1,3,1,1",options="header"]
+|===
+| Token | Tone | Note kinds | Light default | Dark default
+| `noteInfo` | INFO | `INFO`, `QUESTION`, `REFERENCE` | `#1F6FB2` | `#6CB4F0`
+| `noteHint` | HINT | `HINT`, `EXAMPLE` | `#0B7F72` | `#4FD1C0`
+| `noteSuccess` | SUCCESS | `SUCCESS`, `DECISION` | `#2E7D32` | `#7BD88F`
+| `noteWarning` | WARNING | `WARNING`, `TODO`, `ASSUMPTION` | `#A85F00` | `#F2B44D`
+| `noteDanger` | DANGER | `ERROR`, `RISK` | `#C62828` | `#FF7B7B`
+| `noteImportant` | IMPORTANT | `IMPORTANT` | `#7B3FA0` | `#C79BF2`
+|===
+
+* `null` (the default) keeps the built-in colour; the light or dark default is chosen by the luminance of the node fill.
+* A token that is set applies regardless of light or dark.
+* A colour with less than 3:1 contrast against the node fill is replaced by the theme foreground, also when it comes from a token.
+
+`NOTE` and `DEPRECATED` (tone NEUTRAL) have no token; they use the theme colour `muted`. The tokens apply to SVG and PNG output, not to LaTeX/TikZ output, which keeps the light defaults. In theme JSON the tokens are optional fields of `colors`; JSON without them stays valid.
+
 == Stereotype-driven styling
 
 Themes can map stereotypes to drawing slots:

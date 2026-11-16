@@ -58,6 +58,18 @@ public data class KumlColors(
     public val c4PersonExternalFill: KumlColor? = null,
     /** Border and figure colour of an external C4 person; `null` -> neutral dark grey. */
     public val c4PersonExternalBorder: KumlColor? = null,
+    /** Tone colour of INFO-toned notes (INFO, QUESTION, REFERENCE); `null` -> built-in default (light 0x1F6FB2 / dark 0x6CB4F0, picked by node-fill luminance). */
+    public val noteInfo: KumlColor? = null,
+    /** Tone colour of HINT-toned notes (HINT, EXAMPLE); `null` -> built-in default (light 0x0B7F72 / dark 0x4FD1C0, picked by node-fill luminance). */
+    public val noteHint: KumlColor? = null,
+    /** Tone colour of SUCCESS-toned notes (SUCCESS, DECISION); `null` -> built-in default (light 0x2E7D32 / dark 0x7BD88F, picked by node-fill luminance). */
+    public val noteSuccess: KumlColor? = null,
+    /** Tone colour of WARNING-toned notes (WARNING, TODO, ASSUMPTION); `null` -> built-in default (light 0xA85F00 / dark 0xF2B44D, picked by node-fill luminance). */
+    public val noteWarning: KumlColor? = null,
+    /** Tone colour of DANGER-toned notes (ERROR, RISK); `null` -> built-in default (light 0xC62828 / dark 0xFF7B7B, picked by node-fill luminance). */
+    public val noteDanger: KumlColor? = null,
+    /** Tone colour of IMPORTANT-toned notes (IMPORTANT); `null` -> built-in default (light 0x7B3FA0 / dark 0xC79BF2, picked by node-fill luminance). */
+    public val noteImportant: KumlColor? = null,
 ) {
     /** Effektive Knoten-Füllung: [nodeFill] wenn gesetzt, sonst [background]. */
     public val effectiveNodeFill: KumlColor get() = nodeFill ?: background

@@ -40,4 +40,23 @@ class SerializationRoundTripTest :
             decoded shouldBe original
             decoded.colors.activeStateStroke shouldBe KumlColor(0xFF6B35)
         }
+
+        // Note tone tokens: nullable with default at the end of KumlColors.
+        test("old theme JSON decodes with all note tone tokens null and they are not emitted") {
+            val original = PlainTheme()
+            val json = Json.encodeToString(original)
+            json.contains("noteInfo") shouldBe false
+            val c = Json.decodeFromString<KumlTheme>(json).colors
+            listOf(c.noteInfo, c.noteHint, c.noteSuccess, c.noteWarning, c.noteDanger, c.noteImportant).all { it == null } shouldBe true
+        }
+
+        test("a note tone token survives a Json round trip") {
+            val original = PlainTheme().let { it.copy(colors = it.colors.copy(noteWarning = KumlColor(0x0055AA))) }
+            val json = Json.encodeToString(original)
+            json.contains("noteWarning") shouldBe true
+            val decoded = Json.decodeFromString<KumlTheme>(json)
+            decoded shouldBe original
+            decoded.colors.noteWarning shouldBe KumlColor(0x0055AA)
+            decoded.colors.noteInfo shouldBe null
+        }
     })

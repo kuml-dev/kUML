@@ -2,6 +2,7 @@ package dev.kuml.io.svg
 
 import dev.kuml.layout.bridge.note.NoteSymbols
 import dev.kuml.renderer.theme.core.KumlColor
+import dev.kuml.renderer.theme.core.KumlColors
 import dev.kuml.renderer.theme.core.KumlTheme
 import kotlin.math.pow
 
@@ -17,7 +18,8 @@ internal val NoteTone.css: String get() = key
  * The rules are written only for tones a diagram really uses, so a diagram without kinded notes keeps its
  * style block byte for byte. Colours come in a light and a dark palette (chosen by the luminance of the node
  * fill); a colour with less than [MIN_CONTRAST]:1 against the node fill is replaced by the theme foreground.
- * Only commonMain APIs are used (no `String.format`).
+ * A theme token (`KumlColors.noteInfo` etc.) replaces the palette pick and applies regardless of light or dark;
+ * the contrast check still applies to it. Only commonMain APIs are used (no `String.format`).
  */
 internal object NoteTones {
     /** Minimum contrast of a symbol against the note background (WCAG non-text contrast). */
@@ -52,6 +54,17 @@ internal object NoteTones {
         return (maxOf(la, lb) + 0.05) / (minOf(la, lb) + 0.05)
     }
 
+    private fun KumlColors.noteOverride(tone: NoteTone): KumlColor? =
+        when (tone) {
+            NoteTone.INFO -> noteInfo
+            NoteTone.HINT -> noteHint
+            NoteTone.SUCCESS -> noteSuccess
+            NoteTone.WARNING -> noteWarning
+            NoteTone.DANGER -> noteDanger
+            NoteTone.IMPORTANT -> noteImportant
+            NoteTone.NEUTRAL -> null
+        }
+
     /** Colour of [tone] in [theme], guaranteed at least [MIN_CONTRAST]:1 against the note fill (else the theme foreground). */
     fun colorOf(
         tone: NoteTone,
@@ -63,7 +76,8 @@ internal object NoteTones {
             if (tone == NoteTone.NEUTRAL) {
                 c.muted
             } else {
-                KumlColor((if (isDark(fill)) NoteSymbols.DARK_RGB else NoteSymbols.LIGHT_RGB).getValue(tone))
+                c.noteOverride(tone)
+                    ?: KumlColor((if (isDark(fill)) NoteSymbols.DARK_RGB else NoteSymbols.LIGHT_RGB).getValue(tone))
             }
         return if (contrastRatio(a = wanted, b = fill) >= MIN_CONTRAST) wanted else c.foreground
     }
