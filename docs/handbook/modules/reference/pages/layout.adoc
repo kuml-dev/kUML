@@ -171,8 +171,10 @@ classDiagram(name = "Zoo") {
 * A `first(x)` pin on a node with incoming edges, or a `last(x)` pin on a node with outgoing edges, reports
   `KUML-LAYOUT-W008` (a warning) in `kuml validate` and `kuml render`. The pin is still applied and the diagram is
   still drawn, but the engine then draws the edge or edges against the flow direction. Remove the pin or the edge to
-  clear the warning. Self-loops and edges to elements that are not nodes of the diagram are not counted.
-* C4 and ERM diagrams take the block as well (`layout { }` in the diagram builder). Service Blueprint accepts it,
+  clear the warning. Self-loops and edges to elements that are not nodes of the diagram are not counted; in UML class
+  diagrams a generalisation counts from the general to the specific class (see below). An id in both `first` and `last`
+  keeps its `first` pin (the `last` entry is dropped).
+* C4 and ERM diagrams take the block as well (`layout { }` in the diagram builder; for C4 see the table below for what acts inside a system boundary). Service Blueprint accepts it,
   but its grid ignores every option and reports `KUML-LAYOUT-W001` (see xref:blueprint.adoc[Service Blueprint]). BPMN diagram blocks are not available yet.
 
 === Which option acts where
@@ -194,6 +196,95 @@ the position of their use cases (the actors whose use cases lie furthest left go
 as before, half of them per side. An explicit `aspectRatio` or `maxWidth` is evaluated there with the real geometry (row
 gutter, frame padding, actor columns and the height of the actor stacks); without one of them the column count is
 estimated as before.
+
+=== Keyword by diagram family
+
+`acts` means the keyword changes the layout; `W001` means it is ignored and reported as `KUML-LAYOUT-W001`. The
+rows follow `LayoutEffectMatrix`; the C4 row also records what an A/B render (with and without the keyword,
+compared by SVG) showed.
+
+[cols="3,1,1,1,1,1,1",options="header"]
+|===
+| Diagram family | `direction` | `wrapColumns` | `sameLayer` | `first` / `last` | `aspectRatio` | `maxWidth`
+
+| UML (all except sequence and timing)
+| acts | acts | acts | acts | acts | acts
+
+| UML sequence, UML timing
+| W001 | W001 | W001 | W001 | W001 | W001
+
+| SysML 2 (all except sequence)
+| acts | acts | acts | acts | acts | acts
+
+| SysML 2 sequence
+| W001 | W001 | W001 | W001 | W001 | W001
+
+| C4 (see note 1)
+| acts | acts | acts | acts | acts | acts
+
+| ERM
+| acts | acts | acts | acts | acts | acts
+
+| BPMN process, BPMN collaboration (see note 2)
+| acts | acts | acts | acts | acts | acts
+
+| BPMN choreography, BPMN conversation
+| W001 | W001 | W001 | W001 | W001 | W001
+
+| Service Blueprint, Journey
+| W001 | W001 | W001 | W001 | W001 | W001
+|===
+
+. C4: in a system context diagram (elements at the top level) `wrapColumns`, `sameLayer`, `first` and `aspectRatio`
+  changed the picture in an A/B render. In a container diagram, whose containers stand inside the system boundary,
+  `direction` and `first` changed it, but `wrapColumns` (five containers under one parent, `wrapColumns = 2`) and
+  `sameLayer` (a container moved to the layer of a deeper one) produced a byte-identical SVG and no warning. Do not
+  rely on these two inside a system boundary.
+. BPMN: the matrix lists the layered options, but the BPMN diagram builders have no `layout { }` block yet, so
+  there is nothing to write there.
+
+Options that belong to one diagram kind only: `labelMaxWidth` (SysML 2 state machines; `KUML-LAYOUT-W001` elsewhere,
+`KUML-LAYOUT-E001` outside 120..400), `showSubjectEdges` (SysML 2 requirement diagrams) and `actorSide` (SysML 2 use-case
+diagrams).
+
+`sameLayer` has two parts. The *layer assignment* (all members get the deepest layer of the group, see below)
+applies wherever the table says `acts`. The additional *centring* of the members on the flow axis, and the drawing of an
+edge between two members straight between their facing sides, exist only in SysML 2 state machines, UML state machines
+and SysML 2 block definition diagrams. In every other diagram a `sameLayer` group is a pure layer assignment.
+
+[[samelayer-siblings]]
+=== Keeping siblings on one layer with `sameLayer`
+
+`sameLayer(a, b, c)` puts the listed elements into one layer of the layered layout, so they stand in one row (flow
+`Down`) or one column (flow `Right`). The members are given the *deepest* layer any of them would have, so a group is
+pulled downwards (towards the end of the flow), never upwards. Elements may be handles or id strings; an empty
+`sameLayer()` is ignored, an unknown id is `KUML-LAYOUT-W004` and ignored, and a block takes at most 32 groups of at
+most 64 ids.
+
+[source,kuml]
+----
+classDiagram(name = "Vehicles") {
+    val vehicle = classOf(name = "Vehicle") { isAbstract = true }
+    val car = classOf(name = "Car")
+    val truck = classOf(name = "Truck")
+    val bike = classOf(name = "Bike")
+    val depot = classOf(name = "Depot")
+    val route = classOf(name = "Route")
+    generalization(specific = car, general = vehicle)
+    generalization(specific = truck, general = vehicle)
+    generalization(specific = bike, general = vehicle)
+    association(source = depot, target = route)
+    association(source = route, target = bike)
+    layout { sameLayer(car, truck, bike) }
+}
+----
+
+In this diagram the three subclasses stand in one row under `Vehicle`. Without the `layout` line the engine puts
+`Vehicle` into the second layer next to `Route` (the chain `Depot`, `Route`, `Bike` decides the layers); with it,
+`Vehicle` moves to the top row, the subclasses keep their row, and the picture becomes about 30 px narrower. The
+example shows a changed layout, not a guarantee that leaves end up closer to their general class: that depends on the
+other relationships. Classifiers with no edge at all stand in the band described below, and `sameLayer` does not move
+them.
 
 === UML class diagrams: wrap, grid and band (wave 2G-a)
 

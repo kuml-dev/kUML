@@ -314,6 +314,11 @@ This includes enumerations of the diagram: an attribute typed with a diagram enu
 Without `attributeTypeEdges = true` the attribute type is only shown as text (`status: Status`) and the enumeration is drawn
 without an edge, which is the usual UML presentation.
 
+=== Layout of class diagrams
+
+The diagram-level `layout { }` block (`wrapColumns`, `aspectRatio`, `maxWidth`, `sameLayer`, `first`, `last`) is described in
+xref:layout.adoc[layout], including a xref:layout.adoc#samelayer-siblings[`sameLayer` example for class diagrams].
+
 == Comments
 
 A UML comment (note) is a free-text annotation box with a folded top-right corner,

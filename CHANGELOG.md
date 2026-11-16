@@ -6,6 +6,13 @@ All notable changes to this project are documented here. Format follows
 
 ## [Unreleased]
 
+### Nacharbeit 87: layout block keywords documented (sameLayer, first, last)
+
+- **Why.** Restliste K (d): `sameLayer` works but had no handbook example and there was no per-family overview of which `layout { }` keyword acts where.
+- **Change.** Handbook only, no behaviour change. `layout.adoc` gains the table "Keyword by diagram family", the `sameLayer` section with a class diagram example (rendered live), a bundled `first` / `last` / `KUML-LAYOUT-W008` paragraph, and the statement that the centring and edge-between-members handling of `sameLayer` exists only in SysML 2 state machines, UML state machines and SysML 2 block definition diagrams. `uml-dsl.adoc` links to it. The KDoc of `LayoutEffectMatrix` no longer claims a test compares the table with the matrix (none does).
+- **Verification.** The example was rendered with `kuml-cli` (`installDist`) with and without the `layout` line and the positions compared; the C4 statements come from A/B renders (SVG compared); keyword table checked against `LayoutEffectMatrix` and `LayoutSpecRunner`; independent review; full gate green.
+- **Not fixed.** In C4 container diagrams (containers inside the system boundary) `wrapColumns` and `sameLayer` change nothing and report no warning, although `LayoutEffectMatrix` lists them as acting for C4; they do act in system context diagrams. Documented as a caveat, the matrix or the renderer needs its own wave. The BPMN diagram builders have no `layout { }` block yet. No test compares the handbook table with `LayoutEffectMatrix`. README and kuml.dev were not changed in this wave.
+
 ### Nacharbeit 86: UML class diagram, visibility mark default and enumeration type edge
 
 - **Why.** Restliste K (f): attributes without an explicit visibility show `-`; (e): an attribute typed with an enumeration gets no edge to it.
