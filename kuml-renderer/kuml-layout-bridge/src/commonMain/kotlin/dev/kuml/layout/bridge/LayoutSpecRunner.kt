@@ -377,7 +377,8 @@ public object LayoutSpecRunner {
         ): LayoutResult =
             if (kind == SpecDiagramKind.SYSML2_BDD) {
                 val bus = BddGeneralizationBus.apply(result = result, graph = graph, direction = direction)
-                BddAllocationDocking.apply(result = bus, graph = graph, direction = direction)
+                val fanned = BddHubFan.apply(result = bus, graph = graph, direction = direction)
+                BddAllocationDocking.apply(result = fanned, graph = graph, direction = direction)
             } else {
                 result
             }

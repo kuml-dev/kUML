@@ -6,6 +6,13 @@ All notable changes to this project are documented here. Format follows
 
 ## [Unreleased]
 
+### Nacharbeit 88: BDD hub edges drawn as an orthogonal fan (P-BDD-01/02)
+
+- **Why.** A block with many `refPart`/`part` edges was drawn with a tight bundle of lanes about 10 px apart, and edges to blocks of a later row ran around the outside of the whole diagram.
+- **Change.** New layout pass `BddHubFan` for block definition diagrams: a block with 4 or more plain edges to one side gets own ends on the facing side, lanes at least 7 px (normally 16 px) apart, and edges to a later row drop through a gap between two columns instead of around the canvas. Works for all four directions and for hubs that are the target of the edges. Generalisations and anchored allocations are untouched.
+- **Verification.** `BddHubFanTest` (13 geometry tests: no edge crosses a foreign box or leaves the diagram, lane spacing, determinism); full `clean check --no-build-cache --rerun-tasks` green.
+- **Not fixed.** Edge labels are still placed by the renderer, not by this pass.
+
 ### Nacharbeit 87: layout block keywords documented (sameLayer, first, last)
 
 - **Why.** Restliste K (d): `sameLayer` works but had no handbook example and there was no per-family overview of which `layout { }` keyword acts where.
