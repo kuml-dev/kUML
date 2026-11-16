@@ -98,6 +98,7 @@ internal object BlueprintNoteRouter {
         horizontalObstacles: List<HLine> = emptyList(),
         claimedTracks: MutableList<Double> = ArrayList(),
         blocks: List<Box> = emptyList(),
+        gapUse: MutableMap<Double, Int> = HashMap(),
     ): List<Pair<String, List<Pair<Double, Double>>>> {
         if (targets.isEmpty()) return emptyList()
         val n = targets.size
@@ -109,12 +110,14 @@ internal object BlueprintNoteRouter {
             val trackY: Double,
             val endX: Double,
             val endY: Double,
+            /** Where the line leaves the outer channel through a column gap to a card side, or null for the plain entry. */
+            val gapEntry: GapEntry? = null,
         )
         val plans =
             targets.map { t ->
                 val slot = laneSlots[t.laneTop] ?: 0
                 laneSlots[t.laneTop] = slot + 1
-                val (trackY, top) =
+                val pick =
                     pickTrack(
                         t = t,
                         preferTop = slot % 2 == 0,
@@ -123,10 +126,21 @@ internal object BlueprintNoteRouter {
                         claimed = claimedTracks,
                         blocks = blocks,
                     )
+                val trackY = pick.y
+                val top = pick.top
                 val entry = cardEntries[t.cardLeft to t.cardTop] ?: 0
                 cardEntries[t.cardLeft to t.cardTop] = entry + 1
                 val endX = t.cardCx + ENTRY_OFFSETS[entry % ENTRY_OFFSETS.size]
-                Plan(target = t, trackY = trackY, endX = endX, endY = if (top) t.cardTop else t.cardBottom)
+                val endY = if (top) t.cardTop else t.cardBottom
+                // The outer channel lies below the whole grid: a straight vertical up to the card would run through
+                // every card below it in the same column. Then the line enters through a column gap, from the side.
+                val gap =
+                    if (pick.outer && verticalHitsCard(x = endX, y1 = trackY, y2 = endY, blocks = blocks)) {
+                        gapEntry(t = t, trackY = trackY, blocks = blocks, gapUse = gapUse)
+                    } else {
+                        null
+                    }
+                Plan(target = t, trackY = trackY, endX = endX, endY = endY, gapEntry = gap)
             }
         val ordered = plans.sortedWith(compareBy({ it.trackY }, { it.target.linkId }))
         val exitY = ordered.mapIndexed { k, _ -> mid + (k - (n - 1) / 2.0) * EXIT_SPACING }
@@ -142,11 +156,76 @@ internal object BlueprintNoteRouter {
         for ((k, p) in ordered.withIndex()) {
             val gx = noteX - GUTTER_STEP * (slotOf.getValue(k) + 1)
             val y = exitY[k]
+            val g = p.gapEntry
             out +=
                 p.target.linkId to
-                listOf(noteX to y, gx to y, gx to p.trackY, p.endX to p.trackY, p.endX to p.endY)
+                if (g == null) {
+                    listOf(noteX to y, gx to y, gx to p.trackY, p.endX to p.trackY, p.endX to p.endY)
+                } else {
+                    listOf(noteX to y, gx to y, gx to p.trackY, g.x to p.trackY, g.x to g.y, g.edgeX to g.y)
+                }
         }
         return out
+    }
+
+    /** A line that enters a card from its side: up a column gap at [x] to height [y], then to the card edge at [edgeX]. */
+    private class GapEntry(
+        val x: Double,
+        val y: Double,
+        val edgeX: Double,
+    )
+
+    private class Pick(
+        val y: Double,
+        val top: Boolean,
+        /** True when no track was free in the lane's margin zones and the outer channel was used. */
+        val outer: Boolean,
+    )
+
+    /** Whether the vertical at [x] between [y1] and [y2] runs through the inside of a card. */
+    private fun verticalHitsCard(
+        x: Double,
+        y1: Double,
+        y2: Double,
+        blocks: List<Box>,
+    ): Boolean {
+        val lo = minOf(y1, y2)
+        val hi = maxOf(y1, y2)
+        return blocks.any { b -> x > b.left + EPS && x < b.right - EPS && hi > b.top + EPS && lo < b.bottom - EPS }
+    }
+
+    /**
+     * The entry of a line into [t] through the gap left or right of the card: the gap is the free strip between the
+     * card and its nearest neighbour column (or [DEFAULT_GAP] at the edge of the grid), lines in one gap keep
+     * [TRACK_SPACING] to each other. Null when no gap is wide enough or the way up is blocked: the straight entry stays.
+     */
+    private fun gapEntry(
+        t: Target,
+        trackY: Double,
+        blocks: List<Box>,
+        gapUse: MutableMap<Double, Int>,
+    ): GapEntry? {
+        val midY = (t.cardTop + t.cardBottom) / 2.0
+
+        fun beside(card: Box): Boolean = card.bottom > t.cardTop - EPS && card.top < t.cardBottom + EPS
+        val leftEdge = blocks.filter { it.right <= t.cardLeft + EPS && beside(it) }.maxOfOrNull { it.right } ?: (t.cardLeft - DEFAULT_GAP)
+        val rightEdge = blocks.filter { it.left >= t.cardRight - EPS && beside(it) }.minOfOrNull { it.left } ?: (t.cardRight + DEFAULT_GAP)
+        // (centre of the gap, card edge the line ends at, gap width)
+        val sides =
+            listOf(
+                Triple((leftEdge + t.cardLeft) / 2.0, t.cardLeft, t.cardLeft - leftEdge),
+                Triple((t.cardRight + rightEdge) / 2.0, t.cardRight, rightEdge - t.cardRight),
+            )
+        for ((centre, edgeX, width) in sides) {
+            val used = gapUse[centre] ?: 0
+            val offset = GAP_OFFSETS[used % GAP_OFFSETS.size]
+            val x = centre + offset
+            if (abs(offset) > width / 2.0 - GAP_MARGIN + EPS) continue
+            if (verticalHitsCard(x = x, y1 = trackY, y2 = midY, blocks = blocks)) continue
+            gapUse[centre] = used + 1
+            return GapEntry(x = x, y = midY, edgeX = edgeX)
+        }
+        return null
     }
 
     private fun freeOf(
@@ -184,7 +263,7 @@ internal object BlueprintNoteRouter {
         obstacles: List<HLine>,
         claimed: MutableList<Double>,
         blocks: List<Box> = emptyList(),
-    ): Pair<Double, Boolean> {
+    ): Pick {
         val topZone =
             generateSequence(t.topStart) { it + TRACK_RASTER }
                 .takeWhile { it <= t.cardTop - TRACK_CLEARANCE + EPS }
@@ -205,16 +284,23 @@ internal object BlueprintNoteRouter {
         for ((y, top) in candidates) {
             if (freeOf(y = y, xLo = t.cardCx - ENTRY_REACH, xHi = noteX, obstacles = obstacles, claimed = claimed, blocks = blocks)) {
                 claimed += y
-                return y to top
+                return Pick(y = y, top = top, outer = false)
             }
         }
         var y = (obstacles.maxOfOrNull { it.y } ?: t.laneBottom).coerceAtLeast(t.laneBottom) + OUTER_CHANNEL_OFFSET
         var guard = 0
         while (claimed.any { abs(it - y) < TRACK_SPACING - EPS } && guard++ < MAX_CANDIDATES) y += TRACK_SPACING
         claimed += y
-        return y to false
+        return Pick(y = y, top = false, outer = true)
     }
 
     private const val EPS: Double = 1e-6
+
+    /** Width assumed for the strip beside a card at the edge of the grid. */
+    private const val DEFAULT_GAP: Double = 8.0
+
+    /** Keeps a line in a column gap this far from the cards beside it. */
+    private const val GAP_MARGIN: Double = 2.0
+    private val GAP_OFFSETS: List<Double> = listOf(0.0, TRACK_SPACING, -TRACK_SPACING)
     private const val ENTRY_REACH: Double = 32.0
 }

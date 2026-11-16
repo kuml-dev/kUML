@@ -176,6 +176,7 @@ internal class BlueprintGeometry(
         val laneSlots = HashMap<Double, Int>()
         val cardEntries = HashMap<Pair<Double, Double>, Int>()
         val claimedTracks = ArrayList<Double>()
+        val gapUse = HashMap<Double, Int>()
         val obstacles = horizontalObstacles()
         val blocks = cardRects.values.map { BlueprintNoteRouter.Box(left = it.x, top = it.y, right = it.x + it.w, bottom = it.y + it.h) }
         for (n in order) {
@@ -234,6 +235,7 @@ internal class BlueprintGeometry(
                     horizontalObstacles = obstacles,
                     claimedTracks = claimedTracks,
                     blocks = blocks,
+                    gapUse = gapUse,
                 )
             out += PlacedBlueprintNote(id = n.id, body = n.body, kind = n.kind, x = noteX, y = y, w = w, h = h, routes = routes)
         }

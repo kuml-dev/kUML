@@ -281,6 +281,9 @@ public object SeqNotePlacer {
         val topY = targets.minOf { it.y }
         val columns = columnsFor(size = size, targets = targets, content = content, ctx = ctx)
         val rows = ctx.scene.rowPitch.coerceAtLeast(policy.step)
+        // The best plan over all columns: a later column replaces an earlier one only with strictly fewer crossings
+        // (ties keep the column order: sticky side, inner right/left, margins), so an unchanged scene stays unchanged.
+        var overall: Plan? = null
         for (col in columns) {
             // the margin columns are free of drawing: they may search twice as far, among the stacked notes
             val maxShift = rows * policy.maxRowSteps * (if (col.kind >= 3 || col.kind == ctx.preferredKind) 2 else 1)
@@ -303,11 +306,15 @@ public object SeqNotePlacer {
                 shift += policy.step
             }
             if (best != null && bestShift <= maxShift) {
-                best.columnKind = col.kind
-                return best
+                if (overall == null || best.crossings < overall.crossings) {
+                    best.columnKind = col.kind
+                    overall = best
+                }
+                // no crossing at all cannot be beaten: stop searching (keeps the old result and the run time)
+                if (best.crossings == 0) return overall
             }
         }
-        return null
+        return overall
     }
 
     private fun columnsFor(
