@@ -6,6 +6,13 @@ All notable changes to this project are documented here. Format follows
 
 ## [Unreleased]
 
+### Nacharbeit 95: block definition diagrams with direction = Up
+
+- **Why.** `Up` is the natural direction for inheritance in a block definition diagram (the general block below its specialisations). Check the generalisation bus, the hub fan (hub as source and as target) and the allocation docking with `direction = Up`.
+- **Finding.** The passes already handle `Up` (`BottomToTop`): no probe failed. **No production code was changed**; this entry adds tests and one handbook sentence only. The effect matrix needed no change.
+- **Verification.** New `BddDirectionUpTest` (geometry only, no fonts): hub as source with 8 edges crosses no foreign box and stays inside the diagram plus 30 px; the edges start at the hub top and end at the block bottoms; hub as target with 6 edges ends on the hub top or bottom, at least 6 px apart; parallel segments keep 6 px apart (the bus shares its trunk by design); the generalisation bus with 5 children puts the general block below, ends the trunk at its top and the child ends at the child bottoms; `wrapColumns = 3` with 8 blocks gives at least 3 rows without crossings; two runs are identical; `BddAllocationDocking` returns the result unchanged for `Up` and `Down` and changes the edge for `LeftToRight`; a Down bus keeps its geometry. Command `./gradlew clean :kuml-renderer:kuml-layout-bridge:check detekt ktlintCheck --no-build-cache`: 866 tests in the module, 0 failed, 0 skipped (9 of them new).
+- **Not fixed.** (1) The allocation docking is a no-op for `Up` and `Down` by design (the edges keep the engine route); a vertical docking would be a feature of its own. (2) A rotated aspect candidate (`BottomToTop` becomes `RightToLeft`) was not tested separately for `Up`. (3) The allocation probe uses a hand-built graph, not a DSL model.
+
 ### Nacharbeit 94: wrapColumns for block definition diagrams (wide hub fans)
 
 - **Why.** Check whether `wrapColumns` gives a usable result on a block definition diagram where one block has many edges (hub fan), after the hub-fan pass of Nacharbeit 86.

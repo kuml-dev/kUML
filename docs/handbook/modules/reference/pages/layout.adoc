@@ -194,6 +194,9 @@ In a block definition diagram, `wrapColumns = n` breaks a wide fan of one block 
 (`n = 1` gives one block per row); the edges of that hub are then drawn through the gaps between the columns of the
 rows in front of the target (hub fan). An `n` that is not below the number of children changes nothing, because the
 engine's own aspect-ratio wrap then still applies.
+In a block definition diagram `direction = Up` is supported by the generalization bus and the hub fan (the general block or
+the hub then lies below its blocks, for a hub both as source and as target of the edges); allocation edges with an anchor
+row are only re-docked for `Left` and `Right`, with `Up` and `Down` they keep the route of the layout engine.
 
 In a SysML 2 use-case diagram with a subject frame, an explicit `actorSide = Both` assigns the actors to the two sides by
 the position of their use cases (the actors whose use cases lie furthest left go to the left side) while the counts stay
