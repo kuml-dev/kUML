@@ -57,10 +57,15 @@ public object LayoutSpecRunner {
         spec: LayoutSpec?,
     ): LayoutGraph = graph.withSpec(spec = spec)
 
-    /** Options of [spec] that are set but not honoured by [kind]. */
+    /**
+     * Options of [spec] that are set but not honoured by [kind]. With [compoundMembers] (the diagram draws elements inside
+     * a compound boundary, e.g. the containers of a C4 container diagram) the options listed in
+     * [LayoutEffectMatrix.ignoredInsideCompound] for [kind] are reported as well.
+     */
     public fun ignoredOptions(
         spec: LayoutSpec?,
         kind: SpecDiagramKind,
+        compoundMembers: Boolean = false,
     ): List<LayoutOption> {
         if (spec == null) return emptyList()
         val set =
@@ -77,7 +82,8 @@ public object LayoutSpecRunner {
                 if (spec.actorSide != null) add(LayoutOption.ACTOR_SIDE)
             }
         val effective = LayoutEffectMatrix.effectiveFor(kind)
-        return set.filter { it !in effective }
+        val insideCompound = if (compoundMembers) LayoutEffectMatrix.ignoredInsideCompound[kind].orEmpty() else emptySet()
+        return set.filter { it !in effective || it in insideCompound }
     }
 
     /** One `KUML-LAYOUT-W001` per ignored option (never per element); nothing for an empty block. */
@@ -85,6 +91,7 @@ public object LayoutSpecRunner {
         spec: LayoutSpec?,
         kind: SpecDiagramKind,
         diagramName: String?,
+        compoundMembers: Boolean = false,
     ): List<LayoutSpecFinding> {
         val where =
             if (diagramName !=
@@ -94,11 +101,25 @@ public object LayoutSpecRunner {
             } else {
                 "this diagram type (${kind.name.lowercase()})"
             }
-        return ignoredOptions(spec = spec, kind = kind).map {
-            LayoutSpecFinding(
-                code = LayoutCodes.NO_EFFECT,
-                message = "layout option '${it.name.lowercase()}' has no effect on $where.",
-            )
+        val inside = if (compoundMembers) LayoutEffectMatrix.ignoredInsideCompound[kind].orEmpty() else emptySet()
+        val effective = LayoutEffectMatrix.effectiveFor(kind)
+        return ignoredOptions(spec = spec, kind = kind, compoundMembers = compoundMembers).map {
+            val message =
+                if (it in inside && it in effective) {
+                    val scope =
+                        if (diagramName !=
+                            null
+                        ) {
+                            "diagram '$diagramName' (${kind.name.lowercase()})"
+                        } else {
+                            "this diagram (${kind.name.lowercase()})"
+                        }
+                    "layout option '${it.name.lowercase()}' has no effect on the elements inside the system boundary of $scope; " +
+                        "the layered engine does not assign layers to compound members."
+                } else {
+                    "layout option '${it.name.lowercase()}' has no effect on $where."
+                }
+            LayoutSpecFinding(code = LayoutCodes.NO_EFFECT, message = message)
         }
     }
 
@@ -113,9 +134,11 @@ public object LayoutSpecRunner {
         knownIds: Set<String>?,
         diagramName: String? = null,
         edgeDegrees: Map<String, EdgeDegree>? = null,
+        compoundMembers: Boolean = false,
     ): List<LayoutSpecFinding> {
         if (spec == null) return emptyList()
-        val findings = noEffectFindings(spec = spec, kind = kind, diagramName = diagramName).toMutableList()
+        val findings =
+            noEffectFindings(spec = spec, kind = kind, diagramName = diagramName, compoundMembers = compoundMembers).toMutableList()
         val checked = sanitize(spec = spec, findings = findings)
         checkIdSet(spec = checked, known = knownIds, findings = findings)
         findings += layerPinFindings(kind = kind, spec = checked, degrees = edgeDegrees)
@@ -251,6 +274,16 @@ public object LayoutSpecRunner {
         return (spec ?: LayoutSpec()).copy(wrapColumns = columns)
     }
 
+    /** True when at least one node of [graph] is drawn inside a group that the engine lays out as a compound. */
+    public fun hasCompoundMembers(graph: LayoutGraph): Boolean {
+        val compounds =
+            graph.groups
+                .filter { it.layoutAsCompound }
+                .map { it.id }
+                .toSet()
+        return compounds.isNotEmpty() && graph.nodes.any { it.groupId in compounds }
+    }
+
     private const val GENERALIZATION_PREFIX = "gen::"
     private const val AUTO_WRAP_THRESHOLD = 6
 
@@ -263,7 +296,7 @@ public object LayoutSpecRunner {
         diagramName: String?,
     ): SpecLayoutOutcome {
         val findings = mutableListOf<LayoutSpecFinding>()
-        findings += noEffectFindings(spec = spec, kind = kind, diagramName = diagramName)
+        findings += noEffectFindings(spec = spec, kind = kind, diagramName = diagramName, compoundMembers = hasCompoundMembers(graph))
         if (LayoutEffectMatrix.effectiveFor(kind).isEmpty()) {
             return SpecLayoutOutcome(result = engine.layout(graph = graph, hints = hints), findings = findings)
         }

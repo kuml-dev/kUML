@@ -144,6 +144,7 @@ public object ValidationService {
                         knownIds = layoutNodeIds(e = extracted, graph = graph),
                         diagramName = diagramId,
                         edgeDegrees = graph?.let { LayerPinCheck.edgeDegrees(it) },
+                        compoundMembers = graph?.let { LayoutSpecRunner.hasCompoundMembers(it) } ?: false,
                     ).map {
                         Finding(
                             code = it.code,

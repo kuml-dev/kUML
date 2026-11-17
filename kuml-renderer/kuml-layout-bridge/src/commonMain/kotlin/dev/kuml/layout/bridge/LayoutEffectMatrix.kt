@@ -124,6 +124,17 @@ public object LayoutEffectMatrix {
             SpecDiagramKind.JOURNEY to none,
         )
 
+    /**
+     * Options that [effective] lists for a kind but that have no effect on the elements drawn inside a compound
+     * boundary (Nacharbeit 96). The layered engine lays the boundary out as a compound node and does not assign
+     * layers to its members, so `wrapColumns` and `sameLayer` act on the system context diagram of C4 but not on the
+     * containers or components inside the boundary of a container or component diagram. `first`, `last`, `direction`
+     * and `aspectRatio` still act. Reported as `KUML-LAYOUT-W001` when the diagram has compound members; not part of
+     * the handbook table cells (note 1 under the table explains it), so `LayoutEffectMatrixDocSyncTest` ignores it.
+     */
+    public val ignoredInsideCompound: Map<SpecDiagramKind, Set<LayoutOption>> =
+        mapOf(SpecDiagramKind.C4 to setOf(LayoutOption.WRAP_COLUMNS, LayoutOption.SAME_LAYER))
+
     /** The options that have an effect on [kind]. */
     public fun effectiveFor(kind: SpecDiagramKind): Set<LayoutOption> = effective.getValue(kind)
 }

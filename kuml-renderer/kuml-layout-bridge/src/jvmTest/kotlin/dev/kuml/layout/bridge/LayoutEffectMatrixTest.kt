@@ -28,6 +28,12 @@ class LayoutEffectMatrixTest :
             LayoutEffectMatrix.effective.keys shouldBe SpecDiagramKind.entries.toSet()
         }
 
+        test("ignoredInsideCompound only lists options the kind otherwise honours") {
+            LayoutEffectMatrix.ignoredInsideCompound.forEach { (kind, options) ->
+                (options - LayoutEffectMatrix.effectiveFor(kind)).shouldBeEmpty()
+            }
+        }
+
         test("fixed-geometry arts ignore every option, layered arts none") {
             val spec = LayoutSpec(direction = LayoutFlow.Right, wrapColumns = 2, aspectRatio = 1.5, maxWidth = 900)
             listOf(

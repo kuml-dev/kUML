@@ -243,10 +243,12 @@ compared by SVG) showed.
 |===
 
 . C4: in a system context diagram (elements at the top level) `wrapColumns`, `sameLayer`, `first` and `aspectRatio`
-  changed the picture in an A/B render. In a container diagram, whose containers stand inside the system boundary,
-  `direction` and `first` changed it, but `wrapColumns` (five containers under one parent, `wrapColumns = 2`) and
-  `sameLayer` (a container moved to the layer of a deeper one) produced a byte-identical SVG and no warning. Do not
-  rely on these two inside a system boundary.
+  change the picture. In a container or component diagram the elements inside the system or container boundary are
+  laid out as members of a compound node, and the layered engine does not assign layers to compound members:
+  `wrapColumns` and `sameLayer` leave the containers where they are (an A/B render with five containers and
+  `wrapColumns = 2`, or a container moved to the layer of a deeper one, gave identical positions inside the boundary).
+  They are therefore reported with `KUML-LAYOUT-W001` in `kuml validate` and `kuml render`; an element outside the
+  boundary (an external system) can still move. `direction`, `first`, `last` and `aspectRatio` act in all three C4 diagrams.
 . BPMN: the matrix lists the layered options, but the BPMN diagram builders have no `layout { }` block yet, so
   there is nothing to write there.
 
