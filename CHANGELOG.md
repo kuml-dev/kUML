@@ -6,6 +6,13 @@ All notable changes to this project are documented here. Format follows
 
 ## [Unreleased]
 
+### Nacharbeit 93: layout-effect table in the handbook kept in sync by a test
+
+- **Why.** The table `Keyword by diagram family` in `layout.adoc` was maintained by hand next to `LayoutEffectMatrix`; the KDoc said "no test compares them".
+- **Change.** New `LayoutEffectMatrixDocSyncTest` in `kuml-layout-bridge`: it parses the table, maps each family row to its `SpecDiagramKind`s (the UML and SysML 2 "all except" rows are derived from the enum, so a new kind lands there automatically) and lists every row/column cell that differs from the matrix. A second test checks that every diagram art is covered by exactly one row and that the doc rows equal the test's family list. KDoc of `LayoutEffectMatrix` adjusted. No change to `layout.adoc` was needed: doc and matrix agreed.
+- **Verification.** `./gradlew clean :kuml-renderer:kuml-layout-bridge:jvmTest --tests '*LayoutEffectMatrix*' --no-build-cache --rerun-tasks`: BUILD SUCCESSFUL, DocSync 2 tests and `LayoutEffectMatrixTest` 6 tests, 0 skipped, 0 failures. Mutation probe (one `W001` cell of the sequence row changed to `acts`, then reverted): the test failed with the differing cell named. `:kuml-renderer:kuml-layout-bridge:ktlintCheck detekt`: BUILD SUCCESSFUL (a full `clean check` was not run for this small wave).
+- **Not fixed.** `labelMaxWidth`, `showSubjectEdges` and `actorSide` are not in the table and not checked; per-kind additions (e.g. `SYSML2_STM` with `labelMaxWidth`) are not represented; notes 1 and 2 in the doc are not checked; the family-to-kind mapping in the test is maintained by hand (a new kind is caught by the "all except" derivation or the coverage test).
+
 ### Nacharbeit 92: anchor lines of notes in Service Blueprint and sequence diagrams
 
 - **Why.** Remaining list PAL wave 3, section A, N3: anchor lines that run through foreign shapes. Measured first with the freshly built CLI on neutral scratch examples (a Blueprint with 4 lanes-times-cards and 4 notes, two SEQ diagrams with 4 to 5 lifelines), then fixed where the numbers showed a defect.

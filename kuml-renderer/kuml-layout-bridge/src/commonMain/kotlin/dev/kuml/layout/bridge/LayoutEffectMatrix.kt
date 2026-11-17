@@ -80,7 +80,8 @@ public object SpecDiagramKinds {
 /**
  * Which `layout { }` options each diagram art honours. Layered (ELK) pipelines honour all of them;
  * grid, time-line and fixed-geometry pipelines honour none and report `KUML-LAYOUT-W001` for every
- * option that was set. The handbook table `Keyword by diagram family` (layout.adoc) mirrors this object; no test compares them, keep both in sync by hand.
+ * option that was set. The handbook table `Keyword by diagram family` (layout.adoc) mirrors this object;
+ * `LayoutEffectMatrixDocSyncTest` compares them, so change both together.
  */
 public object LayoutEffectMatrix {
     private val all: Set<LayoutOption> =
