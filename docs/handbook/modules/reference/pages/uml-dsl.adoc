@@ -437,7 +437,7 @@ Which diagram types evaluate the hint:
 | SysML 2 BDD, IBD, use case, requirements, state machine, activity (every SysML 2 diagram except sequence) | evaluated
 | SysML 2 sequence diagram | ignored, `KUML-NOTE-W005`
 | UML diagrams (class comments and the other UML kinds) | ignored, `KUML-NOTE-W005`
-| C4 | ignored, `KUML-NOTE-W005`
+| C4 | evaluated (`KUML-NOTE-W004` when not honoured)
 | Service Blueprint | ignored, `KUML-NOTE-W005`
 | BPMN | ignored, `KUML-NOTE-W005`
 | ERM | ignored, `KUML-NOTE-W005`

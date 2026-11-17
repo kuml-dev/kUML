@@ -113,7 +113,7 @@ class NotePlacementHintCliTest :
 
         fun placementCodes(o: RenderOutcome) = o.noteFindings.filter { it.code == "KUML-NOTE-W004" || it.code == "KUML-NOTE-W005" }
 
-        for (family in listOf("SEQ", "C4", "ERM", "BLUEPRINT", "BPMN", "UML")) {
+        for (family in listOf("SEQ", "ERM", "BLUEPRINT", "BPMN", "UML")) {
             test("$family ignores ABOVE with exactly one W005, an unchanged SVG, and NEAR stays silent") {
                 val (plainOutcome, plainSvg) = render(scripts(null).getValue(family))
                 val (aboveOutcome, aboveSvg) = render(scripts("ABOVE").getValue(family))
@@ -144,6 +144,24 @@ class NotePlacementHintCliTest :
             (above == below) shouldBe false
             placementCodes(plainOutcome) shouldBe emptyList()
             placementCodes(nearOutcome) shouldBe emptyList()
+        }
+
+        test("C4 evaluates the hint: no W005 (the diagram checks of render and validate), NEAR equals no hint, and the note moves") {
+            val (plainOutcome, plainSvg) = render(scripts(null).getValue("C4"))
+            val (nearOutcome, nearSvg) = render(scripts("NEAR").getValue("C4"))
+            nearSvg shouldBe plainSvg
+            placementCodes(plainOutcome) shouldBe emptyList()
+            placementCodes(nearOutcome) shouldBe emptyList()
+            for (side in listOf("ABOVE", "BELOW", "LEFT", "RIGHT")) {
+                val (outcome, svg) = render(scripts(side).getValue("C4"))
+                withClue("C4 $side ${outcome.noteFindings}") {
+                    outcome.noteFindings.none { it.code == "KUML-NOTE-W005" } shouldBe true
+                    svg.contains("<svg") shouldBe true
+                }
+            }
+            val (_, above) = render(scripts("ABOVE").getValue("C4"))
+            val (_, below) = render(scripts("BELOW").getValue("C4"))
+            (above == below) shouldBe false
         }
 
         fun evaluated(hint: String?): Map<String, String> {

@@ -7,7 +7,9 @@ import dev.kuml.layout.LayoutResult
 /**
  * Note placement for C4 diagrams. A note is shown when the diagram lists it in `noteIds` or when one of its
  * anchors (an element id, i.e. a layout node or group, or a relationship id, i.e. a layout edge) is visible.
- * Before this existed `note(...)` in the C4 DSL was a no-op.
+ * Before this existed `note(...)` in the C4 DSL was a no-op. The `placement` hint of a note is evaluated as a soft
+ * hint; when no position on the requested side obeys the layout rules the default placement is used and
+ * `KUML-NOTE-W004` is reported.
  */
 public object C4NotePlacement {
     /** Places the notes of [model] that [diagram] shows; returns the layout unchanged when there are none. */
@@ -17,7 +19,13 @@ public object C4NotePlacement {
         layout: LayoutResult,
         config: NotePlacementConfig = NotePlacementConfig(),
     ): NotePlacementResult {
-        val placed = placeNotes(model = model, diagram = diagram, layout = layout, config = config)
+        var placed = placeNotes(model = model, diagram = diagram, layout = layout, config = config)
+        if (placed.hintNotHonoured.isNotEmpty()) {
+            val lines = model.notes.associate { it.id to it.sourceLine }
+            val misses = placed.hintNotHonoured.map { it.copy(sourceLine = lines[it.noteId]) }
+            NotePlacementMissCollector.report(misses)
+            placed = placed.copy(hintNotHonoured = misses)
+        }
         val drawn =
             placed.layout.nodes.keys
                 .map { it.value }
@@ -86,6 +94,7 @@ public object C4NotePlacement {
                         noteId = n.id,
                         body = n.body,
                         kind = n.kind,
+                        placement = n.placement,
                         anchors =
                             model.noteLinks.filter { it.noteId == n.id }.map {
                                 NoteAnchorRef(
