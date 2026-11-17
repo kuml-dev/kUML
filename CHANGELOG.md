@@ -6,6 +6,13 @@ All notable changes to this project are documented here. Format follows
 
 ## [Unreleased]
 
+### Nacharbeit 100: ERM notes honour the placement hint
+
+- **Why.** Not fixed of Nacharbeit 99: ERM notes (`note(...)`) accepted `placement` but ignored it and reported `KUML-NOTE-W005`.
+- **Change.** New `ErmNotePlacement` (layout bridge). ERM notes are ELK nodes; a note with a side hint (ABOVE/BELOW/LEFT/RIGHT) and at least one resolvable anchor is taken out of the ELK result together with its note-link edges and placed by `NotePlacer` against the finished layout, like C4, SysML 2 and UML notes. For Chen the link targets are mapped to the prefixed layout nodes (`chen-entity::` / `chen-view::`). A hint no free position can satisfy gives the default placement and `KUML-NOTE-W004` (with source line). Notes without a hint (or `NEAR`) and notes without a resolvable anchor are untouched, so output without a side hint is byte-identical. Wired once into `KumlSvgRenderer.toSvg` (ERM) for all four notations; `NoteChecks` no longer reports W005 for ERM. Handbook: `erm-dsl.adoc`, `uml-dsl.adoc` (table), `validate.adoc`.
+- **Verification.** New `ErmNotePlacementHintTest` (hand-built layouts, no fonts). Added ERM note SVG tests and an ERM case in `NotePlacementHintCliTest`. `./gradlew clean check detekt ktlintCheck` (see the run notes of the branch).
+- **Not fixed.** SEQ (SysML 2 and UML), Blueprint and BPMN still ignore the hint (W005). There is no LaTeX ERM renderer. The hint is not part of any exchange format. Edge labels are not obstacles for ERM notes.
+
 ### Nacharbeit 99: UML notes honour the placement hint
 
 - **Why.** Not fixed of Nacharbeit 98: UML notes (`comment(...)`) accepted `placement` but ignored it and reported `KUML-NOTE-W005`.

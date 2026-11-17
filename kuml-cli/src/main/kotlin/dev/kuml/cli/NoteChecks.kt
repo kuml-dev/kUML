@@ -65,7 +65,7 @@ public object NoteChecks {
     /**
      * `KUML-NOTE-W005`: a side hint (ABOVE/BELOW/LEFT/RIGHT) on a note of a diagram type whose placement does not evaluate
      * it. Decidable without a layout, so `validate` reports it as well. NEAR and unset hints never warn. SysML 2
-     * (except SEQ), C4 and UML (except sequence diagrams) evaluate the hint; SEQ, BLUEPRINT, BPMN, ERM and UML sequence ignore it.
+     * (except SEQ), C4, ERM and UML (except sequence diagrams) evaluate the hint; SEQ (SysML 2 and UML), BLUEPRINT and BPMN ignore it.
      */
     private fun placementIgnored(extracted: ExtractedDiagram): List<Finding> {
         val family: String
@@ -98,10 +98,7 @@ public object NoteChecks {
                             extracted.model.collaborations.flatMap { it.textAnnotations }
                     ).map { Triple(it.id, it.note.placement, it.note.sourceLine) }
             }
-            is ExtractedDiagram.Erm -> {
-                family = "ERM"
-                notes = extracted.model.notes.map { Triple(it.id, it.note.placement, it.note.sourceLine) }
-            }
+            is ExtractedDiagram.Erm -> return emptyList()
             is ExtractedDiagram.Uml -> {
                 // Nacharbeit 99: only UML sequence diagrams still ignore the hint (their notes are placed by the renderer, not by the placer).
                 if (extracted.diagram.type != dev.kuml.core.model.DiagramType.SEQUENCE) return emptyList()

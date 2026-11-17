@@ -245,6 +245,13 @@ ermModel(name = "Shop") {
 }
 ----
 
+`note(...)` also takes `placement = NotePlacement.ABOVE/BELOW/LEFT/RIGHT/NEAR`, for example
+`note(text = "Soft-deleted after 24 months.", customer, placement = NotePlacement.RIGHT)`. The hint is soft and is
+evaluated after the layout in all four notations: the note is placed on the wished side of its anchor if a free position
+exists. If none exists, the default placement is used and `kuml render` reports `KUML-NOTE-W004`. A free-standing note
+and `NEAR` never warn. In Chen notation the note is placed relative to the entity or view box. See
+xref:uml-dsl.adoc#note-placement-hint[Note placement hint].
+
 Anchoring an attribute, a relationship or an unknown id throws when the model is built. Limits: 65 536
 characters (hard), 2000 characters / 30 lines displayed (`NOTE_TRUNCATED`). `kuml validate` reports
 `ERM_NOTE_ANCHOR_UNKNOWN` and `ERM_NOTE_ANCHOR_UNSUPPORTED`. The SQL-reverse printer writes notes back

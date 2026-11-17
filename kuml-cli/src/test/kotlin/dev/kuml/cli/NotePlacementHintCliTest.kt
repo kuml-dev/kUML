@@ -116,7 +116,7 @@ class NotePlacementHintCliTest :
 
         fun placementCodes(o: RenderOutcome) = o.noteFindings.filter { it.code == "KUML-NOTE-W004" || it.code == "KUML-NOTE-W005" }
 
-        for (family in listOf("SEQ", "ERM", "BLUEPRINT", "BPMN", "UML")) {
+        for (family in listOf("SEQ", "BLUEPRINT", "BPMN", "UML")) {
             test("$family ignores ABOVE with exactly one W005, an unchanged SVG, and NEAR stays silent") {
                 val (plainOutcome, plainSvg) = render(scripts(null).getValue(family))
                 val (aboveOutcome, aboveSvg) = render(scripts("ABOVE").getValue(family))
@@ -224,6 +224,19 @@ class NotePlacementHintCliTest :
                         }
                     }
                     """.trimIndent(),
+                "ERM" to
+                    """
+                    import dev.kuml.erm.dsl.ermModel
+                    ermModel("S") {
+                        val a = entity("A") { id() }
+                        entity("B") {
+                            id()
+                            foreignKey(name = "a_id", references = a, nullable = false)
+                        }
+                        note(text = "About A", a, id = "n1"$arg)
+                        diagram(name = "D")
+                    }
+                    """.trimIndent(),
                 "REQ" to
                     """
                     sysml2Model("Reqs") {
@@ -241,7 +254,7 @@ class NotePlacementHintCliTest :
             )
         }
 
-        for (family in listOf("UMLCLASS", "IBD", "UC", "STM", "REQ")) {
+        for (family in listOf("UMLCLASS", "IBD", "UC", "STM", "REQ", "ERM")) {
             test("$family evaluates the hint: no W005, NEAR is byte-identical to no hint, a side hint keeps the diagram valid") {
                 val (plainOutcome, plainSvg) = render(evaluated(null).getValue(family))
                 val (nearOutcome, nearSvg) = render(evaluated("NEAR").getValue(family))

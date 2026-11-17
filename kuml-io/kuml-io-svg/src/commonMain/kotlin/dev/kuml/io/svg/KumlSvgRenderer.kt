@@ -79,6 +79,7 @@ import dev.kuml.layout.bridge.erm.ErmIdef1xLayoutBridge
 import dev.kuml.layout.bridge.normalizeActLayout
 import dev.kuml.layout.bridge.normalizeSeqLayout
 import dev.kuml.layout.bridge.note.AnchorGeometry
+import dev.kuml.layout.bridge.note.ErmNotePlacement
 import dev.kuml.layout.bridge.note.NotePlacementConfig
 import dev.kuml.layout.bridge.note.ObstacleIndex
 import dev.kuml.layout.bridge.note.ObstacleKind
@@ -4898,8 +4899,18 @@ public object KumlSvgRenderer {
         theme: KumlTheme = PlainTheme(),
         options: SvgRenderOptions = SvgRenderOptions.DEFAULT,
         notation: ErmNotation = diagram.notation,
-    ): String =
-        when (notation) {
+    ): String {
+        // Nacharbeit 100: notes with a side hint are placed after the layout; others stay where ELK put them.
+        @Suppress("NAME_SHADOWING")
+        val layoutResult =
+            ErmNotePlacement
+                .place(
+                    model = model,
+                    layout = layoutResult,
+                    resolveTarget =
+                        if (notation == ErmNotation.CHEN) ErmNotePlacement.chenTarget(layout = layoutResult) else { id -> id },
+                ).layout
+        return when (notation) {
             ErmNotation.MARTIN ->
                 renderErmMartin(
                     model = model,
@@ -4933,6 +4944,7 @@ public object KumlSvgRenderer {
                     options = options,
                 )
         }
+    }
 
     private fun renderErmMartin(
         model: ErmModel,

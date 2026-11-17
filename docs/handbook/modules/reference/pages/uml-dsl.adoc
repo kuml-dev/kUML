@@ -441,7 +441,7 @@ Which diagram types evaluate the hint:
 | C4 | evaluated (`KUML-NOTE-W004` when not honoured)
 | Service Blueprint | ignored, `KUML-NOTE-W005`
 | BPMN | ignored, `KUML-NOTE-W005`
-| ERM | ignored, `KUML-NOTE-W005`
+| ERM (Martin, Bachman, Chen, IDEF1X) | evaluated (`KUML-NOTE-W004` when not honoured)
 |===
 
 `KUML-NOTE-W005` ("placement hint ignored in this diagram type") needs no layout, so `kuml validate` reports it as well; it
