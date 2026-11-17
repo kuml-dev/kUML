@@ -141,7 +141,9 @@ class LayoutBlockConformanceTest :
                 findings1 shouldBe findings2
                 val w001 = findings1.filter { it.startsWith(LayoutCodes.NO_EFFECT) }
                 val ignored = 3 - LayoutEffectMatrix.effectiveFor(kind).let { if (it.isEmpty()) 0 else 3 }
-                w001.size shouldBe ignored
+                // Nacharbeit 97: the package script has compound members, so wrapColumns (set in the block) is reported too.
+                val compound = if (kind == SpecDiagramKind.SYSML2_PKG) 1 else 0
+                w001.size shouldBe (ignored + compound)
             }
         }
 

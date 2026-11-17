@@ -34,6 +34,13 @@ class LayoutEffectMatrixTest :
             }
         }
 
+        test("ignoredInsideCompound lists only wrapColumns and sameLayer, and every key is a matrix row") {
+            LayoutEffectMatrix.ignoredInsideCompound.forEach { (kind, options) ->
+                LayoutEffectMatrix.effective.containsKey(kind) shouldBe true
+                (options - setOf(LayoutOption.WRAP_COLUMNS, LayoutOption.SAME_LAYER)).shouldBeEmpty()
+            }
+        }
+
         test("fixed-geometry arts ignore every option, layered arts none") {
             val spec = LayoutSpec(direction = LayoutFlow.Right, wrapColumns = 2, aspectRatio = 1.5, maxWidth = 900)
             listOf(

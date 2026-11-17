@@ -126,14 +126,29 @@ public object LayoutEffectMatrix {
 
     /**
      * Options that [effective] lists for a kind but that have no effect on the elements drawn inside a compound
-     * boundary (Nacharbeit 96). The layered engine lays the boundary out as a compound node and does not assign
-     * layers to its members, so `wrapColumns` and `sameLayer` act on the system context diagram of C4 but not on the
-     * containers or components inside the boundary of a container or component diagram. `first`, `last`, `direction`
-     * and `aspectRatio` still act. Reported as `KUML-LAYOUT-W001` when the diagram has compound members; not part of
-     * the handbook table cells (note 1 under the table explains it), so `LayoutEffectMatrixDocSyncTest` ignores it.
+     * boundary (Nacharbeit 96, extended in Nacharbeit 97). The layered engine lays the boundary out as a compound
+     * node and does not assign layers to its members, so `wrapColumns` and `sameLayer` act on the system context
+     * diagram of C4 but not on the containers or components inside a boundary, nor on the members of a package, a
+     * deployment node or a state-machine frame. `first`, `last`, `direction` and `aspectRatio` still act, and elements
+     * outside the boundary stay movable. Measured per kind by `CompoundLayoutOptionsTest` (members' bounds identical
+     * with and without the option). Kinds with their own grid inside the boundary (SysML 2 requirement groups, use-case
+     * system boundary, activity lanes) are deliberately absent. Reported as `KUML-LAYOUT-W001` when the diagram has
+     * compound members; not part of the handbook table cells (note 1 under the table explains it), so
+     * `LayoutEffectMatrixDocSyncTest` ignores it.
      */
     public val ignoredInsideCompound: Map<SpecDiagramKind, Set<LayoutOption>> =
-        mapOf(SpecDiagramKind.C4 to setOf(LayoutOption.WRAP_COLUMNS, LayoutOption.SAME_LAYER))
+        run {
+            val both = setOf(LayoutOption.WRAP_COLUMNS, LayoutOption.SAME_LAYER)
+            mapOf(
+                SpecDiagramKind.C4 to both,
+                SpecDiagramKind.UML_CLASS to both,
+                SpecDiagramKind.UML_PACKAGE to both,
+                SpecDiagramKind.UML_COMPONENT to both,
+                SpecDiagramKind.UML_DEPLOYMENT to both,
+                SpecDiagramKind.UML_STATE to both,
+                SpecDiagramKind.SYSML2_PKG to both,
+            )
+        }
 
     /** The options that have an effect on [kind]. */
     public fun effectiveFor(kind: SpecDiagramKind): Set<LayoutOption> = effective.getValue(kind)

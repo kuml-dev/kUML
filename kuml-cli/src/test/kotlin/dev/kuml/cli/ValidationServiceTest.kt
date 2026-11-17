@@ -93,6 +93,37 @@ class ValidationServiceTest :
             codes.count { it == "KUML-LAYOUT-W004" } shouldBe 1
         }
 
+        test("wrapColumns and sameLayer inside a package are KUML-LAYOUT-W001, without a package or without the option they are not") {
+            fun script(
+                withPackage: Boolean,
+                layoutBlock: String,
+            ) = if (withPackage) {
+                """
+                classDiagram(name = "D") {
+                    packageOf(name = "P") {
+                        classOf(name = "A")
+                        classOf(name = "B")
+                    }
+                    layout { $layoutBlock }
+                }
+                """.trimIndent()
+            } else {
+                """
+                classDiagram(name = "D") {
+                    classOf(name = "A")
+                    classOf(name = "B")
+                    layout { $layoutBlock }
+                }
+                """.trimIndent()
+            }
+
+            fun w001(s: String) = ValidationService.validate(script = s).filter { it.code == "KUML-LAYOUT-W001" }
+            w001(script(withPackage = true, layoutBlock = "wrapColumns = 2")).size shouldBe 1
+            w001(script(withPackage = true, layoutBlock = "wrapColumns = 2; sameLayer(\"P.A\", \"P.B\")")).size shouldBe 2
+            w001(script(withPackage = true, layoutBlock = "direction = Right")).shouldBeEmpty()
+            w001(script(withPackage = false, layoutBlock = "wrapColumns = 2")).shouldBeEmpty()
+        }
+
         val ibdScript =
             """
             sysml2Model(name = "M") {

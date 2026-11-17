@@ -114,7 +114,8 @@ public object LayoutSpecRunner {
                         } else {
                             "this diagram (${kind.name.lowercase()})"
                         }
-                    "layout option '${it.name.lowercase()}' has no effect on the elements inside the system boundary of $scope; " +
+                    "layout option '${it.name.lowercase()}' has no effect on the elements inside a package, node or system " +
+                        "boundary of $scope; " +
                         "the layered engine does not assign layers to compound members."
                 } else {
                     "layout option '${it.name.lowercase()}' has no effect on $where."

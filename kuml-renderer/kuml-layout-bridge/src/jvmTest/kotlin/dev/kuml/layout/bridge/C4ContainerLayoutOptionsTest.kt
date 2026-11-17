@@ -183,9 +183,9 @@ class C4ContainerLayoutOptionsTest :
             without.filter { it.code == LayoutCodes.NO_EFFECT }.shouldBeEmpty()
         }
 
-        test("the compound rule is keyed on C4 only and listed in the matrix") {
+        test("the compound rule is keyed per kind and listed in the matrix") {
             val spec = LayoutSpec(wrapColumns = 2)
-            LayoutSpecRunner.ignoredOptions(spec = spec, kind = SpecDiagramKind.UML_PACKAGE, compoundMembers = true).shouldBeEmpty()
+            LayoutSpecRunner.ignoredOptions(spec = spec, kind = SpecDiagramKind.SYSML2_BDD, compoundMembers = true).shouldBeEmpty()
             LayoutSpecRunner.ignoredOptions(spec = spec, kind = SpecDiagramKind.C4, compoundMembers = true) shouldBe
                 listOf(LayoutOption.WRAP_COLUMNS)
             LayoutEffectMatrix.ignoredInsideCompound.getValue(SpecDiagramKind.C4) shouldBe

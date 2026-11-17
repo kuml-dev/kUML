@@ -207,20 +207,20 @@ estimated as before.
 === Keyword by diagram family
 
 `acts` means the keyword changes the layout; `W001` means it is ignored and reported as `KUML-LAYOUT-W001`. The
-rows follow `LayoutEffectMatrix`; the C4 row also records what an A/B render (with and without the keyword,
-compared by SVG) showed.
+rows follow `LayoutEffectMatrix`; notes 1 and 3 record what an A/B render (with and without the keyword) showed
+inside compound boundaries.
 
 [cols="3,1,1,1,1,1,1",options="header"]
 |===
 | Diagram family | `direction` | `wrapColumns` | `sameLayer` | `first` / `last` | `aspectRatio` | `maxWidth`
 
-| UML (all except sequence and timing)
+| UML (all except sequence and timing) (see note 3)
 | acts | acts | acts | acts | acts | acts
 
 | UML sequence, UML timing
 | W001 | W001 | W001 | W001 | W001 | W001
 
-| SysML 2 (all except sequence)
+| SysML 2 (all except sequence) (see note 3)
 | acts | acts | acts | acts | acts | acts
 
 | SysML 2 sequence
@@ -251,6 +251,15 @@ compared by SVG) showed.
   boundary (an external system) can still move. `direction`, `first`, `last` and `aspectRatio` act in all three C4 diagrams.
 . BPMN: the matrix lists the layered options, but the BPMN diagram builders have no `layout { }` block yet, so
   there is nothing to write there.
+. Compound boundaries in UML and SysML 2 (the same rule as note 1, extended in Nacharbeit 97): in UML class,
+  package and component diagrams the members of a package, in UML deployment diagrams the nodes inside a node, in UML
+  state machines the states inside the machine frame, and in SysML 2 package diagrams the cards inside a package frame
+  are laid out as members of a compound node. A/B renders with six members and `wrapColumns = 2`, or two members
+  forced onto one layer with `sameLayer`, gave identical member positions in all of these diagrams, so both keywords
+  are reported with `KUML-LAYOUT-W001` when the diagram has such members. Elements outside the package or boundary
+  can still move, and `direction`, `first`, `last` and `aspectRatio` still act. SysML 2 requirement groups, the
+  use-case system boundary and activity lanes lay their members out in a grid of their own; they are not reported.
+  Other arts that can draw compounds (UML object, composite structure, profile) were not measured and are not reported.
 
 Options that belong to one diagram kind only: `labelMaxWidth` (SysML 2 state machines; `KUML-LAYOUT-W001` elsewhere,
 `KUML-LAYOUT-E001` outside 120..400), `showSubjectEdges` (SysML 2 requirement diagrams) and `actorSide` (SysML 2 use-case
@@ -425,7 +434,8 @@ reqDiagram("Requirements") {
   region are left to the engine. UML state machines keep their nodes in a compound frame, where layer hints are
   ignored, so there the cycle-breaking priority and the placement above do the work.
 * Layer hints are honoured for nodes that are not inside a compound group. ELK ignores them inside
-  compounds and reports `hint.ignored.layerInCompound`.
+  compounds and reports `hint.ignored.layerInCompound`. For `wrapColumns` and `sameLayer` the diagram art reports
+  `KUML-LAYOUT-W001` as well, see notes 1 and 3 under the keyword table.
 * Sequence diagrams ignore all hints (lifeline order is the declaration order); `kuml validate` warns (`LAYOUT412`).
 * The grid engine and the WebAssembly playground do not evaluate these hints.
 * Swimlane (partition) activity diagrams are drawn top to bottom only; another `direction` is reported as `LAYOUT433`.
