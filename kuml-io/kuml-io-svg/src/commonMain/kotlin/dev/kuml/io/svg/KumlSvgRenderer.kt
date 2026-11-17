@@ -84,6 +84,7 @@ import dev.kuml.layout.bridge.note.ObstacleIndex
 import dev.kuml.layout.bridge.note.ObstacleKind
 import dev.kuml.layout.bridge.note.Sysml2NoteAnchorExtras
 import dev.kuml.layout.bridge.note.Sysml2NotePlacement
+import dev.kuml.layout.bridge.note.UmlNotePlacement
 import dev.kuml.renderer.theme.core.KumlTheme
 import dev.kuml.renderer.theme.core.PlainTheme
 import dev.kuml.sysml2.ActDiagram
@@ -165,6 +166,10 @@ public object KumlSvgRenderer {
         if (diagram.type == DiagramType.SEQUENCE) {
             return renderUmlSequence(diagram = diagram, layoutResult = layoutResult, theme = theme, options = options)
         }
+        // Nacharbeit 99: notes with a side hint (ABOVE/BELOW/LEFT/RIGHT) are placed after the layout, like C4 and SysML 2 notes.
+        // Without such a note the layout is returned unchanged.
+        @Suppress("NAME_SHADOWING")
+        val layoutResult = UmlNotePlacement.place(diagram = diagram, layout = layoutResult).layout
         // STATE diagrams have their own renderer-direct path (vertex/transition dispatch)
         if (diagram.type == DiagramType.STATE) {
             return renderUmlStateDiagram(diagram = diagram, rawLayoutResult = layoutResult, theme = theme, options = options)

@@ -7,7 +7,8 @@ import java.io.File
 import java.nio.file.Files
 
 /**
- * N2: a note placement hint is evaluated for SysML 2 diagrams other than sequence diagrams; every other family reports
+ * N2: a note placement hint is evaluated for SysML 2 diagrams other than sequence diagrams, for C4 and (Nacharbeit 99) for UML
+ * diagrams other than sequence diagrams; every other family (including the UML sequence diagram, family "UML") reports
  * `KUML-NOTE-W005` (once per hinted note), NEAR never warns, and the SVG of an ignoring family does not change.
  */
 class NotePlacementHintCliTest :
@@ -81,9 +82,11 @@ class NotePlacementHintCliTest :
                     """.trimIndent(),
                 "UML" to
                     """
-                    classDiagram(name = "Orders") {
-                        val order = classOf(name = "Order") { attribute(name = "id", type = "String") }
-                        comment(text = "About order", order$arg)
+                    sequenceDiagram(name = "Orders") {
+                        val a = lifeline(name = "A")
+                        val b = lifeline(name = "B")
+                        message(from = a, to = b, label = "go()")
+                        comment(text = "About A", a$arg)
                     }
                     """.trimIndent(),
                 "BDD" to
@@ -167,6 +170,15 @@ class NotePlacementHintCliTest :
         fun evaluated(hint: String?): Map<String, String> {
             val arg = if (hint == null) "" else ", placement = NotePlacement.$hint"
             return mapOf(
+                "UMLCLASS" to
+                    """
+                    classDiagram(name = "Orders") {
+                        val order = classOf(name = "Order") { attribute(name = "id", type = "String") }
+                        val item = classOf(name = "Item") { attribute(name = "sku", type = "String") }
+                        association(source = order, target = item)
+                        comment(text = "About order", order$arg)
+                    }
+                    """.trimIndent(),
                 "IBD" to
                     """
                     sysml2Model("Ibd") {
@@ -229,7 +241,7 @@ class NotePlacementHintCliTest :
             )
         }
 
-        for (family in listOf("IBD", "UC", "STM", "REQ")) {
+        for (family in listOf("UMLCLASS", "IBD", "UC", "STM", "REQ")) {
             test("$family evaluates the hint: no W005, NEAR is byte-identical to no hint, a side hint keeps the diagram valid") {
                 val (plainOutcome, plainSvg) = render(evaluated(null).getValue(family))
                 val (nearOutcome, nearSvg) = render(evaluated("NEAR").getValue(family))
@@ -244,5 +256,13 @@ class NotePlacementHintCliTest :
                     }
                 }
             }
+        }
+
+        test("a UML class diagram note moves with ABOVE versus BELOW and keeps its anchor line") {
+            val (_, above) = render(evaluated("ABOVE").getValue("UMLCLASS"))
+            val (_, below) = render(evaluated("BELOW").getValue("UMLCLASS"))
+            (above == below) shouldBe false
+            above.contains("About order") shouldBe true
+            below.contains("About order") shouldBe true
         }
     })

@@ -6,6 +6,13 @@ All notable changes to this project are documented here. Format follows
 
 ## [Unreleased]
 
+### Nacharbeit 99: UML notes honour the placement hint
+
+- **Why.** Not fixed of Nacharbeit 98: UML notes (`comment(...)`) accepted `placement` but ignored it and reported `KUML-NOTE-W005`.
+- **Change.** New `UmlNotePlacement` (layout bridge). UML notes are ELK nodes; a note with a side hint (ABOVE/BELOW/LEFT/RIGHT) and at least one resolvable anchor is now taken out of the ELK result together with its comment-link edges and placed by `NotePlacer` against the finished layout, like C4 and SysML 2 notes. A hint no free position can satisfy gives the default placement and `KUML-NOTE-W004`. Notes without a hint (or with `NEAR`), without a resolvable anchor, and every UML sequence diagram are untouched, so output without a side hint is byte-identical. Wired into `KumlSvgRenderer.toSvg` and `KumlLatexRenderer.toLatex`. `NoteChecks` now reports W005 for UML only for sequence diagrams. Handbook: `uml-dsl.adoc` table, `validate.adoc` W005 family.
+- **Verification.** New `UmlNotePlacementHintTest` (hand-built layout, no fonts: each side, no-hint/NEAR unchanged, unresolvable anchor, W004 once, sequence untouched, determinism). `NotePlacementHintCliTest`: UML class diagram moved to the evaluating families (no W005, `NEAR` byte-identical, ABOVE differs from BELOW); the ignoring "UML" family is now the UML sequence diagram.
+- **Not fixed.** SEQ (SysML 2 and UML), Blueprint, BPMN and ERM still ignore the hint (W005). Edge labels are not obstacles for UML notes (no label estimate), so a note can sit on a label.
+
 ### Nacharbeit 98: C4 notes honour the placement hint
 
 - **Why.** `note(..., placement = NotePlacement.X)` was accepted in C4 but ignored, and a side hint was reported as `KUML-NOTE-W005` (Not fixed (1) of Nacharbeit 90: the C4 placer would accept it with little work).

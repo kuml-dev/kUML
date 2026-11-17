@@ -33,6 +33,7 @@ import dev.kuml.layout.NodeId
 import dev.kuml.layout.bridge.NoteLayout
 import dev.kuml.layout.bridge.note.C4NotePlacement
 import dev.kuml.layout.bridge.note.Sysml2NotePlacement
+import dev.kuml.layout.bridge.note.UmlNotePlacement
 import dev.kuml.layout.bridge.note.WidthLimitedNoteMeasure
 import dev.kuml.sysml2.ActDiagram
 import dev.kuml.sysml2.ActionDefinition
@@ -142,7 +143,13 @@ public object KumlLatexRenderer {
         diagram: KumlDiagram,
         layoutResult: LayoutResult,
         options: LatexRenderOptions = LatexRenderOptions.DEFAULT,
-    ): String = renderKuml(diagram = diagram, layoutResult = layoutResult, options = options)
+    ): String =
+        renderKuml(
+            diagram = diagram,
+            // Nacharbeit 99: notes with a side hint are placed after the layout (unchanged layout when there is none).
+            layoutResult = UmlNotePlacement.place(diagram = diagram, layout = layoutResult).layout,
+            options = options,
+        )
 
     /**
      * Shared body of the UML entry and the SysML 2 sequence diagram.
