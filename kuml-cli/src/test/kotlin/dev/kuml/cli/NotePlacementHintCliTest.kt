@@ -55,17 +55,6 @@ class NotePlacementHintCliTest :
                         diagram(name = "D")
                     }
                     """.trimIndent(),
-                "BLUEPRINT" to
-                    """
-                    import dev.kuml.blueprint.dsl.blueprint
-                    import dev.kuml.blueprint.model.Sentiment
-                    blueprint(name = "Service") {
-                        lateinit var s: String
-                        phase(name = "Request") { s = customer(name = "Fills in", sentiment = Sentiment.NEUTRAL) }
-                        note("About step", s, id = "n1"$arg)
-                        blueprintDiagram(name = "Blueprint")
-                    }
-                    """.trimIndent(),
                 "BPMN" to
                     """
                     import dev.kuml.bpmn.dsl.*
@@ -116,7 +105,7 @@ class NotePlacementHintCliTest :
 
         fun placementCodes(o: RenderOutcome) = o.noteFindings.filter { it.code == "KUML-NOTE-W004" || it.code == "KUML-NOTE-W005" }
 
-        for (family in listOf("SEQ", "BLUEPRINT", "BPMN", "UML")) {
+        for (family in listOf("SEQ", "BPMN", "UML")) {
             test("$family ignores ABOVE with exactly one W005, an unchanged SVG, and NEAR stays silent") {
                 val (plainOutcome, plainSvg) = render(scripts(null).getValue(family))
                 val (aboveOutcome, aboveSvg) = render(scripts("ABOVE").getValue(family))
@@ -237,6 +226,21 @@ class NotePlacementHintCliTest :
                         diagram(name = "D")
                     }
                     """.trimIndent(),
+                "BLUEPRINT" to
+                    """
+                    import dev.kuml.blueprint.dsl.blueprint
+                    import dev.kuml.blueprint.model.Sentiment
+                    blueprint(name = "Service") {
+                        lateinit var s: String
+                        phase(name = "Request") {
+                            customer(name = "Reads", sentiment = Sentiment.NEUTRAL)
+                            s = customer(name = "Fills in", sentiment = Sentiment.NEUTRAL)
+                            customer(name = "Sends", sentiment = Sentiment.NEUTRAL)
+                        }
+                        note("About step", s, id = "n1"$arg)
+                        blueprintDiagram(name = "Blueprint")
+                    }
+                    """.trimIndent(),
                 "REQ" to
                     """
                     sysml2Model("Reqs") {
@@ -254,7 +258,7 @@ class NotePlacementHintCliTest :
             )
         }
 
-        for (family in listOf("UMLCLASS", "IBD", "UC", "STM", "REQ", "ERM")) {
+        for (family in listOf("UMLCLASS", "IBD", "UC", "STM", "REQ", "ERM", "BLUEPRINT")) {
             test("$family evaluates the hint: no W005, NEAR is byte-identical to no hint, a side hint keeps the diagram valid") {
                 val (plainOutcome, plainSvg) = render(evaluated(null).getValue(family))
                 val (nearOutcome, nearSvg) = render(evaluated("NEAR").getValue(family))

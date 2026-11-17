@@ -6,6 +6,10 @@ import dev.kuml.blueprint.model.BlueprintLayer
 import dev.kuml.blueprint.model.BlueprintLine
 import dev.kuml.blueprint.model.BlueprintModel
 import dev.kuml.blueprint.model.Phase
+import dev.kuml.core.model.note.NotePlacement
+import dev.kuml.core.model.note.isHint
+import dev.kuml.layout.bridge.note.NotePlacementMissCollector
+import dev.kuml.layout.bridge.note.PlacementHintMiss
 
 /**
  * Self-contained grid geometry for the Journey-Map / Blueprint view.
@@ -145,6 +149,9 @@ internal class BlueprintGeometry(
     /** x of the note column (a gutter right of the lanes). */
     val noteX = contentRight + noteGutter
 
+    /** Placement hints of notes that could not be honoured (Nacharbeit 101), reported as `KUML-NOTE-W004`. */
+    private val misses = ArrayList<PlacementHintMiss>()
+
     /** Notes with their anchor routes, in declaration order; empty when the model has no notes. */
     val placedNotes: List<PlacedBlueprintNote> = placeNotes()
 
@@ -188,8 +195,36 @@ internal class BlueprintGeometry(
             val h = maxOf(size.height.toDouble(), BlueprintNoteRouter.minNoteHeight(anchors = links.size.coerceAtLeast(1)))
             val steps = anchored.getValue(n.id)
             val first = steps.firstOrNull()?.let { cellOf(it) }
-            val desired = if (first != null) first.second + bandHeight(steps.first().layer) / 2 - h / 2 else bottom
+            // Nacharbeit 101: a side hint places the note against the first anchor card (the note column stays right of the lanes).
+            val hint = n.placement.takeIf { it.isHint() && first != null }
+            val anchorCard = if (hint != null) cardRects[steps.first().id] else null
+            val desired =
+                when {
+                    anchorCard != null && hint == NotePlacement.ABOVE -> anchorCard.y - NOTE_GAP - h
+                    anchorCard != null && hint == NotePlacement.BELOW -> anchorCard.y + anchorCard.h + NOTE_GAP
+                    first != null -> first.second + bandHeight(steps.first().layer) / 2 - h / 2
+                    else -> bottom
+                }
             val y = maxOf(desired, bottom)
+            if (hint != null && anchorCard != null) {
+                val placed =
+                    when {
+                        y + h <= anchorCard.y + EPS -> NotePlacement.ABOVE
+                        y >= anchorCard.y + anchorCard.h - EPS -> NotePlacement.BELOW
+                        else -> NotePlacement.NEAR
+                    }
+                // The column lies right of the lanes, so RIGHT always holds and LEFT never can.
+                val honoured =
+                    when (hint) {
+                        NotePlacement.RIGHT -> true
+                        NotePlacement.LEFT -> false
+                        else -> placed == hint
+                    }
+                if (!honoured) {
+                    val actual = if (hint == NotePlacement.LEFT) NotePlacement.RIGHT else placed
+                    misses += PlacementHintMiss(noteId = n.id, wanted = hint, placed = actual, sourceLine = n.sourceLine)
+                }
+            }
             bottom = y + h + NOTE_GAP
             val targets =
                 links.map { link ->
@@ -239,6 +274,7 @@ internal class BlueprintGeometry(
                 )
             out += PlacedBlueprintNote(id = n.id, body = n.body, kind = n.kind, x = noteX, y = y, w = w, h = h, routes = routes)
         }
+        NotePlacementMissCollector.report(misses)
         return out
     }
 
@@ -317,4 +353,5 @@ private const val SEPARATOR_CAPTION_CENTER_PX: Double = 16.0
 private const val SEPARATOR_CAPTION_CLEARANCE_PX: Double = 9.0
 private const val NOTE_GUTTER: Double = 16.0
 private const val NOTE_GAP: Double = 12.0
+private const val EPS: Double = 1e-6
 private val CARD_MARGIN_SIDE: Double = BlueprintGridConstants.CARD_MARGIN_SIDE

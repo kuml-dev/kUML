@@ -6,6 +6,13 @@ All notable changes to this project are documented here. Format follows
 
 ## [Unreleased]
 
+### Nacharbeit 101: Service Blueprint notes honour the placement hint
+
+- **Why.** Not fixed of Nacharbeit 100: Service Blueprint notes (`note(...)`) accepted `placement` but ignored it and reported `KUML-NOTE-W005`.
+- **Change.** The blueprint grid has no free space beside the cards, so the hint is evaluated inside the note column against the first anchor card (`BlueprintGeometry`): ABOVE puts the note entirely above that card, BELOW entirely below it, RIGHT and NEAR keep the default. LEFT can never be honoured; ABOVE fails when earlier notes or the top of the grid leave no room. A miss gives the default or pushed-down placement and `KUML-NOTE-W004` (with source line). Free-standing notes and output without a side hint are unchanged. `NoteChecks` no longer reports W005 for Service Blueprint. Handbook: `blueprint-notes.adoc`, `uml-dsl.adoc` (table), `validate.adoc`.
+- **Verification.** New `BlueprintNotePlacementHintTest`; Service Blueprint moved to the evaluating families of `NotePlacementHintCliTest`.
+- **Not fixed.** SEQ (SysML 2 and UML) and BPMN still ignore the hint (W005).
+
 ### Nacharbeit 100: ERM notes honour the placement hint
 
 - **Why.** Not fixed of Nacharbeit 99: ERM notes (`note(...)`) accepted `placement` but ignored it and reported `KUML-NOTE-W005`.

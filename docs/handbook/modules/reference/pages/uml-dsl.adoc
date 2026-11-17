@@ -439,7 +439,7 @@ Which diagram types evaluate the hint:
 | UML diagrams other than sequence (class comments and the other UML kinds) | evaluated (`KUML-NOTE-W004` when not honoured)
 | UML sequence diagram | ignored, `KUML-NOTE-W005`
 | C4 | evaluated (`KUML-NOTE-W004` when not honoured)
-| Service Blueprint | ignored, `KUML-NOTE-W005`
+| Service Blueprint | evaluated within the note column (`KUML-NOTE-W004` when not honoured; LEFT never can be)
 | BPMN | ignored, `KUML-NOTE-W005`
 | ERM (Martin, Bachman, Chen, IDEF1X) | evaluated (`KUML-NOTE-W004` when not honoured)
 |===
