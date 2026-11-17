@@ -1,5 +1,7 @@
 package dev.kuml.layout.bridge.note
 
+import dev.kuml.core.model.note.NotePlacement
+import dev.kuml.core.model.note.isHint
 import dev.kuml.layout.EdgeId
 import dev.kuml.layout.EdgeRoute
 import dev.kuml.layout.LayoutResult
@@ -9,6 +11,7 @@ import dev.kuml.layout.Point
 import dev.kuml.layout.Rect
 import dev.kuml.layout.Size
 import kotlin.math.abs
+import kotlin.math.ceil
 import kotlin.math.max
 import kotlin.math.min
 
@@ -63,6 +66,12 @@ public data class SeqNotePolicy(
     val parallelTolerance: Float = 5f,
     /** Distance of the corridor of a message anchor below the message line. */
     val corridor: Float = 8f,
+    /**
+     * Placement hint ABOVE/BELOW (Nacharbeit 102): the note must clear the anchor row by this distance. Smaller than
+     * [clearance] on purpose: a participant anchor sits [stemInset] below the head and its line needs 6 px of stem on
+     * both ends, so a note ending a full [clearance] above the anchor point could never be connected.
+     */
+    val hintRowGap: Float = 12f,
 )
 
 /**
@@ -80,6 +89,19 @@ public data class SeqNotePolicy(
  *
  * A note anchored on several lifelines always goes to the margin of the side of its outermost lifeline; one line per
  * anchor runs horizontally to the stem (crossing foreign stems on the way, which are counted).
+ *
+ * Placement hint (Nacharbeit 102): a note with `placement` ABOVE/BELOW/LEFT/RIGHT is first searched with a filter in
+ * front of the unchanged search, and only if that finds nothing admissible the unfiltered search runs. LEFT/RIGHT restrict
+ * the columns (one anchor: right = inner right then right margin, left = inner left then left margin; several anchors:
+ * the right or left margin only) and ignore a sticky side of a sibling note. ABOVE/BELOW keep all columns but only one
+ * vertical direction, in the window `[minShift, minShift + maxShift]`, where `minShift` is the smallest shift that clears
+ * the anchor row (the whole anchor span for BELOW) by [SeqNotePolicy.hintRowGap], so a tall note is not rejected by the window. The
+ * hint is evaluated on the final plan; if the rectangle is not on the wished side (also after the fallback) the miss is
+ * reported in [NotePlacementResult.hintNotHonoured] (`KUML-NOTE-W004`) with the side it really got (ABOVE/BELOW only if
+ * the rectangle clears the row, else NEAR). ABOVE needs an anchor line that reaches the anchor from a note above it:
+ * that exists for participants (one anchor, or several at the same height), not for a message anchor, so ABOVE on a
+ * message always reports a miss. A note without a resolvable anchor always sits in the right margin: RIGHT
+ * counts as honoured, every other hint is a miss. Without a hint the code path is unchanged.
  */
 public object SeqNotePlacer {
     private sealed interface Target {
@@ -108,9 +130,15 @@ public object SeqNotePlacer {
         val routes: List<List<Point>>,
         val crossings: Int,
     ) {
-        /** Inner column kind (1 right, 2 left) this plan was found in; 0 for margin columns and the fallback. */
+        /** Column kind (1 inner right, 2 inner left, 3 right margin, 4 left margin) this plan was found in; 0 for the fallback. */
         var columnKind: Int = 0
     }
+
+    /** Hint filter: allowed column kinds in search order (null = all) and vertical direction (0 both, -1 above, +1 below). */
+    private class HintFilter(
+        val kinds: List<Int>?,
+        val vertical: Int,
+    )
 
     private class Column(
         val kind: Int,
@@ -130,6 +158,7 @@ public object SeqNotePlacer {
         maxNoteWidth: Float = dev.kuml.layout.bridge.NoteLayout.MAX_W,
     ): NotePlacementResult {
         val truncated = mutableListOf<String>()
+        val hintMisses = mutableListOf<PlacementHintMiss>()
         val unresolved = mutableListOf<UnresolvedAnchor>()
         val degraded = mutableListOf<String>()
         var crossings = 0
@@ -192,17 +221,40 @@ public object SeqNotePlacer {
             val anchorKey = targets.map { targetId(it) }.toSet()
             val preferred = if (targets.size == 1) stickyColumn[anchorKey] ?: 0 else 0
             val ctx = Ctx(scene = scene, policy = policy, placed = placed, routes = routes, own = targets, preferredKind = preferred)
-            val plan = choose(size = size, targets = targets, content = content, ctx = ctx)
-            if (plan != null) {
-                if (targets.size == 1 &&
-                    (plan.columnKind == 1 || plan.columnKind == 2)
-                ) {
-                    if (anchorKey !in stickyColumn) stickyColumn[anchorKey] = plan.columnKind
+            val hint = note.placement?.takeIf { it.isHint() }
+            var plan: Plan? = null
+            if (hint != null) {
+                val filter = filterFor(hint = hint, anchorCount = targets.size)
+                // a LEFT/RIGHT wish overrides the sticky side of a sibling note
+                val hintCtx =
+                    if (filter.vertical ==
+                        0
+                    ) {
+                        Ctx(scene = scene, policy = policy, placed = placed, routes = routes, own = targets, preferredKind = 0)
+                    } else {
+                        ctx
+                    }
+                plan = choose(size = size, targets = targets, content = content, ctx = hintCtx, filter = filter)
+            }
+            if (plan == null) plan = choose(size = size, targets = targets, content = content, ctx = ctx)
+            val finalPlan =
+                if (plan != null) {
+                    if (targets.size == 1 &&
+                        (plan.columnKind == 1 || plan.columnKind == 2)
+                    ) {
+                        if (anchorKey !in stickyColumn) stickyColumn[anchorKey] = plan.columnKind
+                    }
+                    plan
+                } else {
+                    degraded += note.noteId
+                    fallback(size = size, targets = targets, content = content, ctx = ctx)
                 }
-                commit(note = note, targets = targets, plan = plan)
-            } else {
-                degraded += note.noteId
-                commit(note = note, targets = targets, plan = fallback(size = size, targets = targets, content = content, ctx = ctx))
+            commit(note = note, targets = targets, plan = finalPlan)
+            if (hint != null) {
+                hintMissOf(note = note, hint = hint, plan = finalPlan, targets = targets, rowGap = policy.hintRowGap)?.let {
+                    hintMisses +=
+                        it
+                }
             }
         }
 
@@ -218,6 +270,10 @@ public object SeqNotePlacer {
             nodes[NodeId(note.noteId)] = NodeLayout(bounds = rect)
             placed += rect
             extent = extent.union(rect)
+            val hint = note.placement?.takeIf { it.isHint() }
+            if (hint != null && hint != NotePlacement.RIGHT) {
+                hintMisses += PlacementHintMiss(noteId = note.noteId, wanted = hint, placed = NotePlacement.RIGHT)
+            }
         }
 
         val raw =
@@ -236,6 +292,7 @@ public object SeqNotePlacer {
             dy = dy,
             degraded = degraded,
             crossings = crossings,
+            hintNotHonoured = hintMisses,
         )
     }
 
@@ -276,7 +333,9 @@ public object SeqNotePlacer {
         targets: List<Target>,
         content: Rect,
         ctx: Ctx,
+        filter: HintFilter? = null,
     ): Plan? {
+        if (filter != null) return chooseFiltered(size = size, targets = targets, content = content, ctx = ctx, filter = filter)
         val policy = ctx.policy
         val topY = targets.minOf { it.y }
         val columns = columnsFor(size = size, targets = targets, content = content, ctx = ctx)
@@ -315,6 +374,115 @@ public object SeqNotePlacer {
             }
         }
         return overall
+    }
+
+    private fun filterFor(
+        hint: NotePlacement,
+        anchorCount: Int,
+    ): HintFilter {
+        val single = anchorCount == 1
+        return when (hint) {
+            NotePlacement.RIGHT -> HintFilter(kinds = if (single) listOf(1, 3) else listOf(3), vertical = 0)
+            NotePlacement.LEFT -> HintFilter(kinds = if (single) listOf(2, 4) else listOf(4), vertical = 0)
+            NotePlacement.ABOVE -> HintFilter(kinds = null, vertical = -1)
+            else -> HintFilter(kinds = null, vertical = 1)
+        }
+    }
+
+    /**
+     * The search of [choose] behind a [HintFilter]: same candidate rules, restricted columns and vertical direction. The
+     * unfiltered loop in [choose] is deliberately left untouched so a note without a hint is placed exactly as before.
+     */
+    private fun chooseFiltered(
+        size: Size,
+        targets: List<Target>,
+        content: Rect,
+        ctx: Ctx,
+        filter: HintFilter,
+    ): Plan? {
+        val policy = ctx.policy
+        val topY = targets.minOf { it.y }
+        val bottomY = targets.maxOf { it.y }
+        val all = columnsFor(size = size, targets = targets, content = content, ctx = ctx)
+        val columns = filter.kinds?.mapNotNull { k -> all.firstOrNull { it.kind == k } } ?: all
+        val rows = ctx.scene.rowPitch.coerceAtLeast(policy.step)
+        val c = policy.hintRowGap
+        val minShift =
+            when (filter.vertical) {
+                -1 -> ceil((size.height / 2f + c) / policy.step) * policy.step
+                1 -> ceil(((bottomY - topY) + size.height / 2f + c) / policy.step) * policy.step
+                else -> 0f
+            }
+        var overall: Plan? = null
+        for (col in columns) {
+            val maxShift = rows * policy.maxRowSteps * (if (col.kind >= 3 || col.kind == ctx.preferredKind) 2 else 1)
+            val end = minShift + maxShift
+            var best: Plan? = null
+            var shift = minShift
+            while (shift <= end + 0.01f) {
+                val signs =
+                    when (filter.vertical) {
+                        0 -> if (shift == 0f) listOf(1f) else listOf(1f, -1f)
+                        else -> listOf(filter.vertical.toFloat())
+                    }
+                for (sign in signs) {
+                    val rect = Rect(origin = Point(x = col.left, y = topY - size.height / 2f + shift * sign), size = size)
+                    if (filter.vertical == -1 && rect.bottom > topY - c) continue
+                    if (filter.vertical == 1 && rect.top < bottomY + c) continue
+                    if (!rectAdmissible(rect = rect, ctx = ctx)) continue
+                    val plan = planRoutes(rect = rect, targets = targets, ctx = ctx) ?: continue
+                    if (best == null || plan.crossings < best.crossings) best = plan
+                }
+                if (best != null && best.crossings == 0) break
+                shift += policy.step
+            }
+            if (best != null) {
+                if (overall == null || best.crossings < overall.crossings) {
+                    best.columnKind = col.kind
+                    overall = best
+                }
+                if (best.crossings == 0) return overall
+            }
+        }
+        return overall
+    }
+
+    /** The miss of [hint] on the final [plan], or null if the note ended up on the wished side. */
+    private fun hintMissOf(
+        note: NotePlacementInput,
+        hint: NotePlacement,
+        plan: Plan,
+        targets: List<Target>,
+        rowGap: Float,
+    ): PlacementHintMiss? {
+        val rect = plan.rect
+        val topY = targets.minOf { it.y }
+        val bottomY = targets.maxOf { it.y }
+        val onRight = plan.columnKind == 1 || plan.columnKind == 3 || plan.columnKind == 0
+        val above = rect.bottom <= topY - rowGap
+        val below = rect.top >= bottomY + rowGap
+        val honoured =
+            when (hint) {
+                NotePlacement.RIGHT -> onRight
+                NotePlacement.LEFT -> !onRight
+                NotePlacement.ABOVE -> above
+                else -> below
+            }
+        if (honoured) return null
+        val placed =
+            when (hint) {
+                NotePlacement.RIGHT -> NotePlacement.LEFT
+                NotePlacement.LEFT -> NotePlacement.RIGHT
+                else ->
+                    if (above) {
+                        NotePlacement.ABOVE
+                    } else if (below) {
+                        NotePlacement.BELOW
+                    } else {
+                        NotePlacement.NEAR
+                    }
+            }
+        return PlacementHintMiss(noteId = note.noteId, wanted = hint, placed = placed)
     }
 
     private fun columnsFor(

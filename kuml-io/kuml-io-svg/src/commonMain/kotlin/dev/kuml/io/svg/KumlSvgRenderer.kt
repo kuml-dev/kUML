@@ -996,6 +996,7 @@ public object KumlSvgRenderer {
                     noteId = c.id,
                     body = c.body,
                     kind = c.kind,
+                    placement = c.placement,
                     anchors =
                         links
                             .filter { it.commentId == c.id }
@@ -1005,8 +1006,13 @@ public object KumlSvgRenderer {
                             },
                 )
             }
-        return dev.kuml.layout.bridge.note.SeqNotePlacer
-            .place(layout = base, notes = inputs, scene = scene, measure = measure)
+        val placed =
+            dev.kuml.layout.bridge.note.SeqNotePlacer
+                .place(layout = base, notes = inputs, scene = scene, measure = measure)
+        // Nacharbeit 102: the placer evaluates the placement hint itself; its misses become KUML-NOTE-W004.
+        dev.kuml.layout.bridge.note.NotePlacementMissCollector
+            .report(placed.hintNotHonoured)
+        return placed
     }
 
     private fun renderUmlSequence(
@@ -4704,6 +4710,7 @@ public object KumlSvgRenderer {
                         noteId = c.id,
                         body = c.note.body,
                         kind = c.note.kind,
+                        placement = c.note.placement,
                         anchors =
                             model.commentLinks
                                 .filter { it.link.noteId == c.id }
@@ -4714,8 +4721,16 @@ public object KumlSvgRenderer {
                     )
                 }
         if (inputs.isEmpty()) return empty
-        return dev.kuml.layout.bridge.note.SeqNotePlacer
-            .place(layout = layout, notes = inputs, scene = scene, measure = measure)
+        val placed =
+            dev.kuml.layout.bridge.note.SeqNotePlacer
+                .place(layout = layout, notes = inputs, scene = scene, measure = measure)
+        if (placed.hintNotHonoured.isEmpty()) return placed
+        // Nacharbeit 102: the placer evaluates the placement hint itself; its misses become KUML-NOTE-W004.
+        val lines = model.comments.associate { it.id to it.note.sourceLine }
+        val misses = placed.hintNotHonoured.map { it.copy(sourceLine = lines[it.noteId]) }
+        dev.kuml.layout.bridge.note.NotePlacementMissCollector
+            .report(misses)
+        return placed.copy(hintNotHonoured = misses)
     }
 
     /**

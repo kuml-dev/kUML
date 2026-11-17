@@ -14,6 +14,9 @@ import dev.kuml.uml.UmlCommentLink
  * SysML 2 notes; a hint that no free position on the requested side can satisfy falls back to the default rules and
  * is reported as `KUML-NOTE-W004`.
  *
+ * Sequence diagrams are skipped here: their notes are placed by [SeqNotePlacer], which evaluates the hint itself
+ * (Nacharbeit 102).
+ *
  * Notes without a hint (and NEAR hints), notes without a resolvable anchor and every layout without a hinted note stay
  * byte-identical: [place] returns the layout it was given.
  */

@@ -1489,7 +1489,7 @@ sysml2Model(name = "Vehicle") {
   padding 22 px, left 8 px; BPMN brackets keep 8 px right), and a one-line note is 32 px high (minimum height).
 * Body limit: 65 536 characters (hard), display limit 2000 characters / 30 lines; at most 8 anchors per
   note and 200 notes per diagram are drawn (`KUML-NOTE-W003`).
-* `comment(...)` / `note(...)` take `placement = NotePlacement.ABOVE | BELOW | LEFT | RIGHT | NEAR`, a soft hint for the side of the anchor; every SysML 2 diagram except the sequence diagram evaluates it (the sequence diagram reports `KUML-NOTE-W005`), a hint that cannot be honoured is `KUML-NOTE-W004`, see xref:uml-dsl.adoc#note-placement-hint[Note placement hint].
+* `comment(...)` / `note(...)` take `placement = NotePlacement.ABOVE | BELOW | LEFT | RIGHT | NEAR`, a soft hint for the side of the anchor; every SysML 2 diagram, the sequence diagram included, evaluates it, a hint that cannot be honoured is `KUML-NOTE-W004`, see xref:uml-dsl.adoc#note-placement-hint[Note placement hint].
 * A note whose anchor id does not exist is drawn free-standing and reported as `KUML-NOTE-W001`
   (`Anker unbekannt: <id> (Notiz <noteId>)`); a note the diagram declares but does not draw (a nested part the diagram does not show, a row-only action, another level, an anchor kind the diagram cannot draw) is `KUML-NOTE-W002` with the reason in parentheses. A note on the owner of an IBD makes the diagram draw its owner frame, and the line ends on that frame.
   `kuml validate`, `kuml render`, `kuml workspace validate --evaluate`, Desktop validate and render report

@@ -7,9 +7,9 @@ import java.io.File
 import java.nio.file.Files
 
 /**
- * N2: a note placement hint is evaluated for SysML 2 diagrams other than sequence diagrams, for C4 and (Nacharbeit 99) for UML
- * diagrams other than sequence diagrams; every other family (including the UML sequence diagram, family "UML") reports
- * `KUML-NOTE-W005` (once per hinted note), NEAR never warns, and the SVG of an ignoring family does not change.
+ * N2: a note placement hint is evaluated for SysML 2, C4 and (Nacharbeit 99) UML diagrams, and since Nacharbeit 102 also for
+ * sequence diagrams (SysML 2 and UML); only BPMN reports `KUML-NOTE-W005` (once per hinted note), NEAR never warns, and the
+ * SVG of an ignoring family does not change.
  */
 class NotePlacementHintCliTest :
     FunSpec({
@@ -105,7 +105,7 @@ class NotePlacementHintCliTest :
 
         fun placementCodes(o: RenderOutcome) = o.noteFindings.filter { it.code == "KUML-NOTE-W004" || it.code == "KUML-NOTE-W005" }
 
-        for (family in listOf("SEQ", "BPMN", "UML")) {
+        for (family in listOf("BPMN")) {
             test("$family ignores ABOVE with exactly one W005, an unchanged SVG, and NEAR stays silent") {
                 val (plainOutcome, plainSvg) = render(scripts(null).getValue(family))
                 val (aboveOutcome, aboveSvg) = render(scripts("ABOVE").getValue(family))
@@ -120,6 +120,55 @@ class NotePlacementHintCliTest :
                 }
                 aboveSvg shouldBe plainSvg
                 nearSvg shouldBe plainSvg
+            }
+        }
+
+        for (family in listOf("SEQ", "UML")) {
+            test("$family sequence diagram evaluates the hint: no W005, NEAR equals no hint, a side hint keeps the diagram valid") {
+                val (plainOutcome, plainSvg) = render(scripts(null).getValue(family))
+                val (nearOutcome, nearSvg) = render(scripts("NEAR").getValue(family))
+                nearSvg shouldBe plainSvg
+                placementCodes(plainOutcome) shouldBe emptyList()
+                placementCodes(nearOutcome) shouldBe emptyList()
+                for (side in listOf("ABOVE", "BELOW", "LEFT", "RIGHT")) {
+                    val (o, svg) = render(scripts(side).getValue(family))
+                    withClue("$family $side ${o.noteFindings}") {
+                        o.noteFindings.none { it.code == "KUML-NOTE-W005" } shouldBe true
+                        svg.contains("<svg") shouldBe true
+                    }
+                }
+                val (leftOutcome, leftSvg) = render(scripts("LEFT").getValue(family))
+                val (rightOutcome, rightSvg) = render(scripts("RIGHT").getValue(family))
+                withClue("$family LEFT ${leftOutcome.noteFindings} RIGHT ${rightOutcome.noteFindings}") {
+                    placementCodes(leftOutcome) shouldBe emptyList()
+                    placementCodes(rightOutcome) shouldBe emptyList()
+                }
+                (leftSvg == rightSvg) shouldBe false
+            }
+        }
+
+        test("a SysML 2 sequence note ABOVE a message cannot be honoured: one W004 with the source line, no W005") {
+            val script =
+                """
+                import dev.kuml.sysml2.MessageKind
+                import dev.kuml.sysml2.dsl.sysml2Model
+                sysml2Model(name = "M") {
+                    val a = lifelineDef(name = "A")
+                    val b = lifelineDef(name = "B")
+                    val m = message(label = "go()", source = a, target = b, seqNo = 1, kind = MessageKind.Sync)
+                    seqDiagram(name = "D") {
+                        include(a)
+                        include(b)
+                        note("About go", m, id = "n1", placement = NotePlacement.ABOVE)
+                    }
+                }
+                """.trimIndent()
+            val (outcome, _) = render(script)
+            val codes = placementCodes(outcome)
+            withClue(outcome.noteFindings.toString()) {
+                codes.size shouldBe 1
+                codes.single().code shouldBe "KUML-NOTE-W004"
+                codes.single().message.contains("wanted ABOVE") shouldBe true
             }
         }
 

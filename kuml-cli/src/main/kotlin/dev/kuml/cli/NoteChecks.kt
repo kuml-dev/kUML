@@ -10,9 +10,7 @@ import dev.kuml.erm.constraint.ErmNoteChecker
 import dev.kuml.layout.bridge.NoteDiagnostics
 import dev.kuml.layout.bridge.note.PlacementHintMiss
 import dev.kuml.layout.bridge.note.UndrawnNote
-import dev.kuml.sysml2.SeqDiagram
 import dev.kuml.sysml2.constraint.Sysml2NoteChecker
-import dev.kuml.uml.UmlComment
 
 /**
  * Structural note findings (unknown anchors, ...) plus display-limit warnings
@@ -65,26 +63,14 @@ public object NoteChecks {
     /**
      * `KUML-NOTE-W005`: a side hint (ABOVE/BELOW/LEFT/RIGHT) on a note of a diagram type whose placement does not evaluate
      * it. Decidable without a layout, so `validate` reports it as well. NEAR and unset hints never warn. SysML 2
-     * (except SEQ), C4, ERM, Service Blueprint and UML (except sequence diagrams) evaluate the hint; SEQ (SysML 2 and UML) and BPMN ignore it.
+     * (including SEQ since Nacharbeit 102), C4, ERM, Service Blueprint and UML (including sequence diagrams) evaluate the
+     * hint; only BPMN ignores it.
      */
     private fun placementIgnored(extracted: ExtractedDiagram): List<Finding> {
         val family: String
         val notes: List<Triple<String, NotePlacement?, Int?>>
         when (extracted) {
-            is ExtractedDiagram.Sysml2 -> {
-                val d = extracted.diagram
-                if (d !is SeqDiagram) return emptyList()
-                val inScope =
-                    d.noteIds.toSet() +
-                        extracted.model.commentLinks
-                            .filter { it.link.targetId in d.elementIds }
-                            .map { it.link.noteId }
-                family = "SEQ"
-                notes =
-                    extracted.model.comments
-                        .filter { it.id in inScope }
-                        .map { Triple(it.id, it.note.placement, it.note.sourceLine) }
-            }
+            is ExtractedDiagram.Sysml2 -> return emptyList()
             is ExtractedDiagram.C4 -> return emptyList()
             is ExtractedDiagram.Blueprint -> return emptyList()
             is ExtractedDiagram.Bpmn -> {
@@ -96,15 +82,7 @@ public object NoteChecks {
                     ).map { Triple(it.id, it.note.placement, it.note.sourceLine) }
             }
             is ExtractedDiagram.Erm -> return emptyList()
-            is ExtractedDiagram.Uml -> {
-                // Nacharbeit 99: only UML sequence diagrams still ignore the hint (their notes are placed by the renderer, not by the placer).
-                if (extracted.diagram.type != dev.kuml.core.model.DiagramType.SEQUENCE) return emptyList()
-                family = "UML"
-                notes =
-                    extracted.diagram.elements
-                        .filterIsInstance<UmlComment>()
-                        .map { Triple(it.id, it.placement, null) }
-            }
+            is ExtractedDiagram.Uml -> return emptyList()
         }
         return notes
             .filter { (_, placement, _) -> placement.isHint() }

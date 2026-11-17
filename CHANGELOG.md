@@ -6,12 +6,19 @@ All notable changes to this project are documented here. Format follows
 
 ## [Unreleased]
 
+### Nacharbeit 102: sequence diagram notes honour the placement hint
+
+- **Why.** Not fixed of Nacharbeit 101: notes in SysML 2 and UML sequence diagrams accepted `placement` but ignored it and reported `KUML-NOTE-W005`.
+- **Change.** `SeqNotePlacer` runs the hint as a filter in front of its unchanged search. LEFT/RIGHT restrict the columns (one anchor: inner column then margin on that side, overriding the sticky side of a sibling note; several anchors: that margin only). ABOVE/BELOW keep all columns but one vertical direction, in a window that starts at the smallest shift clearing the anchor row (the whole anchor span for BELOW) by the new `SeqNotePolicy.hintRowGap` (12 px, smaller than the 16 px clearance because a lifeline anchor line needs 6 px of stem at both ends), so tall notes still fit. The hint is evaluated on the final plan; a miss goes to `NotePlacementResult.hintNotHonoured` and is reported as `KUML-NOTE-W004` (SysML 2 with source line, `placed` ABOVE/BELOW only if the note really clears the row, otherwise NEAR). A note without a resolvable anchor sits in the right margin: RIGHT counts as honoured. `NoteChecks` reports `KUML-NOTE-W005` for BPMN only. Notes without a hint (or NEAR) take exactly the old code path. Handbook: `uml-dsl.adoc`, `validate.adoc`, `sysml2.adoc`.
+- **Verification.** New `SeqNoteHintTest` (columns, sticky override, crossings, ABOVE/BELOW, tall notes, several anchors, impossible hint, determinism, NEAR equals no hint); SEQ and UML sequence moved to the evaluating families of `NotePlacementHintCliTest` (NEAR byte-identical to no hint, no W005, one W004 for ABOVE on a message note); existing SEQ tests unchanged.
+- **Not fixed.** BPMN keeps W005. ABOVE on a message anchor and ABOVE with anchors at different heights can never be honoured (no anchor line from above): W004. ABOVE/BELOW are not searched beyond the existing 3-row window (counted from the minimum shift). UML sequence misses have no source line (`UmlComment` carries none). The LaTeX renderer does not evaluate the hint.
+
 ### Nacharbeit 101: Service Blueprint notes honour the placement hint
 
 - **Why.** Not fixed of Nacharbeit 100: Service Blueprint notes (`note(...)`) accepted `placement` but ignored it and reported `KUML-NOTE-W005`.
 - **Change.** The blueprint grid has no free space beside the cards, so the hint is evaluated inside the note column against the first anchor card (`BlueprintGeometry`): ABOVE puts the note entirely above that card, BELOW entirely below it, RIGHT and NEAR keep the default. LEFT can never be honoured; ABOVE fails when earlier notes or the top of the grid leave no room. A miss gives the default or pushed-down placement and `KUML-NOTE-W004` (with source line). Free-standing notes and output without a side hint are unchanged. `NoteChecks` no longer reports W005 for Service Blueprint. Handbook: `blueprint-notes.adoc`, `uml-dsl.adoc` (table), `validate.adoc`.
 - **Verification.** New `BlueprintNotePlacementHintTest`; Service Blueprint moved to the evaluating families of `NotePlacementHintCliTest`.
-- **Not fixed.** SEQ (SysML 2 and UML) and BPMN still ignore the hint (W005).
+- **Not fixed.** SEQ (SysML 2 and UML) and BPMN still ignore the hint (W005). SEQ followed in Nacharbeit 102.
 
 ### Nacharbeit 100: ERM notes honour the placement hint
 
