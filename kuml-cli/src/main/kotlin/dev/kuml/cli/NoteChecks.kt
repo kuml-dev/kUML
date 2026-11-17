@@ -3,8 +3,6 @@ package dev.kuml.cli
 import dev.kuml.bpmn.constraint.BpmnNoteChecker
 import dev.kuml.core.model.note.KumlNoteCodes
 import dev.kuml.core.model.note.KumlNoteIssue
-import dev.kuml.core.model.note.NotePlacement
-import dev.kuml.core.model.note.isHint
 import dev.kuml.core.script.ExtractedDiagram
 import dev.kuml.erm.constraint.ErmNoteChecker
 import dev.kuml.layout.bridge.NoteDiagnostics
@@ -59,43 +57,6 @@ public object NoteChecks {
                 sourceLine = m.sourceLine,
             )
         }
-
-    /**
-     * `KUML-NOTE-W005`: a side hint (ABOVE/BELOW/LEFT/RIGHT) on a note of a diagram type whose placement does not evaluate
-     * it. Decidable without a layout, so `validate` reports it as well. NEAR and unset hints never warn. SysML 2
-     * (including SEQ since Nacharbeit 102), C4, ERM, Service Blueprint and UML (including sequence diagrams) evaluate the
-     * hint; only BPMN ignores it.
-     */
-    private fun placementIgnored(extracted: ExtractedDiagram): List<Finding> {
-        val family: String
-        val notes: List<Triple<String, NotePlacement?, Int?>>
-        when (extracted) {
-            is ExtractedDiagram.Sysml2 -> return emptyList()
-            is ExtractedDiagram.C4 -> return emptyList()
-            is ExtractedDiagram.Blueprint -> return emptyList()
-            is ExtractedDiagram.Bpmn -> {
-                family = "BPMN"
-                notes =
-                    (
-                        extracted.model.processes.flatMap { it.textAnnotations } +
-                            extracted.model.collaborations.flatMap { it.textAnnotations }
-                    ).map { Triple(it.id, it.note.placement, it.note.sourceLine) }
-            }
-            is ExtractedDiagram.Erm -> return emptyList()
-            is ExtractedDiagram.Uml -> return emptyList()
-        }
-        return notes
-            .filter { (_, placement, _) -> placement.isHint() }
-            .map { (id, _, line) ->
-                Finding(
-                    code = KumlNoteCodes.PLACEMENT_IGNORED,
-                    isError = false,
-                    subjectId = id,
-                    message = "placement hint ignored in this diagram type: $id ($family)",
-                    sourceLine = line,
-                )
-            }
-    }
 
     public fun of(extracted: ExtractedDiagram): List<Finding> {
         val issues: List<KumlNoteIssue>
@@ -169,7 +130,7 @@ public object NoteChecks {
             truncated.map {
                 Finding(code = it.code, isError = false, subjectId = it.noteId, message = it.message, sourceLine = lines[it.noteId])
             }
-        return structural + display + placementIgnored(extracted)
+        return structural + display
     }
 
     /** Script line of each note of [extracted] (note id to line); notes without a known line are absent. */

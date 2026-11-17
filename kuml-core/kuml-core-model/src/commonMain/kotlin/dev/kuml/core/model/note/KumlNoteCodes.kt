@@ -23,7 +23,7 @@ object KumlNoteCodes {
     /** A note placement hint (ABOVE/BELOW/LEFT/RIGHT) could not be honoured; the note was placed by the default rules. */
     const val PLACEMENT_NOT_HONOURED: String = "KUML-NOTE-W004"
 
-    /** A note placement hint was given in a diagram type that does not evaluate it. */
+    /** Reserved: a note placement hint in a diagram type that does not evaluate it. No longer emitted since Nacharbeit 103 (every family evaluates the hint). */
     const val PLACEMENT_IGNORED: String = "KUML-NOTE-W005"
 
     /** Anchors beyond this count are not drawn (first ones in declaration order win). */

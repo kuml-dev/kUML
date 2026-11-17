@@ -6,6 +6,13 @@ All notable changes to this project are documented here. Format follows
 
 ## [Unreleased]
 
+### Nacharbeit 103: BPMN text annotations honour the placement hint
+
+- **Why.** Not fixed of Nacharbeit 102: BPMN text annotations accepted `placement` but ignored it and reported `KUML-NOTE-W005`.
+- **Change.** New `BpmnNotePlacement` (layout bridge). A text annotation with a side hint (ABOVE/BELOW/LEFT/RIGHT) and a resolvable anchor is taken out of the ELK result together with its association edges and placed by `NotePlacer` with the strict lane rules: inside one lane (leaf lane, pool without lanes, or outermost expanded sub-process in a process diagram), 16 px from its border and clear of the pool/lane title band, or outside all pools, 24 px away. Obstacles: nodes (events and gateways extended by their external label), group frames, title bands (left band for horizontal pools, top band for vertical ones), edges and earlier notes; pool phantom nodes are no obstacles. Pool anchors are resolved through the pool rectangle. A hint that no position satisfies gives the default placement and `KUML-NOTE-W004` with the script line. `Sysml2NotePlacement.obstaclesOf` got an optional `groupTitle` parameter (default: unchanged). Wired into `KumlSvgRenderer` for process and collaboration diagrams. `NoteChecks.placementIgnored` is removed: `KUML-NOTE-W005` stays defined but is no longer emitted. Annotations without a hint (or NEAR) leave the layout unchanged (byte-identical output). Handbook: `uml-dsl.adoc`, `validate.adoc`, `bpmn-dsl.adoc`.
+- **Verification.** New `BpmnNotePlacementHintTest` (hand-built layouts, no fonts: each side in a process, BELOW outside the pools, RIGHT inside a pool clear of the title band, impossible ABOVE gives one miss with source line, pool anchor, NEAR/no hint unchanged, determinism); `NotePlacementHintCliTest`: BPMN process and collaboration moved to the evaluating families (no W005, NEAR byte-identical to no hint, a side hint moves the note).
+- **Not fixed.** A note can land in another lane or pool than its anchor when the requested side is free there. Lanes and pools do not grow for a note. Nested expanded sub-processes can be crossed. Vertical pools are handled through the top band without tests of their own. The LaTeX renderer does not evaluate the hint. Choreography and conversation diagrams draw no notes.
+
 ### Nacharbeit 102: sequence diagram notes honour the placement hint
 
 - **Why.** Not fixed of Nacharbeit 101: notes in SysML 2 and UML sequence diagrams accepted `placement` but ignored it and reported `KUML-NOTE-W005`.

@@ -8,8 +8,8 @@ import java.nio.file.Files
 
 /**
  * N2: a note placement hint is evaluated for SysML 2, C4 and (Nacharbeit 99) UML diagrams, and since Nacharbeit 102 also for
- * sequence diagrams (SysML 2 and UML); only BPMN reports `KUML-NOTE-W005` (once per hinted note), NEAR never warns, and the
- * SVG of an ignoring family does not change.
+ * sequence diagrams (SysML 2 and UML), and since Nacharbeit 103 for BPMN process and collaboration diagrams. No family reports
+ * `KUML-NOTE-W005` any more; NEAR never warns.
  */
 class NotePlacementHintCliTest :
     FunSpec({
@@ -105,22 +105,58 @@ class NotePlacementHintCliTest :
 
         fun placementCodes(o: RenderOutcome) = o.noteFindings.filter { it.code == "KUML-NOTE-W004" || it.code == "KUML-NOTE-W005" }
 
-        for (family in listOf("BPMN")) {
-            test("$family ignores ABOVE with exactly one W005, an unchanged SVG, and NEAR stays silent") {
-                val (plainOutcome, plainSvg) = render(scripts(null).getValue(family))
-                val (aboveOutcome, aboveSvg) = render(scripts("ABOVE").getValue(family))
-                val (nearOutcome, nearSvg) = render(scripts("NEAR").getValue(family))
-                placementCodes(plainOutcome) shouldBe emptyList()
-                placementCodes(nearOutcome) shouldBe emptyList()
-                val w005 = placementCodes(aboveOutcome)
-                withClue(w005.toString()) {
-                    w005.size shouldBe 1
-                    w005.single().code shouldBe "KUML-NOTE-W005"
-                    w005.single().message.contains("($family)") shouldBe true
+        test("BPMN evaluates the hint: no W005, NEAR equals no hint, and a side hint moves the note") {
+            val (plainOutcome, plainSvg) = render(scripts(null).getValue("BPMN"))
+            val (nearOutcome, nearSvg) = render(scripts("NEAR").getValue("BPMN"))
+            nearSvg shouldBe plainSvg
+            placementCodes(plainOutcome) shouldBe emptyList()
+            placementCodes(nearOutcome) shouldBe emptyList()
+            for (side in listOf("ABOVE", "BELOW", "LEFT", "RIGHT")) {
+                val (o, svg) = render(scripts(side).getValue("BPMN"))
+                withClue("BPMN $side ${o.noteFindings}") {
+                    o.noteFindings.none { it.code == "KUML-NOTE-W005" } shouldBe true
+                    svg.contains("<svg") shouldBe true
                 }
-                aboveSvg shouldBe plainSvg
-                nearSvg shouldBe plainSvg
             }
+            val (leftOutcome, leftSvg) = render(scripts("LEFT").getValue("BPMN"))
+            withClue("BPMN LEFT ${leftOutcome.noteFindings}") {
+                (leftSvg == plainSvg) shouldBe false
+            }
+        }
+
+        test("BPMN collaboration evaluates the hint: no W005, NEAR equals no hint, RIGHT moves the note") {
+            fun collab(hint: String?): String {
+                val arg = if (hint == null) "" else ", placement = NotePlacement.$hint"
+                return """
+                    import dev.kuml.bpmn.dsl.*
+                    import dev.kuml.bpmn.model.*
+                    bpmnModel(name = "M") {
+                        process(id = "pa") {
+                            val s = startEvent(name = "Start")
+                            val t = task(name = "Review")
+                            val e = endEvent(name = "End")
+                            sequenceFlow(from = s, to = t)
+                            sequenceFlow(from = t, to = e)
+                        }
+                        collaboration(id = "c") {
+                            pool(name = "A", id = "poolA") { process("pa") }
+                            textAnnotation(text = "About review", "pa_task_2", id = "n1"$arg)
+                        }
+                        collaborationDiagram(name = "C", collaborationId = "c")
+                    }
+                    """.trimIndent()
+            }
+            val (plainOutcome, plainSvg) = render(collab(null))
+            val (nearOutcome, nearSvg) = render(collab("NEAR"))
+            val (rightOutcome, rightSvg) = render(collab("RIGHT"))
+            nearSvg shouldBe plainSvg
+            placementCodes(plainOutcome) shouldBe emptyList()
+            placementCodes(nearOutcome) shouldBe emptyList()
+            withClue(rightOutcome.noteFindings.toString()) {
+                rightOutcome.noteFindings.none { it.code == "KUML-NOTE-W005" } shouldBe true
+                rightSvg.contains("<svg") shouldBe true
+            }
+            (rightSvg == plainSvg) shouldBe false
         }
 
         for (family in listOf("SEQ", "UML")) {

@@ -79,6 +79,7 @@ import dev.kuml.layout.bridge.erm.ErmIdef1xLayoutBridge
 import dev.kuml.layout.bridge.normalizeActLayout
 import dev.kuml.layout.bridge.normalizeSeqLayout
 import dev.kuml.layout.bridge.note.AnchorGeometry
+import dev.kuml.layout.bridge.note.BpmnNotePlacement
 import dev.kuml.layout.bridge.note.ErmNotePlacement
 import dev.kuml.layout.bridge.note.NotePlacementConfig
 import dev.kuml.layout.bridge.note.ObstacleIndex
@@ -6432,6 +6433,10 @@ public object KumlSvgRenderer {
             model.collaborations.firstOrNull { it.id == diagram.collaborationId }
                 ?: return SvgDocument.render(layoutResult = layoutResult, theme = theme, options = options) { _, _ -> }
 
+        // Nacharbeit 103: annotations with a side hint are placed after the layout (unchanged layout without one).
+        @Suppress("NAME_SHADOWING")
+        val layoutResult = BpmnNotePlacement.placeCollaboration(model = model, diagram = diagram, layout = layoutResult).layout
+
         // Build element index: participants, lanes (flat), message flows, and
         // flow-nodes from referenced processes.
         val participantIndex: Map<String, BpmnParticipant> =
@@ -6814,6 +6819,9 @@ public object KumlSvgRenderer {
         theme: KumlTheme,
         options: SvgRenderOptions,
     ): String {
+        // Nacharbeit 103: annotations with a side hint are placed after the layout (unchanged layout without one).
+        @Suppress("NAME_SHADOWING")
+        val layoutResult = BpmnNotePlacement.placeProcess(diagram = diagram, layout = layoutResult).layout
         // Build a flat element index (id → element) for all BPMN elements.
         // BPMN diagrams are flat (no recursive containers beyond SubProcess, which
         // the bridge handles as a group rather than nesting in the element list).

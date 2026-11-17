@@ -440,7 +440,7 @@ Which diagram types evaluate the hint:
 | UML sequence diagram | evaluated in the note columns (see below; `KUML-NOTE-W004` when not honoured)
 | C4 | evaluated (`KUML-NOTE-W004` when not honoured)
 | Service Blueprint | evaluated within the note column (`KUML-NOTE-W004` when not honoured; LEFT never can be)
-| BPMN | ignored, `KUML-NOTE-W005`
+| BPMN (process and collaboration) | evaluated within the lane or pool of the anchor or outside all pools (`KUML-NOTE-W004` when not honoured, see xref:bpmn-dsl.adoc#_text_annotations[BPMN text annotations]); choreography and conversation diagrams draw no notes
 | ERM (Martin, Bachman, Chen, IDEF1X) | evaluated (`KUML-NOTE-W004` when not honoured)
 |===
 
@@ -452,8 +452,8 @@ message note always reports `KUML-NOTE-W004`. If no such position is free, the d
 (`placed` is ABOVE/BELOW only if the note really clears the row, otherwise NEAR). A note without a resolvable anchor sits in the
 right margin: RIGHT counts as honoured, every other hint is reported.
 
-`KUML-NOTE-W005` ("placement hint ignored in this diagram type") needs no layout, so `kuml validate` reports it as well; it
-is raised once per hinted note and never for `NEAR`. Both codes are warnings and never abort a render. The messages name the
+`KUML-NOTE-W005` ("placement hint ignored in this diagram type") is reserved: every diagram family evaluates the hint since
+Nacharbeit 103, so it is no longer reported. `KUML-NOTE-W004` is a warning and never aborts a render. The messages name the
 note id and the sides, never the note text. The hint is not written to BPMN XML (only `kuml:kind` is); it travels in the kUML JSON
 model and the DSL printers.
 

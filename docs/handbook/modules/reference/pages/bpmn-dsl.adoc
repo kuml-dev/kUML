@@ -338,6 +338,13 @@ process(id = "order") {
 * A diagram with an empty `elementIds` shows all annotations; with a filter, an annotation is shown if it
   is listed or one of its anchors is visible.
 * Limits: 65 536 characters (hard), 2000 characters / 30 lines displayed (`NOTE_TRUNCATED`).
+* `placement = NotePlacement.ABOVE/BELOW/LEFT/RIGHT` is evaluated in process and collaboration diagrams (choreography and
+  conversation diagrams draw no notes). A hinted annotation is placed after the layout, entirely inside one lane (or a pool
+  without lanes, or an expanded sub-process) 16 px from its border and clear of the title band, or entirely outside all pools,
+  24 px away from them. Nodes, event and gateway labels, edges and other notes are avoided. If no free position on the
+  requested side obeys these rules, the default placement is used and `KUML-NOTE-W004` is reported with the script line. The
+  note may land in another lane or pool than its anchor when the side is free there. Lanes and pools never grow for a note.
+  `NEAR` and an unset hint keep the layout unchanged. The LaTeX renderer does not evaluate the hint.
 * There is no BPMN DSL printer; BPMN models round-trip via BPMN XML (see xref:bpmn-xml.adoc[]) and JSON.
 * `kuml validate`: `BPMN_ASSOCIATION_UNKNOWN_REF` (error), `BPMN_ASSOCIATION_UNSUPPORTED_TARGET` (warning).
 

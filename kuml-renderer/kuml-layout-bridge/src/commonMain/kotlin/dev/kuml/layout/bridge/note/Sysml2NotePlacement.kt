@@ -202,6 +202,7 @@ public object Sysml2NotePlacement {
         edgeLabels: (String) -> List<String> = { emptyList() },
         nodeObstacle: (String, Rect) -> Rect = { _, r -> r },
         placedLabels: Map<String, Rect> = emptyMap(),
+        groupTitle: ((String, Rect) -> Rect?)? = null,
     ): ObstacleIndex {
         val o = ObstacleIndex()
         for ((id, n) in layout.nodes) {
@@ -210,11 +211,14 @@ public object Sysml2NotePlacement {
         }
         for ((id, g) in layout.groups) {
             val b = g.bounds
-            o.addRect(
-                kind = ObstacleKind.COMPOSITE_TITLE,
-                r = Rect(origin = b.origin, size = Size(width = b.size.width, height = minOf(COMPOSITE_TITLE_HEIGHT, b.size.height))),
-                ownerId = id.value,
-            )
+            // groupTitle (BPMN pools and lanes carry a band on the left, not a strip on top): null = no title obstacle.
+            val title =
+                if (groupTitle == null) {
+                    Rect(origin = b.origin, size = Size(width = b.size.width, height = minOf(COMPOSITE_TITLE_HEIGHT, b.size.height)))
+                } else {
+                    groupTitle(id.value, b)
+                }
+            if (title != null) o.addRect(kind = ObstacleKind.COMPOSITE_TITLE, r = title, ownerId = id.value)
             val r = b.origin
             val pts =
                 listOf(
