@@ -190,6 +190,10 @@ Two options act on one diagram kind only: `labelMaxWidth` (SysML 2 state machine
 diagrams only (`KUML-LAYOUT-W001` elsewhere, check 439 in `kuml validate`). `wrapColumns` and `sameLayer` also act on
 block definition diagrams with edges: an edge between two members of one `sameLayer` group is withheld from the
 layered engine and drawn straight between the facing sides of the aligned boxes (check 436 still warns).
+In a block definition diagram, `wrapColumns = n` breaks a wide fan of one block into rows of at most `n` blocks
+(`n = 1` gives one block per row); the edges of that hub are then drawn through the gaps between the columns of the
+rows in front of the target (hub fan). An `n` that is not below the number of children changes nothing, because the
+engine's own aspect-ratio wrap then still applies.
 
 In a SysML 2 use-case diagram with a subject frame, an explicit `actorSide = Both` assigns the actors to the two sides by
 the position of their use cases (the actors whose use cases lie furthest left go to the left side) while the counts stay

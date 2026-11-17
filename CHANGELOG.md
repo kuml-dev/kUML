@@ -6,6 +6,13 @@ All notable changes to this project are documented here. Format follows
 
 ## [Unreleased]
 
+### Nacharbeit 94: wrapColumns for block definition diagrams (wide hub fans)
+
+- **Why.** Check whether `wrapColumns` gives a usable result on a block definition diagram where one block has many edges (hub fan), after the hub-fan pass of Nacharbeit 86.
+- **Finding.** The effect matrix (`SYSML2_BDD` takes every option) and the handbook table already say `acts`; no cell and no W001 rule needed a change. `wrapColumns` reaches the layered engine as explicit layer indices and the hub-fan pass then draws the edges to the later rows through the gaps between columns. **No production code was changed**; this entry adds tests and one handbook sentence only.
+- **Verification.** New `BddHubFanWrapColumnsTest` (geometry only): 8 children with `wrapColumns = 3` give at least 3 rows of at most 3 blocks and no edge crosses a foreign box; `wrapColumns = 1` gives 8 rows, no crossings and parallel segments at least 6 px apart; all four directions with `wrapColumns = 3` stay crossing free and inside the diagram plus 30 px; two runs are identical; a hub that is the target ends every edge on the hub with ends 6 px apart; the spec check reports `wrapColumns` as ignored only for sequence diagrams. Without `wrapColumns`, and with `wrapColumns` of 8 or 12 for 8 children, edges and node bounds equal the unwrapped layout. `./gradlew clean :kuml-renderer:kuml-layout-bridge:jvmTest --tests '*BddHubFan*' --tests '*LayoutEffectMatrix*' --no-build-cache`: green. Module gate `./gradlew clean :kuml-renderer:kuml-layout-bridge:check detekt ktlintCheck --no-build-cache --rerun-tasks`: BUILD SUCCESSFUL in 16 s, 857 test cases in the module's result files, 0 failures, 0 skipped (ktlint found style findings in the new test first, fixed with `ktlintFormat`). Other modules were not built, because no production code changed.
+- **Not fixed.** (1) `wrapColumns` at or above the child count does not produce one row: the engine's aspect-ratio wrap (5 + 3 for 8 children) still applies; `maxWidth` or a smaller `n` is needed. (2) For a hub that is the target of the edges (hub below all rows), the engine's edges run in an outer corridor slightly more than 30 px beyond the boxes; the bounds check is therefore not asserted there. (3) `direction = Up` was checked only through the generic crossing test of all four directions, not visually. (4) Edge labels are still placed by the renderer; no PNG was rendered for this change.
+
 ### Nacharbeit 93: layout-effect table in the handbook kept in sync by a test
 
 - **Why.** The table `Keyword by diagram family` in `layout.adoc` was maintained by hand next to `LayoutEffectMatrix`; the KDoc said "no test compares them".
