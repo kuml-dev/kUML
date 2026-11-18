@@ -8,7 +8,6 @@ import dev.kuml.desktop.i18n.Strings
 import dev.kuml.desktop.render.DesktopRenderPipeline
 import dev.kuml.desktop.render.DesktopRenderResult
 import dev.kuml.markdown.CodeBlockExtractor
-import dev.kuml.workspace.FrontmatterParser
 import dev.kuml.workspace.FrontmatterWriter
 import dev.kuml.workspace.OkfDeleteResult
 import dev.kuml.workspace.OkfDocument
@@ -16,7 +15,6 @@ import dev.kuml.workspace.OkfDocumentParser
 import dev.kuml.workspace.OkfDocumentWriter
 import dev.kuml.workspace.OkfFinding
 import dev.kuml.workspace.OkfSaveGate
-import dev.kuml.workspace.OkfType
 import dev.kuml.workspace.OkfValidator
 import dev.kuml.workspace.OkfWorkspace
 import dev.kuml.workspace.OkfWriteResult
@@ -611,18 +609,14 @@ class WorkspaceState(
 
     /**
      * Renders the buffer's first ` ```kuml ` block (if any) via [DesktopRenderPipeline] on
-     * `Dispatchers.IO`. The `type:` short-circuit for ERM diagrams reads the CURRENT buffer's
-     * frontmatter (via [FrontmatterParser]), not [OkfDocument.type] — so switching the
-     * `type:` dropdown to/from `ErmDiagram` mid-edit takes effect immediately, before a save.
+     * `Dispatchers.IO`.
      *
      * - No kuml block (prose document) → [docSvg] / [docError] both `null`.
-     * - ERM diagram type → short-circuits to [docError] = [Strings.previewErmUnsupported]
-     *   without evaluating the script.
-     * - Otherwise → runs the block through the normal single-file render pipeline.
+     * - Otherwise → runs the block through the normal single-file render pipeline (ERM included).
      */
     suspend fun renderCurrentBlock(
         themeName: String,
-        strings: Strings,
+        @Suppress("UNUSED_PARAMETER") strings: Strings,
         watermark: Boolean = false,
     ) {
         val token = ++renderToken
@@ -630,7 +624,7 @@ class WorkspaceState(
         // token already supersedes whatever render is still in flight, so any earlier call's
         // `finally` block (line ~290) is now guaranteed to lose its own `token == renderToken`
         // check and skip clearing `isRendering` itself — without this line, THIS call's three
-        // early returns below (no buffer, no kuml block, ERM short-circuit) would then leave
+        // early returns below (no buffer, no kuml block) would then leave
         // `isRendering` stuck at `true` forever, with `docSvg`/`docError` both `null`, which
         // `WorkspacePreviewPane` renders as an unbounded "Rendering..." message even though
         // nothing is actually rendering. If this call proceeds past the early returns, it sets
@@ -641,12 +635,6 @@ class WorkspaceState(
 
         val currentBuffer = buffer ?: return
         val block = CodeBlockExtractor.extract(currentBuffer).firstOrNull() ?: return
-
-        val currentType = OkfType.fromId(FrontmatterParser.parse(currentBuffer).type)
-        if (currentType == OkfType.ERM_DIAGRAM) {
-            docError = strings.previewErmUnsupported
-            return
-        }
 
         isRendering = true
         try {

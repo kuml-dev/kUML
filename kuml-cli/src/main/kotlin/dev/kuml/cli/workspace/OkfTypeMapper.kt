@@ -48,8 +48,7 @@ internal object OkfTypeMapper {
      *   (The `BPMN_*`/`JOURNEY`/`BLUEPRINT` values of [DiagramType] are never
      *   produced for an [ExtractedDiagram.Uml] — those diagram kinds extract as
      *   [ExtractedDiagram.Bpmn]/[ExtractedDiagram.Blueprint] instead.)
-     * - C4: [SystemLandscapeDiagram], [DeploymentDiagram], [DynamicDiagram] have
-     *   no OKF vocabulary entry (only Context/Container/Component do).
+     * - C4: all six diagram kinds map (Landscape/Deployment/Dynamic since vocabulary 1.1).
      */
     internal fun toOkfTypeId(extracted: ExtractedDiagram): String? =
         when (extracted) {
@@ -68,7 +67,9 @@ internal object OkfTypeMapper {
                     is SystemContextDiagram -> OkfType.C4_CONTEXT_DIAGRAM.id
                     is ContainerDiagram -> OkfType.C4_CONTAINER_DIAGRAM.id
                     is ComponentDiagram -> OkfType.C4_COMPONENT_DIAGRAM.id
-                    is SystemLandscapeDiagram, is DeploymentDiagram, is DynamicDiagram -> null
+                    is SystemLandscapeDiagram -> OkfType.C4_LANDSCAPE_DIAGRAM.id
+                    is DeploymentDiagram -> OkfType.C4_DEPLOYMENT_DIAGRAM.id
+                    is DynamicDiagram -> OkfType.C4_DYNAMIC_DIAGRAM.id
                 }
             is ExtractedDiagram.Sysml2 ->
                 when (extracted.diagram) {

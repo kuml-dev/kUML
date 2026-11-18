@@ -48,9 +48,11 @@ sealed interface PendingType {
      * The selected row's badge should reflect the live buffer's `type:` instead of the
      * document's last-saved one. [type] is `null` when the buffer's `type:` value doesn't
      * resolve to any known [OkfType] (including when there is no `type:` field at all).
+     * [raw] is the buffer's raw `type:` string, shown in the tooltip of an unknown type.
      */
     data class Override(
         val type: OkfType?,
+        val raw: String? = null,
     ) : PendingType
 }
 
@@ -78,6 +80,34 @@ internal fun badgeTypeFor(
         pending.type
     } else {
         docType
+    }
+
+/** The raw `type:` string for the row's tooltip, honouring the live-buffer override like [badgeTypeFor]. */
+internal fun badgeRawTypeFor(
+    docRawType: String?,
+    isSelected: Boolean,
+    pending: PendingType,
+): String? =
+    if (isSelected && pending is PendingType.Override) {
+        pending.raw
+    } else {
+        docRawType
+    }
+
+/**
+ * Tooltip text of the type badge: a diagram names its canonical type (also for aliases), an
+ * unknown type quotes the raw value, prose and missing `type:` keep their generic texts.
+ */
+internal fun badgeTooltip(
+    type: OkfType?,
+    rawType: String?,
+    strings: Strings,
+): String =
+    when {
+        type == null && !rawType.isNullOrBlank() -> String.format(strings.workspaceBadgeUnknownNamed, rawType)
+        type == null -> strings.workspaceBadgeUnknown
+        type.requiresKumlBlock -> String.format(strings.workspaceBadgeDiagram, type.id)
+        else -> strings.workspaceBadgeProse
     }
 
 /**
@@ -143,6 +173,8 @@ fun WorkspaceTreePane(
                     isSelected = isSelected,
                     isDirty = doc.relativePath == dirtyPath,
                     displayType = badgeTypeFor(docType = doc.type, isSelected = isSelected, pending = pendingTypeForSelected),
+                    displayRawType =
+                        badgeRawTypeFor(docRawType = doc.rawType, isSelected = isSelected, pending = pendingTypeForSelected),
                     onClick = { onSelect(doc) },
                     strings = strings,
                 )
@@ -157,6 +189,7 @@ private fun DocumentRow(
     isSelected: Boolean,
     isDirty: Boolean,
     displayType: OkfType?,
+    displayRawType: String?,
     onClick: () -> Unit,
     strings: Strings,
 ) {
@@ -169,7 +202,7 @@ private fun DocumentRow(
                 .clickable(onClick = onClick)
                 .padding(horizontal = 10.dp, vertical = 5.dp),
     ) {
-        TypeBadge(type = displayType, strings = strings)
+        TypeBadge(type = displayType, rawType = displayRawType, strings = strings)
         Text(
             text = if (isDirty) "${doc.file.name} •" else doc.file.name,
             fontSize = 12.sp,
@@ -190,13 +223,15 @@ private fun DocumentRow(
 @Composable
 private fun RowScope.TypeBadge(
     type: OkfType?,
+    rawType: String?,
     strings: Strings,
 ) {
-    val (glyph, color, description) =
+    val description = badgeTooltip(type = type, rawType = rawType, strings = strings)
+    val (glyph, color) =
         when {
-            type == null -> Triple("?", Color.Gray, strings.workspaceBadgeUnknown)
-            type.requiresKumlBlock -> Triple("◆", Color(0xFF1565C0), strings.workspaceBadgeDiagram)
-            else -> Triple("▤", Color(0xFF757575), strings.workspaceBadgeProse)
+            type == null -> "?" to Color.Gray
+            type.requiresKumlBlock -> "◆" to Color(0xFF1565C0)
+            else -> "▤" to Color(0xFF757575)
         }
     TooltipArea(tooltip = {
         Surface(

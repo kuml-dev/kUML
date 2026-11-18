@@ -122,7 +122,9 @@ fun KnowledgeWorkspaceScreen(
     // collapsed onto `null` and made WorkspaceTreePane fall back to the document's stale,
     // last-saved badge for the second case too. See `PendingType`'s KDoc.
     val pendingTypeForSelected: PendingType =
-        state.buffer?.let { PendingType.Override(type = OkfType.fromId(FrontmatterParser.parse(it).type)) }
+        state.buffer
+            ?.let { FrontmatterParser.parse(it).type }
+            ?.let { raw -> PendingType.Override(type = OkfType.fromId(raw), raw = raw) }
             ?: PendingType.NoOverride
 
     WorkspaceColumns(

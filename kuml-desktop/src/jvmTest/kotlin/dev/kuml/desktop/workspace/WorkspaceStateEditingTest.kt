@@ -625,7 +625,7 @@ class WorkspaceStateEditingTest :
             }
         }
 
-        test("switching the buffer's type to ErmDiagram short-circuits the preview without evaluating the script") {
+        test("the preview follows the script, not the frontmatter type: switching the type to ErmDiagram keeps the render") {
             val root = writeSampleWorkspace()
             try {
                 val workspace = WorkspaceScanner.scan(root = root)
@@ -637,8 +637,8 @@ class WorkspaceStateEditingTest :
                 state.setFrontmatterField(key = "type", value = "ErmDiagram")
                 state.renderCurrentBlock(themeName = "plain", strings = Strings.EN)
 
-                state.docSvg shouldBe null
-                state.docError shouldBe Strings.EN.previewErmUnsupported
+                state.docError shouldBe null
+                state.docSvg.shouldNotBeNull()
             } finally {
                 root.deleteRecursively()
             }

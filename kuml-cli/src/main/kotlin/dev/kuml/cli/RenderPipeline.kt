@@ -20,7 +20,6 @@ import dev.kuml.core.model.StateDiagramOrientation
 import dev.kuml.core.script.DiagramExtractor
 import dev.kuml.core.script.ExtractedDiagram
 import dev.kuml.core.script.KumlScriptHost
-import dev.kuml.erm.constraint.ErmConstraintChecker
 import dev.kuml.erm.model.ErmDiagram
 import dev.kuml.erm.model.ErmModel
 import dev.kuml.erm.model.ErmNotation
@@ -62,11 +61,7 @@ import dev.kuml.layout.bridge.bddAspectFinding
 import dev.kuml.layout.bridge.bpmn.BpmnContentSizeProvider
 import dev.kuml.layout.bridge.bpmn.BpmnLayoutBridge
 import dev.kuml.layout.bridge.bpmn.ChoreographyGridLayout
-import dev.kuml.layout.bridge.erm.ErmChenLayoutBridge
-import dev.kuml.layout.bridge.erm.ErmChenSizeProvider
-import dev.kuml.layout.bridge.erm.ErmContentSizeProvider
-import dev.kuml.layout.bridge.erm.ErmIdef1xLayoutBridge
-import dev.kuml.layout.bridge.erm.ErmLayoutBridge
+import dev.kuml.layout.bridge.erm.ErmRenderPlan
 import dev.kuml.layout.bridge.layoutHintsFor
 import dev.kuml.layout.bridge.normalizeActLayout
 import dev.kuml.layout.bridge.note.NotePlacementMissCollector
@@ -1983,46 +1978,21 @@ internal object RenderPipeline {
         val model = extracted.model
         val diagram = extracted.diagram
 
-        val violations = ErmConstraintChecker().check(model)
-        violations.forEach { v ->
+        val plan =
+            ErmRenderPlan.of(
+                model = model,
+                diagram = diagram,
+                notationOverride = notationOverride?.let { ErmNotation.valueOf(it.uppercase()) },
+            )
+        plan.violations.forEach { v ->
             val prefix = if (v.severity == ErmViolationSeverity.ERROR) "ERM ERROR" else "ERM WARNING"
             System.err.println("[$prefix] ${v.elementId ?: "model"}: ${v.message}")
         }
-
-        val notation = notationOverride?.let { ErmNotation.valueOf(it.uppercase()) } ?: diagram.notation
+        val notation = plan.notation
+        val hints = plan.hints
+        val graph = plan.graph
 
         ensureEnginesRegistered()
-        // V3.4.x — widened FK-hub spacing; single source of truth lives in
-        // ErmLayoutBridge.WIDENED_SPACING_HINTS (see its KDoc for the
-        // rationale), shared by every ERM render path.
-        val hints = ErmLayoutBridge.WIDENED_SPACING_HINTS
-        // Chen expands attributes/relationships into their own layout nodes
-        // (see ErmChenLayoutBridge's KDoc) — a structurally different graph
-        // from the Martin/Bachman one entity-box-per-entity graph. IDEF1X
-        // keeps real entity/view/relationship ids but injects a synthetic
-        // category-circle node (see ErmIdef1xLayoutBridge's KDoc). Both get
-        // their own bridge + size provider before the shared ELK run.
-        val graph =
-            when (notation) {
-                ErmNotation.CHEN ->
-                    ErmChenLayoutBridge.toChenLayoutGraph(
-                        model = model,
-                        diagram = diagram,
-                        sizeProvider = ErmChenSizeProvider(model = model, diagram = diagram),
-                    )
-                ErmNotation.IDEF1X ->
-                    ErmIdef1xLayoutBridge.toLayoutGraph(
-                        model = model,
-                        diagram = diagram,
-                        sizeProvider = ErmContentSizeProvider(model = model, diagram = diagram, layoutDirection = hints.direction),
-                    )
-                else ->
-                    ErmLayoutBridge.toLayoutGraph(
-                        model = model,
-                        diagram = diagram,
-                        sizeProvider = ErmContentSizeProvider(model = model, diagram = diagram, layoutDirection = hints.direction),
-                    )
-            }
         val engine =
             if (layoutEngineOverride != null && layoutEngineOverride != "auto") {
                 val engineId = layoutEngineOverride.normaliseEngineId()

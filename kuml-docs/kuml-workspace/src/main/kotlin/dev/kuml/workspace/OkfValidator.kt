@@ -3,7 +3,7 @@ package dev.kuml.workspace
 import java.io.File
 
 /** Severity of an [OkfFinding]. */
-public enum class OkfSeverity { ERROR, WARNING }
+public enum class OkfSeverity { ERROR, WARNING, INFO }
 
 /**
  * A single OKF conformance finding (ADR-0011 spike rule set), structured like
@@ -120,6 +120,19 @@ public object OkfValidator {
                     line = 1,
                     message = "Unrecognised 'type: ${doc.rawType}' — not part of the OKF vocabulary.",
                     suggestion = suggestion,
+                ),
+            )
+        }
+        if (OkfType.isAlias(doc.rawType)) {
+            val canonical = OkfType.canonicalIdFor(doc.rawType)
+            return listOf(
+                OkfFinding(
+                    code = "OKF-I-001",
+                    severity = OkfSeverity.INFO,
+                    file = doc.relativePath,
+                    line = 1,
+                    message = "type '${doc.rawType}' is an alias; canonical id is '$canonical'.",
+                    suggestion = "The alias is accepted as-is; the file is never rewritten automatically.",
                 ),
             )
         }

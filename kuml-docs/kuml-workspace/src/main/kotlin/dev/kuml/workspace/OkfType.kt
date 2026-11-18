@@ -16,12 +16,16 @@ package dev.kuml.workspace
  * @property description A one-line human-readable description, used by
  *  `kuml workspace info`/handbook generation and the JSON vocabulary contract
  *  (`/okf/kuml-okf-vocabulary.json`).
+ * @property aliases Additional `type:` strings that resolve to this type when a document is read
+ *  (short SysML 2 names and the like). Aliases are never written, never offered in editors, and
+ *  [OkfValidator] reports them as an `OKF-I-001` info finding. Case-sensitive; unique across the vocabulary.
  */
 public enum class OkfType(
     public val id: String,
     public val requiresKumlBlock: Boolean,
     public val since: String,
     public val description: String,
+    public val aliases: Set<String> = emptySet(),
 ) {
     KUML_WORKSPACE(
         "KumlWorkspace",
@@ -89,11 +93,15 @@ public enum class OkfType(
         true,
         "1.0",
         "UML interaction overview diagram.",
+        setOf("UmlInteractionOverview"),
     ),
     C4_CONTEXT_DIAGRAM("C4ContextDiagram", true, "1.0", "C4 model context diagram."),
     C4_CONTAINER_DIAGRAM("C4ContainerDiagram", true, "1.0", "C4 model container diagram."),
     C4_COMPONENT_DIAGRAM("C4ComponentDiagram", true, "1.0", "C4 model component diagram."),
     C4_CODE_DIAGRAM("C4CodeDiagram", true, "1.0", "C4 model code diagram."),
+    C4_DEPLOYMENT_DIAGRAM("C4DeploymentDiagram", true, "1.1", "C4 model deployment diagram."),
+    C4_DYNAMIC_DIAGRAM("C4DynamicDiagram", true, "1.1", "C4 model dynamic diagram."),
+    C4_LANDSCAPE_DIAGRAM("C4LandscapeDiagram", true, "1.1", "C4 model system landscape diagram."),
     ERM_DIAGRAM("ErmDiagram", true, "1.0", "Entity-relationship diagram."),
     ARTICLE("Article", false, "1.0", "Free-form prose article; no diagram content."),
     GLOSSARY("Glossary", false, "1.0", "A glossary of terms; no diagram content."),
@@ -104,14 +112,21 @@ public enum class OkfType(
         true,
         "1.0",
         "SysML 2 block definition diagram.",
+        setOf("Sysml2Bdd"),
     ),
-    SYSML2_INTERNAL_BLOCK("Sysml2InternalBlock", true, "1.0", "SysML 2 internal block diagram."),
-    SYSML2_STATE_MACHINE("Sysml2StateMachine", true, "1.0", "SysML 2 state machine diagram."),
-    SYSML2_ACTIVITY("Sysml2Activity", true, "1.0", "SysML 2 activity diagram."),
-    SYSML2_SEQUENCE("Sysml2Sequence", true, "1.0", "SysML 2 sequence diagram."),
-    SYSML2_USE_CASE("Sysml2UseCase", true, "1.0", "SysML 2 use case diagram."),
-    SYSML2_REQUIREMENT("Sysml2Requirement", true, "1.0", "SysML 2 requirement diagram."),
-    SYSML2_PARAMETRIC("Sysml2Parametric", true, "1.0", "SysML 2 parametric diagram."),
+    SYSML2_INTERNAL_BLOCK(
+        "Sysml2InternalBlock",
+        true,
+        "1.0",
+        "SysML 2 internal block diagram.",
+        setOf("Sysml2Ibd", "Sysml2InternalBlockDiagram"),
+    ),
+    SYSML2_STATE_MACHINE("Sysml2StateMachine", true, "1.0", "SysML 2 state machine diagram.", setOf("Sysml2Stm")),
+    SYSML2_ACTIVITY("Sysml2Activity", true, "1.0", "SysML 2 activity diagram.", setOf("Sysml2Act")),
+    SYSML2_SEQUENCE("Sysml2Sequence", true, "1.0", "SysML 2 sequence diagram.", setOf("Sysml2Seq")),
+    SYSML2_USE_CASE("Sysml2UseCase", true, "1.0", "SysML 2 use case diagram.", setOf("Sysml2Uc")),
+    SYSML2_REQUIREMENT("Sysml2Requirement", true, "1.0", "SysML 2 requirement diagram.", setOf("Sysml2Req")),
+    SYSML2_PARAMETRIC("Sysml2Parametric", true, "1.0", "SysML 2 parametric diagram.", setOf("Sysml2Par")),
     SYSML2_PACKAGE_DIAGRAM("Sysml2PackageDiagram", true, "1.0", "SysML 2 package diagram."),
 
     // BPMN (4) — V3.6.1 / FT-2
@@ -121,17 +136,28 @@ public enum class OkfType(
     BPMN_CONVERSATION("BpmnConversation", true, "1.0", "BPMN 2.0 conversation diagram."),
 
     // Blueprint (1) — V3.6.1 / FT-2
-    SERVICE_BLUEPRINT("ServiceBlueprint", true, "1.0", "Service blueprint / user-journey diagram."),
+    SERVICE_BLUEPRINT("ServiceBlueprint", true, "1.0", "Service blueprint / user-journey diagram.", setOf("UserJourney")),
     ;
 
     public companion object {
         /** Current version of the OKF `type:` vocabulary (see `/okf/kuml-okf-vocabulary.json`). */
-        public const val VOCABULARY_VERSION: String = "1.0"
+        public const val VOCABULARY_VERSION: String = "1.1"
 
         private val byId = entries.associateBy { it.id }
 
-        /** Resolves a raw `type:` string to an [OkfType]. `null` means unknown/custom — allowed, WARNING only. */
-        public fun fromId(id: String?): OkfType? = id?.let { byId[it] }
+        private val byAlias = entries.flatMap { t -> t.aliases.map { it to t } }.toMap()
+
+        /**
+         * Resolves a raw `type:` string (canonical id or alias, case-sensitive) to an [OkfType].
+         * `null` means unknown/custom — allowed, WARNING only.
+         */
+        public fun fromId(id: String?): OkfType? = id?.let { byId[it] ?: byAlias[it] }
+
+        /** `true` when [id] is a registered alias, not the canonical id of its type. */
+        public fun isAlias(id: String?): Boolean = id != null && id !in byId && id in byAlias
+
+        /** The canonical id [raw] resolves to (itself for canonical ids), or `null` when unknown. */
+        public fun canonicalIdFor(raw: String?): String? = fromId(raw)?.id
 
         /** All types whose documents are expected to carry a ` ```kuml ` block. */
         public val diagramTypes: Set<OkfType> = entries.filter { it.requiresKumlBlock }.toSet()

@@ -53,10 +53,15 @@ class WorkspaceStateTest :
                 ---
                 type: ErmDiagram
                 ---
-                # An ERM diagram (never evaluated — short-circuited before eval)
+                # An ERM diagram
 
                 ```kuml
-                erm(name = "Test") { }
+                ermModel(name = "Test") {
+                    val a = entity(name = "Alpha") { id() }
+                    val b = entity(name = "Beta") { id() }
+                    relationship(from = a, to = b, sourceCardinality = Cardinality.ONE, targetCardinality = Cardinality.ZERO_MANY)
+                    diagram(name = "Test", notation = ErmNotation.MARTIN)
+                }
                 ```
                 """.trimIndent(),
             )
@@ -98,7 +103,7 @@ class WorkspaceStateTest :
             }
         }
 
-        test("ERM document selection: short-circuits to previewErmUnsupported, no exception, no svg") {
+        test("ERM document selection renders an SVG, no error") {
             val root = writeSampleWorkspace()
             try {
                 val workspace = WorkspaceScanner.scan(root = root)
@@ -107,8 +112,8 @@ class WorkspaceStateTest :
 
                 state.select(doc = doc, themeName = "plain", strings = Strings.EN)
 
-                state.docSvg shouldBe null
-                state.docError shouldBe Strings.EN.previewErmUnsupported
+                state.docError shouldBe null
+                state.docSvg.shouldNotBeNull() shouldContain "<svg"
             } finally {
                 root.deleteRecursively()
             }

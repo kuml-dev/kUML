@@ -124,7 +124,12 @@ internal class WorkspaceConvertCommand : CliktCommand(name = "convert") {
                 if (report.findings.isNotEmpty()) {
                     echo("")
                     for (f in report.findings) {
-                        val tag = if (f.severity == OkfSeverity.ERROR) "ERROR" else "WARN "
+                        val tag =
+                            when (f.severity) {
+                                OkfSeverity.ERROR -> "ERROR"
+                                OkfSeverity.INFO -> "INFO "
+                                OkfSeverity.WARNING -> "WARN "
+                            }
                         echo("  $tag [${f.code}] ${f.file}:${f.line}: ${f.message}")
                         f.suggestion?.let { echo("        -> $it") }
                     }

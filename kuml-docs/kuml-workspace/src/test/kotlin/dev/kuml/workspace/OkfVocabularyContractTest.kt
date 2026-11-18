@@ -13,6 +13,7 @@ private data class VocabEntry(
     val requiresKumlBlock: Boolean,
     val since: String,
     val description: String,
+    val aliases: List<String> = emptyList(),
 )
 
 @Serializable
@@ -48,9 +49,15 @@ class OkfVocabularyContractTest :
         test("every OkfType entry has exactly one matching JSON entry") {
             val fromEnum =
                 OkfType.entries.map {
-                    VocabEntry(id = it.id, requiresKumlBlock = it.requiresKumlBlock, since = it.since, description = it.description)
+                    VocabEntry(
+                        id = it.id,
+                        requiresKumlBlock = it.requiresKumlBlock,
+                        since = it.since,
+                        description = it.description,
+                        aliases = it.aliases.sorted(),
+                    )
                 }
-            doc.types shouldContainExactlyInAnyOrder fromEnum
+            doc.types.map { it.copy(aliases = it.aliases.sorted()) } shouldContainExactlyInAnyOrder fromEnum
         }
 
         test("JSON entry count matches OkfType.entries count") {
@@ -62,5 +69,37 @@ class OkfVocabularyContractTest :
             ids shouldContain "Sysml2PackageDiagram"
             ids shouldContain "UmlStateMachine"
             OkfType.fromId("Sysml2PackageDiagram")?.requiresKumlBlock shouldBe true
+        }
+
+        test("ids and aliases are unique and no alias equals a canonical id") {
+            val ids = OkfType.entries.map { it.id }
+            val aliases = OkfType.entries.flatMap { it.aliases }
+            ids.toSet().size shouldBe ids.size
+            aliases.toSet().size shouldBe aliases.size
+            aliases.filter { it in ids } shouldBe emptyList()
+        }
+
+        test("every alias resolves to its owning type") {
+            OkfType.entries.forEach { t -> t.aliases.forEach { OkfType.fromId(it) shouldBe t } }
+        }
+
+        test("isAlias and canonicalIdFor") {
+            OkfType.isAlias("Sysml2Bdd") shouldBe true
+            OkfType.isAlias("Sysml2BlockDefinition") shouldBe false
+            OkfType.isAlias(null) shouldBe false
+            OkfType.canonicalIdFor("Sysml2Bdd") shouldBe "Sysml2BlockDefinition"
+            OkfType.canonicalIdFor("Sysml2BlockDefinition") shouldBe "Sysml2BlockDefinition"
+            OkfType.canonicalIdFor("Nope") shouldBe null
+        }
+
+        test("alias matching is case-sensitive") {
+            OkfType.fromId("sysml2bdd") shouldBe null
+        }
+
+        test("the three new C4 types are since 1.1") {
+            listOf("C4DeploymentDiagram", "C4DynamicDiagram", "C4LandscapeDiagram").forEach {
+                OkfType.fromId(it)?.since shouldBe "1.1"
+                OkfType.fromId(it)?.requiresKumlBlock shouldBe true
+            }
         }
     })

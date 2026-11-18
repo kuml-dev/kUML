@@ -1,5 +1,6 @@
 package dev.kuml.desktop.workspace
 
+import dev.kuml.desktop.i18n.Strings
 import dev.kuml.workspace.OkfType
 import io.kotest.core.spec.style.FunSpec
 import io.kotest.matchers.shouldBe
@@ -54,5 +55,32 @@ class WorkspaceTreePaneTest :
                 isSelected = true,
                 pending = PendingType.Override(type = null),
             ) shouldBe null
+        }
+
+        test("tooltip names the canonical type for a diagram, also when the file uses an alias") {
+            val alias = badgeTooltip(type = OkfType.fromId("Sysml2Bdd"), rawType = "Sysml2Bdd", strings = Strings.EN)
+            alias shouldBe "Contains a diagram (Sysml2BlockDefinition)"
+            val german = badgeTooltip(type = OkfType.UML_CLASS_DIAGRAM, rawType = "UmlClassDiagram", strings = Strings.DE)
+            german shouldBe "Enthält ein Diagramm (UmlClassDiagram)"
+        }
+
+        test("tooltip quotes the raw value of an unknown type; no type field keeps the generic text") {
+            badgeTooltip(type = null, rawType = "Quatsch", strings = Strings.EN) shouldBe "Unknown document type \u201cQuatsch\u201d"
+            badgeTooltip(type = null, rawType = null, strings = Strings.EN) shouldBe Strings.EN.workspaceBadgeUnknown
+            badgeTooltip(type = OkfType.CONCEPT, rawType = "Concept", strings = Strings.EN) shouldBe Strings.EN.workspaceBadgeProse
+        }
+
+        test("the raw type of the selected row comes from the live buffer override") {
+            val live = PendingType.Override(type = null, raw = "Quatsch")
+            badgeRawTypeFor(docRawType = "Concept", isSelected = true, pending = live) shouldBe "Quatsch"
+            badgeRawTypeFor(docRawType = "Concept", isSelected = false, pending = live) shouldBe "Concept"
+            badgeRawTypeFor(docRawType = "Concept", isSelected = true, pending = PendingType.NoOverride) shouldBe "Concept"
+        }
+
+        test("the type dropdown shows the canonical id for an alias, the raw value plus suffix for unknown, a dash for none") {
+            typeDropdownLabel(rawType = "Sysml2Bdd", customSuffix = "custom") shouldBe "Sysml2BlockDefinition"
+            typeDropdownLabel(rawType = "Concept", customSuffix = "custom") shouldBe "Concept"
+            typeDropdownLabel(rawType = "Quatsch", customSuffix = "custom") shouldBe "Quatsch (custom)"
+            typeDropdownLabel(rawType = null, customSuffix = "custom") shouldBe "\u2014"
         }
     })

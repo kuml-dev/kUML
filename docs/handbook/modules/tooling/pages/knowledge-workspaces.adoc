@@ -195,8 +195,9 @@ back and forth.
 `--to okf` evaluates each `.kuml.kts` script (the only way to know its *concrete*
 diagram kind) and maps it to an OKF `type:` value. Most UML, C4, SysML 2, BPMN,
 Blueprint and ERM diagram kinds have a vocabulary entry (see the type tables below).
-A few UML 2.x and C4 diagram kinds do not (e.g. `packageDiagram`, `objectDiagram`,
-`deploymentDiagram`, C4's `SystemLandscapeDiagram`/`DeploymentDiagram`/`DynamicDiagram`)
+All six C4 diagram kinds map (the landscape, deployment and dynamic types have been part of the
+vocabulary since version `1.1`). A few UML 2.x diagram kinds do not (e.g. `packageDiagram`, `objectDiagram`,
+`deploymentDiagram`)
 — `convert` does not fabricate a vocabulary entry for these; it writes a deterministic
 custom `type:` (e.g. `UmlPackageDiagram`) and reports `OKF-C-003`.
 
@@ -241,7 +242,7 @@ kuml-version = ">=0.30.0"
 
 [okf]
 version = "0.1"
-vocabulary = "dev.kuml.okf@1.0"
+vocabulary = "dev.kuml.okf@1.1"
 strict = false
 ----
 
@@ -278,11 +279,36 @@ above rather than aborting the scan.
 == The `type:` vocabulary
 
 Every document's frontmatter `type:` field is resolved against a fixed vocabulary
-(current version: `1.0`, `30` entries). Types with `requiresKumlBlock = true` must
+(current version: `1.1`, `41` entries). Types with `requiresKumlBlock = true` must
 contain exactly one ` ```kuml ` fenced code block; the others are prose/collection types.
 Note the exact ids: a UML state machine is `UmlStateMachine` (not `UmlStateMachineDiagram`) and a SysML 2
 state machine is `Sysml2StateMachine`. The authoritative machine-readable list is the JSON contract file
 described below.
+
+=== Aliases
+
+Some types also accept a short alias in the `type:` field. An alias is resolved when a
+document is *read*: it counts as the canonical type, so a diagram under an alias is rendered
+and validated like any other, and `strictVocabulary` does not turn it into an error. The
+validator reports it once as the info finding `OKF-I-001`
+(`type 'Sysml2Bdd' is an alias; canonical id is 'Sysml2BlockDefinition'`). kUML never rewrites
+the file, and editors list and write only the canonical ids. Matching is case-sensitive.
+
+[cols="2,2"]
+|===
+| Alias | Canonical `type:`
+
+| `Sysml2Bdd` | `Sysml2BlockDefinition`
+| `Sysml2Ibd`, `Sysml2InternalBlockDiagram` | `Sysml2InternalBlock`
+| `Sysml2Stm` | `Sysml2StateMachine`
+| `Sysml2Act` | `Sysml2Activity`
+| `Sysml2Seq` | `Sysml2Sequence`
+| `Sysml2Uc` | `Sysml2UseCase`
+| `Sysml2Req` | `Sysml2Requirement`
+| `Sysml2Par` | `Sysml2Parametric`
+| `UmlInteractionOverview` | `UmlInteractionOverviewDiagram`
+| `UserJourney` | `ServiceBlueprint`
+|===
 
 === UML
 
@@ -316,6 +342,9 @@ described below.
 | `C4ContainerDiagram` | yes
 | `C4ComponentDiagram` | yes
 | `C4CodeDiagram` | yes
+| `C4DeploymentDiagram` | yes (since 1.1)
+| `C4DynamicDiagram` | yes (since 1.1)
+| `C4LandscapeDiagram` | yes (since 1.1)
 |===
 
 === ERM

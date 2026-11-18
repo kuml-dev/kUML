@@ -65,10 +65,6 @@ class StringsTest :
             Strings.DE.workspaceTrustMessage shouldContain "%s"
         }
 
-        test("EN previewErmUnsupported is non-empty") { Strings.EN.previewErmUnsupported.isNotEmpty() shouldBe true }
-        test("DE previewErmUnsupported is non-empty") { Strings.DE.previewErmUnsupported.isNotEmpty() shouldBe true }
-        test("EN and DE differ on previewErmUnsupported") { Strings.EN.previewErmUnsupported shouldNotBe Strings.DE.previewErmUnsupported }
-
         test("EN previewNotTrusted is non-empty") { Strings.EN.previewNotTrusted.isNotEmpty() shouldBe true }
         test("DE previewNotTrusted is non-empty") { Strings.DE.previewNotTrusted.isNotEmpty() shouldBe true }
 
@@ -83,6 +79,13 @@ class StringsTest :
         test("EN workspaceBadgeProse is non-empty") { Strings.EN.workspaceBadgeProse.isNotEmpty() shouldBe true }
         test("DE workspaceBadgeProse is non-empty") { Strings.DE.workspaceBadgeProse.isNotEmpty() shouldBe true }
         test("EN and DE differ on workspaceBadgeProse") { Strings.EN.workspaceBadgeProse shouldNotBe Strings.DE.workspaceBadgeProse }
+
+        test("badge diagram and named-unknown tooltips take one %s placeholder") {
+            listOf(Strings.EN, Strings.DE).forEach {
+                it.workspaceBadgeDiagram.contains("%s") shouldBe true
+                it.workspaceBadgeUnknownNamed.contains("%s") shouldBe true
+            }
+        }
 
         test("EN workspaceBadgeUnknown is non-empty") { Strings.EN.workspaceBadgeUnknown.isNotEmpty() shouldBe true }
         test("DE workspaceBadgeUnknown is non-empty") { Strings.DE.workspaceBadgeUnknown.isNotEmpty() shouldBe true }

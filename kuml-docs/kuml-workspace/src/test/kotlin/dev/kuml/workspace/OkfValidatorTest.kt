@@ -75,6 +75,33 @@ class OkfValidatorTest :
             root.deleteRecursively()
         }
 
+        test("an alias type yields exactly one INFO finding, no warning, and no error under strictVocabulary") {
+            val root = tempWorkspace()
+            File(root, "bdd.md").writeText(
+                """
+                |---
+                |type: Sysml2Bdd
+                |---
+                |
+                |```kuml
+                |x
+                |```
+                """.trimMargin(),
+            )
+
+            val ws = WorkspaceScanner.scan(root = root)
+            val strict = OkfValidator.validate(ws = ws, strictVocabulary = true)
+
+            val info = strict.filter { it.code == "OKF-I-001" }
+            info.size shouldBe 1
+            info.single().severity shouldBe OkfSeverity.INFO
+            info.single().message shouldBe "type 'Sysml2Bdd' is an alias; canonical id is 'Sysml2BlockDefinition'."
+            strict.none { it.code == "OKF-W-002" } shouldBe true
+            strict.none { it.severity == OkfSeverity.ERROR && it.code != "OKF-W-006" } shouldBe true
+
+            root.deleteRecursively()
+        }
+
         test("a root-absolute link ('/...') from a nested document resolves against the workspace root, not OKF-E-005") {
             val root = tempWorkspace()
             File(root, "notes").mkdir()

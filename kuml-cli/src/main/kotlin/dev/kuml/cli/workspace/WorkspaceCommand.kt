@@ -221,7 +221,7 @@ internal class WorkspaceValidateCommand : CliktCommand(name = "validate") {
                 } else {
                     echo("Validating $label${if (scoped) " in ${root.name}" else ""}...\n")
                     for (f in findings) {
-                        val tag = if (f.severity == OkfSeverity.ERROR) "ERROR" else "WARN "
+                        val tag = f.severity.tag5()
                         echo("  $tag [${f.code}] ${f.file}:${f.line}: ${f.message}")
                         f.suggestion?.let { echo("        -> $it") }
                     }
@@ -263,10 +263,22 @@ internal data class OkfFindingJson(
     val suggestion: String? = null,
 )
 
+private fun OkfSeverity.tag5(): String =
+    when (this) {
+        OkfSeverity.ERROR -> "ERROR"
+        OkfSeverity.WARNING -> "WARN "
+        OkfSeverity.INFO -> "INFO "
+    }
+
 internal fun OkfFinding.toJson(): OkfFindingJson =
     OkfFindingJson(
         code = code,
-        severity = if (severity == OkfSeverity.ERROR) "error" else "warning",
+        severity =
+            when (severity) {
+                OkfSeverity.ERROR -> "error"
+                OkfSeverity.WARNING -> "warning"
+                OkfSeverity.INFO -> "info"
+            },
         file = file,
         line = line,
         message = message,
@@ -365,7 +377,7 @@ internal class WorkspaceRenderCommand : CliktCommand(name = "render") {
             )
         }
         for (f in report.failures + report.warnings) {
-            val tag = if (f.severity == OkfSeverity.ERROR) "ERROR" else "WARN"
+            val tag = f.severity.tag5().trim()
             echo("  $tag [${f.code}] ${f.file}:${f.line}: ${f.message}", err = true)
         }
 

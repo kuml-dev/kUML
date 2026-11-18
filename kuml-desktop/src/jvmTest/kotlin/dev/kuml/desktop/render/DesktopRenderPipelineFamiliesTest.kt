@@ -8,7 +8,7 @@ import io.kotest.matchers.types.shouldBeInstanceOf
 
 /**
  * One sample per branch of [DesktopRenderPipeline.render] (every UML/C4/SysML 2/BPMN diagram type,
- * Blueprint and the unsupported ERM family), so a refactoring of the branch structure cannot silently drop or
+ * Blueprint and ERM), so a refactoring of the branch structure cannot silently drop or
  * mis-wire one. Assertions are deliberately structural (no byte-for-byte SVG comparison): the layout depends on
  * font metrics, which differ between machines.
  */
@@ -65,9 +65,13 @@ class DesktopRenderPipelineFamiliesTest :
             }
         }
 
-        test("an ERM script is reported as not yet supported, not as a crash") {
+        test("an ERM script renders to an SVG that names its entities and is neither simulatable nor LaTeX-capable") {
             val result = DesktopRenderPipeline.render(script = sample("erm-martin-ecommerce"), themeName = "kuml")
-            result.shouldBeInstanceOf<DesktopRenderResult.Error>().message shouldContain "ERM-Rendering"
+            val svg = result.shouldBeInstanceOf<DesktopRenderResult.Svg>()
+            svg.svg shouldContain "<svg"
+            svg.svg shouldContain "Customer"
+            svg.simulatable shouldBe false
+            svg.latexCapable shouldBe false
         }
 
         test("the two SysML 2 flavours that use the wider canvas padding differ from the default padding") {

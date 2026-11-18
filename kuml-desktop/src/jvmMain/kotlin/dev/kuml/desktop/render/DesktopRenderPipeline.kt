@@ -29,6 +29,7 @@ import dev.kuml.layout.bridge.UmlLayoutBridge
 import dev.kuml.layout.bridge.bpmn.BpmnContentSizeProvider
 import dev.kuml.layout.bridge.bpmn.BpmnLayoutBridge
 import dev.kuml.layout.bridge.bpmn.ChoreographyGridLayout
+import dev.kuml.layout.bridge.erm.ErmRenderPlan
 import dev.kuml.layout.bridge.layoutHintsFor
 import dev.kuml.layout.bridge.note.NotePlacementMissCollector
 import dev.kuml.layout.bridge.note.NoteUndrawnCollector
@@ -83,10 +84,6 @@ internal data class DesktopValidationResult(
 internal object DesktopRenderPipeline {
     /** Canvas padding of SysML-2 STM/ACT renders and of the simulation preview -- they must match. */
     private const val DIAGRAM_PADDING_PX = 64f
-
-    private const val ERM_NOT_SUPPORTED_MESSAGE =
-        "ERM-Rendering wird noch nicht unterstützt — geplant für kUML V3.4.2. " +
-            "V3.4.1 unterstützt für ERM-Skripte nur `kuml validate`."
 
     /**
      * Evaluates [script] and extracts its diagram -- no layout, no SVG, no state change. Backs
@@ -230,7 +227,7 @@ internal object DesktopRenderPipeline {
                 NoteUndrawnCollector.collecting {
                     NotePlacementMissCollector.collecting { renderSvg(extracted = ctx.extracted, env = env) }
                 }
-            val svg = rendered.first ?: return DesktopRenderResult.Error(ERM_NOT_SUPPORTED_MESSAGE)
+            val svg = rendered.first
             val undrawnWarnings =
                 (
                     NoteChecks.undrawn(undrawn = undrawn, alreadyReported = NoteChecks.of(ctx.extracted)) +
@@ -253,11 +250,11 @@ internal object DesktopRenderPipeline {
         }
     }
 
-    /** SVG of [extracted], or `null` for a diagram family the desktop cannot render (ERM). */
+    /** SVG of [extracted]. */
     private fun renderSvg(
         extracted: ExtractedDiagram,
         env: RenderEnv,
-    ): String? =
+    ): String =
         when (extracted) {
             is ExtractedDiagram.Uml -> renderUml(extracted = extracted, env = env)
             is ExtractedDiagram.C4 -> renderC4(extracted = extracted, env = env)
@@ -275,8 +272,7 @@ internal object DesktopRenderPipeline {
             // re-triggers this render path; see P6's KDoc.
             is ExtractedDiagram.Blueprint ->
                 KumlSvgRenderer.toSvg(model = extracted.model, diagram = extracted.diagram, theme = env.theme)
-            // V3.4.1: ERM rendering is out of scope — planned for V3.4.2.
-            is ExtractedDiagram.Erm -> null
+            is ExtractedDiagram.Erm -> renderErm(extracted = extracted, env = env)
         }
 
     private fun renderUml(
@@ -297,6 +293,30 @@ internal object DesktopRenderPipeline {
             diagramName = extracted.diagram.name,
         ) { layout ->
             KumlSvgRenderer.toSvg(diagram = extracted.diagram, layoutResult = layout, theme = env.theme, options = env.svgOptions)
+        }
+    }
+
+    /** ERM: the shared [ErmRenderPlan] picks the notation-specific graph; layout and SVG as for the other families. */
+    private fun renderErm(
+        extracted: ExtractedDiagram.Erm,
+        env: RenderEnv,
+    ): String {
+        val plan = ErmRenderPlan.of(model = extracted.model, diagram = extracted.diagram)
+        return env.layoutThenRender(
+            graph = plan.graph,
+            hints = plan.hints,
+            spec = extracted.diagram.layout,
+            kind = dev.kuml.layout.bridge.SpecDiagramKind.ERM,
+            diagramName = extracted.diagram.name,
+        ) { layout ->
+            KumlSvgRenderer.toSvg(
+                model = extracted.model,
+                diagram = extracted.diagram,
+                layoutResult = layout,
+                theme = env.theme,
+                options = env.svgOptions,
+                notation = plan.notation,
+            )
         }
     }
 

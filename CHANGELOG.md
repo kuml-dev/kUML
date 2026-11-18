@@ -6,6 +6,15 @@ All notable changes to this project are documented here. Format follows
 
 ## [Unreleased]
 
+### Nacharbeit 108: desktop ERM preview and OKF vocabulary 1.1
+
+- **Why.** The desktop workspace preview refused ERM documents with a "not yet supported" message, and a document whose `type:` the vocabulary did not know (short SysML 2 names, C4 landscape/deployment/dynamic) showed up as unknown although its diagram rendered.
+- **ERM preview.** ERM renders in the desktop workspace preview for all four notations. The notation-specific layout graph, size provider, spacing hints and constraint check now live in one shared `ErmRenderPlan` (layout bridge); the CLI `renderErm` uses it too, so both paths cannot drift. The `previewErmUnsupported` string and the preview short-circuit are removed.
+- **OKF vocabulary 1.1.** Three new types: `C4DeploymentDiagram`, `C4DynamicDiagram`, `C4LandscapeDiagram` (since `1.1`; `kuml workspace convert --to okf` now maps these C4 kinds instead of reporting `OKF-C-003`). New `aliases` field per type (JSON contract and `OkfType`): `Sysml2Bdd`, `Sysml2Ibd`, `Sysml2InternalBlockDiagram`, `Sysml2Stm`, `Sysml2Act`, `Sysml2Seq`, `Sysml2Uc`, `Sysml2Req`, `Sysml2Par`, `UmlInteractionOverview`, `UserJourney` resolve to their canonical type when read. New `OkfSeverity.INFO` and finding `OKF-I-001` for an alias (no auto-rewrite, never an error under `strictVocabulary`).
+- **Desktop.** The tree tooltip names the diagram type (the canonical id also for an alias) and quotes the raw value of an unknown type; the type dropdown shows the canonical id for an alias and offers only canonical ids.
+- **Verification.** 17 fixtures (every alias, the new C4 types, three ERM notations incl. a note with a placement hint) are scanned, typed and rendered through the desktop pipeline (`WorkspaceTypeFixturesRenderTest`); `ErmRenderPlanTest`; vocabulary contract tests for aliases; validator tests for `OKF-I-001`.
+- **Not fixed.** An alias in the file is not offered a one-click "normalise to canonical id". ERM has no LaTeX export, so the desktop LaTeX button stays off for ERM.
+
 ## [0.58.0] — 2026-11-18
 
 ### Highlights

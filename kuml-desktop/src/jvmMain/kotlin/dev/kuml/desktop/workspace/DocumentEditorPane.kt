@@ -287,6 +287,20 @@ private fun ReadEditTabs(
     }
 }
 
+/**
+ * Text shown in the type dropdown: the canonical id for a known type (an alias in the file is
+ * displayed as its canonical type, the file itself is not touched), the raw value plus a
+ * "custom" suffix for an unknown one, and a dash when there is no `type:` at all.
+ */
+internal fun typeDropdownLabel(
+    rawType: String?,
+    customSuffix: String,
+): String =
+    when {
+        rawType == null -> "—"
+        else -> OkfType.canonicalIdFor(rawType) ?: "$rawType ($customSuffix)"
+    }
+
 @Composable
 private fun TypeDropdown(
     rawType: String?,
@@ -295,9 +309,7 @@ private fun TypeDropdown(
     modifier: Modifier = Modifier,
 ) {
     var expanded by remember { mutableStateOf(false) }
-    val isKnown = OkfType.fromId(rawType) != null
-    val label = rawType ?: "—"
-    val shown = if (isKnown || rawType == null) label else "$label (${strings.docEditCustomType})"
+    val shown = typeDropdownLabel(rawType = rawType, customSuffix = strings.docEditCustomType)
     Box(modifier = modifier) {
         // Read-only outlined field = same height/shape as the title field; a transparent overlay
         // makes the whole field open the menu (a disabled field would swallow the click itself).
