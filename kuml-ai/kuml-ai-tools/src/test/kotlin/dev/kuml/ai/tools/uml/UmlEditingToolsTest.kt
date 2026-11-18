@@ -7,6 +7,7 @@ import dev.kuml.ai.tools.result.RemoveResult
 import dev.kuml.ai.tools.result.RenameResult
 import dev.kuml.uml.UmlClass
 import dev.kuml.uml.UmlInterface
+import dev.kuml.uml.multiplicityLabel
 import io.kotest.core.spec.style.FunSpec
 import io.kotest.matchers.collections.shouldHaveSize
 import io.kotest.matchers.shouldBe
@@ -236,6 +237,74 @@ class UmlEditingToolsTest :
                     .map { it.id }
                     .toSet()
                     .size shouldBe 100
+            }
+        }
+
+        suspend fun assocEnds(
+            src: String?,
+            tgt: String?,
+        ): List<dev.kuml.uml.UmlAssociationEnd> {
+            val (ctx, tools) = makeTools()
+            tools.addClass(name = "A")
+            tools.addClass(name = "B")
+            tools.addAssociation(sourceIdOrName = "A", targetIdOrName = "B", sourceMultiplicity = src, targetMultiplicity = tgt)
+            val model = ctx.resolveModel() as AnyKumlModel.Uml
+            return (model.relationships.single() as dev.kuml.uml.UmlAssociation).ends
+        }
+
+        test("add_association with target '1' draws an explicit 1 only on the target end") {
+            runTest {
+                val ends = assocEnds(src = null, tgt = "1")
+                ends[1].multiplicityExplicit shouldBe true
+                ends[1].multiplicityLabel() shouldBe "1"
+                ends[0].multiplicityExplicit shouldBe false
+                ends[0].multiplicityLabel() shouldBe null
+            }
+        }
+
+        test("add_association with blank multiplicity stays unlabelled") {
+            runTest {
+                for (blank in listOf("  ", "")) {
+                    val ends = assocEnds(src = blank, tgt = blank)
+                    ends.map { it.multiplicityExplicit } shouldBe listOf(false, false)
+                    ends.map { it.multiplicityLabel() } shouldBe listOf(null, null)
+                }
+            }
+        }
+
+        test("add_association with 0..* is labelled and without arguments unlabelled") {
+            runTest {
+                val ends = assocEnds(src = "0..*", tgt = null)
+                ends[0].multiplicityExplicit shouldBe true
+                ends[0].multiplicityLabel() shouldBe "0..*"
+                val none = assocEnds(src = null, tgt = null)
+                none.map { it.multiplicityLabel() } shouldBe listOf(null, null)
+            }
+        }
+
+        test("explicit flag survives a JSON round trip of the association") {
+            runTest {
+                val (ctx, tools) = makeTools()
+                tools.addClass(name = "A")
+                tools.addClass(name = "B")
+                tools.addAssociation(sourceIdOrName = "A", targetIdOrName = "B", targetMultiplicity = "1")
+                val assoc = (ctx.resolveModel() as AnyKumlModel.Uml).relationships.single() as dev.kuml.uml.UmlAssociation
+                val json =
+                    kotlinx.serialization.json.Json
+                        .encodeToString(
+                            dev.kuml.uml.UmlAssociation
+                                .serializer(),
+                            assoc,
+                        )
+                (json.contains("multiplicityExplicit")) shouldBe true
+                val back =
+                    kotlinx.serialization.json.Json
+                        .decodeFromString(
+                            dev.kuml.uml.UmlAssociation
+                                .serializer(),
+                            json,
+                        )
+                back.ends[1].multiplicityLabel() shouldBe "1"
             }
         }
     })

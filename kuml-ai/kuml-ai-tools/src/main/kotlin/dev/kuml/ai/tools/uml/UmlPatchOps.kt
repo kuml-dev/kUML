@@ -124,6 +124,10 @@ internal object UmlPatchOps {
         return if (newElements == model.elements) null else model.copy(elements = newElements)
     }
 
+    /**
+     * Adds an association. The `*MultiplicityExplicit` flags mark ends whose multiplicity the caller
+     * stated (a non-blank argument), so an explicit `1` is drawn instead of being treated as the default.
+     */
     internal fun addAssociation(
         model: AnyKumlModel.Uml,
         assocId: String,
@@ -132,6 +136,8 @@ internal object UmlPatchOps {
         name: String?,
         sourceMultiplicity: Multiplicity,
         targetMultiplicity: Multiplicity,
+        sourceMultiplicityExplicit: Boolean = false,
+        targetMultiplicityExplicit: Boolean = false,
     ): AnyKumlModel.Uml {
         val assoc =
             UmlAssociation(
@@ -139,8 +145,16 @@ internal object UmlPatchOps {
                 name = name,
                 ends =
                     listOf(
-                        UmlAssociationEnd(typeId = sourceId, multiplicity = sourceMultiplicity),
-                        UmlAssociationEnd(typeId = targetId, multiplicity = targetMultiplicity),
+                        UmlAssociationEnd(
+                            typeId = sourceId,
+                            multiplicity = sourceMultiplicity,
+                            multiplicityExplicit = sourceMultiplicityExplicit,
+                        ),
+                        UmlAssociationEnd(
+                            typeId = targetId,
+                            multiplicity = targetMultiplicity,
+                            multiplicityExplicit = targetMultiplicityExplicit,
+                        ),
                     ),
             )
         return model.copy(relationships = model.relationships + assoc)

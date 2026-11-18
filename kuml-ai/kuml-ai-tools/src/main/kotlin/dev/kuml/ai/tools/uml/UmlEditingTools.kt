@@ -248,8 +248,8 @@ public class UmlEditingTools(
     public suspend fun addAssociation(
         @LLMDescription("Source classifier id or name.") sourceIdOrName: String,
         @LLMDescription("Target classifier id or name.") targetIdOrName: String,
-        @LLMDescription("Source-end multiplicity, e.g. '1', '0..1', '*'.") sourceMultiplicity: String? = null,
-        @LLMDescription("Target-end multiplicity, e.g. '1', '0..1', '*'.") targetMultiplicity: String? = null,
+        @LLMDescription("Source-end multiplicity, e.g. '1', '0..1', '*'. An explicit '1' is drawn.") sourceMultiplicity: String? = null,
+        @LLMDescription("Target-end multiplicity, e.g. '1', '0..1', '*'. An explicit '1' is drawn.") targetMultiplicity: String? = null,
         @LLMDescription("Optional association name shown on the edge.") name: String? = null,
     ): PatchApplyResult {
         val model = ctx.resolveModel()
@@ -270,6 +270,8 @@ public class UmlEditingTools(
         val assocId = IdHelpers.uniqueId(name = "${source.name}_${target.name}", takenIds = takenIds, prefix = "assoc")
         val srcMult = UmlPatchOps.parseMultiplicity(sourceMultiplicity)
         val tgtMult = UmlPatchOps.parseMultiplicity(targetMultiplicity)
+        val srcExplicit = !sourceMultiplicity.isNullOrBlank()
+        val tgtExplicit = !targetMultiplicity.isNullOrBlank()
 
         val patch =
             ModelPatch.AddRelationship(
@@ -292,6 +294,8 @@ public class UmlEditingTools(
                 name = name,
                 sourceMultiplicity = srcMult,
                 targetMultiplicity = tgtMult,
+                sourceMultiplicityExplicit = srcExplicit,
+                targetMultiplicityExplicit = tgtExplicit,
             )
         }
     }

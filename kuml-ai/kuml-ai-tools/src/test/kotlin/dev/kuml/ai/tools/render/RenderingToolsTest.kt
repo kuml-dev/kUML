@@ -5,6 +5,7 @@ import dev.kuml.ai.tools.result.RenderResult
 import dev.kuml.ai.tools.result.ValidateResult
 import dev.kuml.ai.tools.uml.UmlEditingTools
 import io.kotest.core.spec.style.FunSpec
+import io.kotest.matchers.shouldBe
 import io.kotest.matchers.string.shouldContain
 import io.kotest.matchers.types.shouldBeInstanceOf
 import kotlinx.coroutines.test.runTest
@@ -82,14 +83,24 @@ class RenderingToolsTest :
                 result.shouldBeInstanceOf<ValidateResult.Ok>()
             }
         }
-    }) {
-    companion object {
-        private infix fun Boolean.shouldBe(b: Boolean) {
-            if (this != b) throw AssertionError("Expected $b but was $this")
-        }
 
-        private infix fun Int.shouldBe(n: Int) {
-            if (this != n) throw AssertionError("Expected $n but was $this")
+        test("an explicit multiplicity 1 from add_association is drawn in the SVG") {
+            fun svgWith(targetMultiplicity: String?): String {
+                val ctx = makeContext()
+                val umlTools = UmlEditingTools(ctx)
+                val tools = RenderingTools(ctx = ctx, artifactStore = makeTempStore())
+                var svg = ""
+                runTest {
+                    umlTools.addClass(name = "Order")
+                    umlTools.addClass(name = "Customer")
+                    umlTools.addAssociation(sourceIdOrName = "Order", targetIdOrName = "Customer", targetMultiplicity = targetMultiplicity)
+                    val result = tools.renderPreview(format = "svg") as RenderResult.Svg
+                    svg = File(result.filePath).readText()
+                }
+                return svg
+            }
+            val oneLabel = Regex("""<text[^>]*>\s*1\s*</text>""")
+            oneLabel.containsMatchIn(svgWith("1")) shouldBe true
+            oneLabel.containsMatchIn(svgWith(null)) shouldBe false
         }
-    }
-}
+    })

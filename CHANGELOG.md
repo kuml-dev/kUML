@@ -6,6 +6,11 @@ All notable changes to this project are documented here. Format follows
 
 ## [Unreleased]
 
+### Nacharbeit 110: AI editing tools mark an explicit multiplicity
+
+- **Why.** `add_association` built association ends without the explicit-multiplicity flag, so a `1` set by the AI was silently not drawn ("Not fixed" of Nacharbeit 79).
+- **Change.** An end is marked explicit if and only if the tool argument is non-blank; no argument or a blank one stays unlabelled. The code generation tool's `uses` association is unchanged (its `1..1` is a programmatic default). No metamodel or persistence change; older documents load unchanged.
+
 ### Nacharbeit 109: SysML 2 DSL printer keeps attribute defaults
 
 - **Why.** The SysML 2 DSL printer wrote a `// TODO` comment and dropped `AttributeUsage.defaultExpression`, so the desktop round trip and AI patches lost attribute defaults ("Not fixed" of Nacharbeit 72).

@@ -2,6 +2,7 @@ package dev.kuml.ai.tools.uml
 
 import dev.kuml.ai.tools.context.AnyKumlModel
 import dev.kuml.uml.UmlClass
+import dev.kuml.uml.multiplicityLabel
 import io.kotest.core.spec.style.FunSpec
 import io.kotest.matchers.collections.shouldHaveSize
 import io.kotest.matchers.nulls.shouldNotBeNull
@@ -103,5 +104,53 @@ class UmlPatchOpsTest :
             withAssoc.relationships shouldHaveSize 1
             val assoc = withAssoc.relationships[0] as dev.kuml.uml.UmlAssociation
             assoc.ends shouldHaveSize 2
+        }
+
+        test("addAssociation marks only the flagged end as explicit") {
+            val base =
+                UmlPatchOps.addClass(
+                    model =
+                        UmlPatchOps.addClass(
+                            model = AnyKumlModel.emptyUml(),
+                            id = "a",
+                            name = "A",
+                            stereotype = null,
+                            isAbstract = false,
+                        ),
+                    id = "b",
+                    name = "B",
+                    stereotype = null,
+                    isAbstract = false,
+                )
+            val one = dev.kuml.uml.Multiplicity(lower = 1, upper = 1)
+            val flagged =
+                UmlPatchOps
+                    .addAssociation(
+                        model = base,
+                        assocId = "x",
+                        sourceId = "a",
+                        targetId = "b",
+                        name = null,
+                        sourceMultiplicity = one,
+                        targetMultiplicity = dev.kuml.uml.Multiplicity(),
+                        sourceMultiplicityExplicit = true,
+                    ).relationships[0] as dev.kuml.uml.UmlAssociation
+            flagged.ends[0].multiplicityExplicit shouldBe true
+            flagged.ends[0].multiplicityLabel() shouldBe "1"
+            flagged.ends[1].multiplicityExplicit shouldBe false
+            flagged.ends[1].multiplicityLabel() shouldBe null
+
+            val defaults =
+                UmlPatchOps
+                    .addAssociation(
+                        model = base,
+                        assocId = "y",
+                        sourceId = "a",
+                        targetId = "b",
+                        name = null,
+                        sourceMultiplicity = one,
+                        targetMultiplicity = one,
+                    ).relationships[0] as dev.kuml.uml.UmlAssociation
+            defaults.ends.map { it.multiplicityExplicit } shouldBe listOf(false, false)
         }
     })
