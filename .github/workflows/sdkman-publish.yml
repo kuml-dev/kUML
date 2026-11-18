@@ -1,0 +1,60 @@
+name: SDKMAN publish
+
+# Publishes (or re-publishes) the universal kUML distribution of an EXISTING GitHub release to
+# SDKMAN! (sdkman-state). Publishing is an upsert, so running it twice is safe. The regular path is
+# the `sdkman-release` job of release.yml; use this workflow when that job was skipped or failed
+# (for example because the credentials were not yet set when the release ran).
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "Version to publish, without the leading v (for example 0.58.0)"
+        required: true
+        type: string
+      stable:
+        description: "Tag it as the default version (stable, latest). Untick for a pre-release (latest only)."
+        required: false
+        default: true
+        type: boolean
+
+permissions:
+  contents: read
+
+jobs:
+  publish:
+    name: Publish ${{ inputs.version }} to SDKMAN!
+    runs-on: ubuntu-latest
+    steps:
+      - name: Resolve the universal asset
+        id: asset
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          VERSION: ${{ inputs.version }}
+        run: |
+          set -euo pipefail
+          case "$VERSION" in
+            [0-9]*.[0-9]*.[0-9]*) ;;
+            *) echo "::error::version must look like 1.2.3 (got: $VERSION)"; exit 1 ;;
+          esac
+          name="kuml-universal-${VERSION}.zip"
+          digest="$(gh api "repos/${GITHUB_REPOSITORY}/releases/tags/v${VERSION}" \
+            --jq ".assets[] | select(.name == \"${name}\") | .digest")"
+          sha="${digest#sha256:}"
+          if [ -z "$sha" ] || [ "$sha" = "$digest" ]; then
+            echo "::error::no sha256 digest for ${name} in release v${VERSION}"; exit 1
+          fi
+          echo "url=https://github.com/${GITHUB_REPOSITORY}/releases/download/v${VERSION}/${name}" >> "$GITHUB_OUTPUT"
+          echo "sha256=${sha}" >> "$GITHUB_OUTPUT"
+          echo "tags=$([ "${{ inputs.stable }}" = "true" ] && echo 'stable, latest' || echo 'latest')" >> "$GITHUB_OUTPUT"
+
+      - name: Release universal build to SDKMAN!
+        uses: sdkman/sdkman-release-action@v1.0.0
+        with:
+          email: ${{ secrets.SDKMAN_EMAIL }}
+          password: ${{ secrets.SDKMAN_PASSWORD }}
+          candidate: kuml
+          version: ${{ inputs.version }}
+          url: ${{ steps.asset.outputs.url }}
+          platform: UNIVERSAL
+          checksum-sha-256: ${{ steps.asset.outputs.sha256 }}
+          tags: ${{ steps.asset.outputs.tags }}
