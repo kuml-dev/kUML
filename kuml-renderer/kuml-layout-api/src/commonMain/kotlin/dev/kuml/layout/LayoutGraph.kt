@@ -142,6 +142,14 @@ public data class LayoutGroup(
      * header texts. Read by the header-band edge avoidance only; engines ignore it.
      */
     val headerTextWidths: HeaderTextWidths? = null,
+    /**
+     * Flow direction of the members of this group (Nacharbeit 106). Only honoured for compound groups
+     * ([layoutAsCompound] = true) that are self-contained: no edge may connect a member (or the group itself, or a
+     * nested group) with an element outside. Otherwise the layered engine cannot route the edge and the group keeps
+     * the diagram direction; the engine then reports the warning `group.direction.crossEdges`. `null` (default) =
+     * the group follows the diagram direction, output unchanged.
+     */
+    val direction: LayoutDirection? = null,
 )
 
 /** Estimated widths of a composite frame's header texts, see [LayoutGroup.headerTextWidths]. */

@@ -6,6 +6,15 @@ All notable changes to this project are documented here. Format follows
 
 ## [Unreleased]
 
+### Nacharbeit 106: own flow direction of a group (pilot: C4 boundary)
+
+- **Why.** A group (boundary) always followed the diagram direction. Wanted: a component view laid out left to right inside a boundary while the diagram flows top to bottom.
+- **Spike.** ELK 0.12.0 honours a compound's own `DIRECTION` when that compound sets `HIERARCHY_HANDLING = SEPARATE_CHILDREN` while the root uses `INCLUDE_CHILDREN`: members flow in the group direction, edges and members stay inside the frame, a `minSize` re-layout still meets the size. An edge crossing the group border (or ending at the group anchor itself) makes ELK throw `UnsupportedGraphException`, so the property is never set for such a group. Pinned by `GroupDirectionSpikeTest`.
+- **Added.** `LayoutGroup.direction` (default `null`, output unchanged); `HintsMapper` sets the direction only for a self-contained compound group and otherwise reports `group.direction.crossEdges` (first crossing edge in declaration order). DSL `layout { boundaryDirection = Right }` (`LayoutSpec.boundaryDirection`, `LayoutOption.BOUNDARY_DIRECTION`) for C4 container and component diagrams; the engine warning is reported to the user as `KUML-LAYOUT-W009` (once). A system context diagram has no boundary and reports `KUML-LAYOUT-W001`. When a relationship crosses the boundary the picture is identical to the one without the keyword.
+- **Docs.** `layout.adoc` (C4 note, W009), `c4-dsl.adoc`.
+- **Verification.** New `GroupDirectionSpikeTest`, `GroupDirectionTest` (members ordered, inside the frame, `minSize`, crossing edges identical to no direction, anchor edge, no direction = no change) and `C4BoundaryDirectionTest` (component diagram end to end, crossing container diagram identical with one W009, system context W001, validate).
+- **Not fixed.** Only C4 uses the group direction; other compound kinds (UML package, state frame) could follow. The direction needs a self-contained group; mixed groups keep the diagram direction.
+
 ### Nacharbeit 105: the LaTeX BPMN renderer honours the placement hint
 
 - **Why.** Not fixed of Nacharbeit 104a: the BPMN LaTeX output (process and collaboration) ignored `placement`.

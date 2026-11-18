@@ -146,6 +146,7 @@ public class ElkLayoutEngine(
             val passWarnings = mutableListOf<LayoutWarning>()
             passWarnings += HintsMapper.applyGlobalHints(root = root, hints = hints, config = configuration)
             passWarnings += HintsMapper.collectNodeHintWarnings(graph)
+            passWarnings += HintsMapper.collectGroupDirectionWarnings(graph)
             HintsMapper.applyGroupPadding(builder = builder, hints = hints, config = configuration, extraPadding = extraPaddingByGroup)
             HintsMapper.applyLayerStrategy(builder = builder, root = root)
 

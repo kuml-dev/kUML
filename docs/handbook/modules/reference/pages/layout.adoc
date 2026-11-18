@@ -168,6 +168,9 @@ classDiagram(name = "Zoo") {
   render differently there.
 * Unknown ids, more than 32 `sameLayer` groups or 64 ids per group, and ids in both `first` and `last`
   are reported (`KUML-LAYOUT-W004`, `KUML-LAYOUT-E001`, `KUML-LAYOUT-W001`).
+* `boundaryDirection` of a C4 container or component diagram reports `KUML-LAYOUT-W009` (a warning) when a relationship crosses the
+  boundary: the layered engine cannot route it, so the boundary is laid out with the diagram direction and the picture is
+  identical to the one without the keyword. Remove the crossing relationship from the diagram or the keyword to clear it.
 * A `first(x)` pin on a node with incoming edges, or a `last(x)` pin on a node with outgoing edges, reports
   `KUML-LAYOUT-W008` (a warning) in `kuml validate` and `kuml render`. The pin is still applied and the diagram is
   still drawn, but the engine then draws the edge or edges against the flow direction. Remove the pin or the edge to
@@ -249,6 +252,11 @@ inside compound boundaries.
   `wrapColumns = 2`, or a container moved to the layer of a deeper one, gave identical positions inside the boundary).
   They are therefore reported with `KUML-LAYOUT-W001` in `kuml validate` and `kuml render`; an element outside the
   boundary (an external system) can still move. `direction`, `first`, `last` and `aspectRatio` act in all three C4 diagrams.
+  `boundaryDirection` (Right, Left, Down, Up) gives the elements inside the boundary their own flow direction while the
+  diagram keeps its own. It acts only when no relationship crosses the boundary, for example in a component diagram
+  without external actors, and only in container and component diagrams. If a relationship crosses the boundary (the
+  usual case in a container diagram), the picture stays exactly as without the keyword and `KUML-LAYOUT-W009` names the
+  first crossing relationship; in a system context diagram, which has no boundary, it is `KUML-LAYOUT-W001`.
 . BPMN: the matrix lists the layered options, but the BPMN diagram builders have no `layout { }` block yet, so
   there is nothing to write there.
 . Compound boundaries in UML and SysML 2 (the same rule as note 1, extended in Nacharbeit 97): in UML class,
@@ -263,7 +271,7 @@ inside compound boundaries.
 
 Options that belong to one diagram kind only: `labelMaxWidth` (SysML 2 state machines; `KUML-LAYOUT-W001` elsewhere,
 `KUML-LAYOUT-E001` outside 120..400), `showSubjectEdges` (SysML 2 requirement diagrams) and `actorSide` (SysML 2 use-case
-diagrams).
+diagrams) and `boundaryDirection` (C4 container and component diagrams).
 
 `sameLayer` has two parts. The *layer assignment* (all members get the deepest layer of the group, see below)
 applies wherever the table says `acts`. The additional *centring* of the members on the flow axis, and the drawing of an

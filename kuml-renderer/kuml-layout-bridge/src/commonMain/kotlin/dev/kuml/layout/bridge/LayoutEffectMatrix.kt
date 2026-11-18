@@ -85,7 +85,8 @@ public object SpecDiagramKinds {
  */
 public object LayoutEffectMatrix {
     private val all: Set<LayoutOption> =
-        LayoutOption.entries.toSet() - LayoutOption.LABEL_MAX_WIDTH - LayoutOption.SHOW_SUBJECT_EDGES - LayoutOption.ACTOR_SIDE
+        LayoutOption.entries.toSet() - LayoutOption.LABEL_MAX_WIDTH - LayoutOption.SHOW_SUBJECT_EDGES - LayoutOption.ACTOR_SIDE -
+            LayoutOption.BOUNDARY_DIRECTION
     private val none: Set<LayoutOption> = emptySet()
 
     /** Options with an effect per diagram art; complete over [SpecDiagramKind.entries]. */
@@ -114,7 +115,7 @@ public object LayoutEffectMatrix {
             SpecDiagramKind.SYSML2_PAR to all,
             SpecDiagramKind.SYSML2_SEQ to none,
             SpecDiagramKind.SYSML2_PKG to all,
-            SpecDiagramKind.C4 to all,
+            SpecDiagramKind.C4 to (all + LayoutOption.BOUNDARY_DIRECTION),
             SpecDiagramKind.ERM to all,
             SpecDiagramKind.BPMN_PROCESS to all,
             SpecDiagramKind.BPMN_COLLABORATION to all,

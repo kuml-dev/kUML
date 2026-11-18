@@ -16,13 +16,15 @@ class LayoutEffectMatrixTest :
                 // Rows are all-or-nothing today: an option set is either fully honoured or fully ignored.
                 val row = LayoutEffectMatrix.effectiveFor(kind)
                 val common =
-                    LayoutOption.entries.toSet() - LayoutOption.LABEL_MAX_WIDTH - LayoutOption.SHOW_SUBJECT_EDGES - LayoutOption.ACTOR_SIDE
+                    LayoutOption.entries.toSet() - LayoutOption.LABEL_MAX_WIDTH - LayoutOption.SHOW_SUBJECT_EDGES -
+                        LayoutOption.ACTOR_SIDE - LayoutOption.BOUNDARY_DIRECTION
                 (
                     row.isEmpty() ||
                         row == common ||
                         row == common + LayoutOption.LABEL_MAX_WIDTH ||
                         row == common + LayoutOption.SHOW_SUBJECT_EDGES ||
-                        row == common + LayoutOption.ACTOR_SIDE
+                        row == common + LayoutOption.ACTOR_SIDE ||
+                        row == common + LayoutOption.BOUNDARY_DIRECTION
                 ) shouldBe true
             }
             LayoutEffectMatrix.effective.keys shouldBe SpecDiagramKind.entries.toSet()

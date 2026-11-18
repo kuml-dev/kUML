@@ -1,12 +1,16 @@
 package dev.kuml.layout.elk
 
+import dev.kuml.layout.EdgeId
 import dev.kuml.layout.EdgeRouteStyle
 import dev.kuml.layout.GroupId
 import dev.kuml.layout.Insets
 import dev.kuml.layout.LAYOUT_SPACING_SCALE
 import dev.kuml.layout.LayoutDirection
+import dev.kuml.layout.LayoutEdge
 import dev.kuml.layout.LayoutGraph
+import dev.kuml.layout.LayoutGroup
 import dev.kuml.layout.LayoutHints
+import dev.kuml.layout.LayoutNode
 import dev.kuml.layout.LayoutWarning
 import dev.kuml.layout.ModelOrder
 import dev.kuml.layout.NodeId
@@ -82,15 +86,7 @@ internal object HintsMapper {
         }
 
         // Direction
-        root.setProperty(
-            CoreOptions.DIRECTION,
-            when (hints.direction) {
-                LayoutDirection.TopToBottom -> Direction.DOWN
-                LayoutDirection.BottomToTop -> Direction.UP
-                LayoutDirection.LeftToRight -> Direction.RIGHT
-                LayoutDirection.RightToLeft -> Direction.LEFT
-            },
-        )
+        root.setProperty(CoreOptions.DIRECTION, elkDirection(hints.direction))
 
         // Edge routing style
         root.setProperty(
@@ -332,6 +328,15 @@ internal object HintsMapper {
                 // between states collapse onto each other.
                 applyCompoundSpacing(elkGroup = elkGroup, hints = hints, config = config)
 
+                // Nacharbeit 106: own flow direction for a self-contained compound. ELK honours it only when the compound
+                // lays out its children separately; an edge across the border would make ELK throw (spike
+                // GroupDirectionSpikeTest), so a group with a crossing edge keeps the diagram direction.
+                val direction = group.direction
+                if (direction != null && builder.groupCrossingEdge(group) == null) {
+                    elkGroup.setProperty(CoreOptions.HIERARCHY_HANDLING, HierarchyHandling.SEPARATE_CHILDREN)
+                    elkGroup.setProperty(CoreOptions.DIRECTION, elkDirection(direction))
+                }
+
                 // NOTE on [LayoutGroup.minSize]: ELK's own `NODE_SIZE_CONSTRAINTS` /
                 // `NODE_SIZE_MINIMUM` properties are intentionally *not* set here.
                 // Verified empirically that `elk.layered` ignores them for a node
@@ -359,6 +364,70 @@ internal object HintsMapper {
             root?.setProperty(CoreOptions.HIERARCHY_HANDLING, HierarchyHandling.INCLUDE_CHILDREN)
         }
     }
+
+    private fun elkDirection(direction: LayoutDirection): Direction =
+        when (direction) {
+            LayoutDirection.TopToBottom -> Direction.DOWN
+            LayoutDirection.BottomToTop -> Direction.UP
+            LayoutDirection.LeftToRight -> Direction.RIGHT
+            LayoutDirection.RightToLeft -> Direction.LEFT
+        }
+
+    /** [ElkGraphBuilder] view of [groupCrossingEdge]. */
+    private fun ElkGraphBuilder.groupCrossingEdge(group: LayoutGroup): EdgeId? =
+        groupCrossingEdge(groups = groups(), nodes = nodes(), edges = edges(), group = group)
+
+    /**
+     * Nacharbeit 106: the first edge (declaration order) that crosses the border of [group], or `null` when the group is
+     * self-contained. Members are the nodes of the group and of its nested groups, plus the nested groups themselves (an edge
+     * may end at their anchor). An edge at the group's own anchor crosses: the anchor is the compound itself, outside its child graph. An edge crosses when exactly one end is a member; edges the engine skips (unknown
+     * endpoint) never count. Iterative with a visited set, so a cyclic parent chain cannot loop.
+     */
+    internal fun groupCrossingEdge(
+        groups: List<LayoutGroup>,
+        nodes: List<LayoutNode>,
+        edges: List<LayoutEdge>,
+        group: LayoutGroup,
+    ): EdgeId? {
+        val groupIds = mutableSetOf(group.id)
+        var grew = true
+        while (grew) {
+            grew = false
+            for (g in groups) if (g.parent in groupIds && groupIds.add(g.id)) grew = true
+        }
+        val allGroupNames = groups.map { it.id.value }.toSet()
+        val allNodeNames = nodes.map { it.id.value }.toSet()
+        val members =
+            nodes.filter { it.groupId in groupIds }.map { it.id.value }.toSet() + (groupIds - group.id).map { it.value }
+        for (edge in edges) {
+            val s = edge.source.nodeId.value
+            val t = edge.target.nodeId.value
+            val known = { id: String -> id in allNodeNames || id in allGroupNames }
+            if (!known(s) || !known(t)) continue
+            if ((s in members) != (t in members)) return edge.id
+        }
+        return null
+    }
+
+    /**
+     * Nacharbeit 106: one `group.direction.crossEdges` warning per compound group that asks for its own direction but
+     * has an edge across its border (the direction is then not applied). Shares [groupCrossingEdge] with
+     * [applyGroupPadding], so the warning and the decision cannot drift apart.
+     */
+    fun collectGroupDirectionWarnings(graph: LayoutGraph): List<LayoutWarning> =
+        graph.groups.mapNotNull { group ->
+            if (group.direction == null || !group.layoutAsCompound) return@mapNotNull null
+            val crossing =
+                groupCrossingEdge(groups = graph.groups, nodes = graph.nodes, edges = graph.edges, group = group)
+                    ?: return@mapNotNull null
+            LayoutWarning(
+                code = "group.direction.crossEdges",
+                message =
+                    "Group '${group.id.value}' asks for its own direction, but edge '${crossing.value}' crosses its border; " +
+                        "the group keeps the diagram direction.",
+                affectedEdges = listOf(crossing),
+            )
+        }
 
     /**
      * C3-1 — aktiviert, sobald irgendein Knoten einen Ebenen-Hint trägt, das partitionierte Layout

@@ -23,6 +23,9 @@ open class LayoutSpecBuilder protected constructor() {
     val Left: LayoutFlow = LayoutFlow.Left
 
     var direction: LayoutFlow? = null
+
+    /** C4 container / component diagrams only: own flow direction of the boundary (works when no relationship crosses it). */
+    var boundaryDirection: LayoutFlow? = null
     var wrapColumns: Int? = null
 
     /** Hard upper bound of the diagram width in px. */
@@ -83,6 +86,7 @@ open class LayoutSpecBuilder protected constructor() {
             labelMaxWidth = labelMaxWidth,
             showSubjectEdges = showSubjectEdgesValue,
             actorSide = actorSideValue,
+            boundaryDirection = boundaryDirection,
         )
 }
 

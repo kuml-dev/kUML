@@ -80,10 +80,12 @@ public object LayoutSpecRunner {
                 if (spec.labelMaxWidth != null) add(LayoutOption.LABEL_MAX_WIDTH)
                 if (spec.showSubjectEdges != null) add(LayoutOption.SHOW_SUBJECT_EDGES)
                 if (spec.actorSide != null) add(LayoutOption.ACTOR_SIDE)
+                if (spec.boundaryDirection != null) add(LayoutOption.BOUNDARY_DIRECTION)
             }
         val effective = LayoutEffectMatrix.effectiveFor(kind)
         val insideCompound = if (compoundMembers) LayoutEffectMatrix.ignoredInsideCompound[kind].orEmpty() else emptySet()
-        return set.filter { it !in effective || it in insideCompound }
+        val noBoundary = kind == SpecDiagramKind.C4 && !compoundMembers
+        return set.filter { it !in effective || it in insideCompound || (noBoundary && it == LayoutOption.BOUNDARY_DIRECTION) }
     }
 
     /** One `KUML-LAYOUT-W001` per ignored option (never per element); nothing for an empty block. */
@@ -105,7 +107,9 @@ public object LayoutSpecRunner {
         val effective = LayoutEffectMatrix.effectiveFor(kind)
         return ignoredOptions(spec = spec, kind = kind, compoundMembers = compoundMembers).map {
             val message =
-                if (it in inside && it in effective) {
+                if (it == LayoutOption.BOUNDARY_DIRECTION && it in effective) {
+                    "layout option 'boundaryDirection' has no effect on $where: it has no boundary with elements inside."
+                } else if (it in inside && it in effective) {
                     val scope =
                         if (diagramName !=
                             null
@@ -158,6 +162,71 @@ public object LayoutSpecRunner {
         spec: LayoutSpec?,
         kind: SpecDiagramKind = SpecDiagramKind.UML_CLASS,
         diagramName: String? = null,
+    ): SpecLayoutOutcome {
+        val boundaryFlow = spec?.boundaryDirection
+        if (kind != SpecDiagramKind.C4 || boundaryFlow == null) {
+            return layoutWithPins(engine = engine, graph = graph, hints = hints, spec = spec, kind = kind, diagramName = diagramName)
+        }
+        // Nacharbeit 106: the boundary group gets its own flow direction. The engine decides whether it can honour it
+        // (self-contained group) and reports `group.direction.crossEdges` otherwise; that raw warning becomes W009.
+        val outcome =
+            layoutWithPins(
+                engine = engine,
+                graph = graph.withBoundaryDirection(boundaryFlow),
+                hints = hints,
+                spec = spec,
+                kind = kind,
+                diagramName = diagramName,
+            )
+        val crossing = outcome.result.warnings.filter { it.code == GROUP_DIRECTION_CROSS_EDGES }
+        if (crossing.isEmpty()) return outcome
+        val findings =
+            crossing.map {
+                val edge = it.affectedEdges.firstOrNull()?.value ?: "?"
+                LayoutSpecFinding(
+                    code = LayoutCodes.BOUNDARY_DIRECTION_IGNORED,
+                    message =
+                        "boundaryDirection ignored: relationship '$edge' crosses the boundary. " +
+                            "The boundary is laid out with the diagram direction; " +
+                            "use boundaryDirection only when no relationship crosses the boundary.",
+                )
+            }
+        return outcome.copy(
+            result = outcome.result.copy(warnings = outcome.result.warnings.filterNot { it.code == GROUP_DIRECTION_CROSS_EDGES }),
+            findings = outcome.findings + findings,
+        )
+    }
+
+    /** Copy of [this] in which every compound group (the C4 boundary) carries [flow] as its own direction. */
+    private fun LayoutGraph.withBoundaryDirection(flow: LayoutFlow): LayoutGraph =
+        copy(
+            groups =
+                groups.map {
+                    if (!it.layoutAsCompound) {
+                        it
+                    } else {
+                        it.copy(
+                            direction =
+                                when (flow) {
+                                    LayoutFlow.Down -> LayoutDirection.TopToBottom
+                                    LayoutFlow.Up -> LayoutDirection.BottomToTop
+                                    LayoutFlow.Right -> LayoutDirection.LeftToRight
+                                    LayoutFlow.Left -> LayoutDirection.RightToLeft
+                                },
+                        )
+                    }
+                },
+        )
+
+    private const val GROUP_DIRECTION_CROSS_EDGES = "group.direction.crossEdges"
+
+    private fun layoutWithPins(
+        engine: KumlLayoutEngine,
+        graph: LayoutGraph,
+        hints: LayoutHints,
+        spec: LayoutSpec?,
+        kind: SpecDiagramKind,
+        diagramName: String?,
     ): SpecLayoutOutcome {
         val pinFindings = layerPinFindings(kind = kind, spec = spec, degrees = spec?.let { LayerPinCheck.edgeDegrees(graph) })
         if (kind == SpecDiagramKind.UML_CLASS) {

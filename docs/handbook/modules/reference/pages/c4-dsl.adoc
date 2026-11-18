@@ -370,7 +370,7 @@ ones get `~2`, `~3`); none is merged away. Declaring the same relationship twice
 === Layout block and relationships in a system block
 
 `layout { direction = Right }` is available in `containerDiagram` (and the other C4 diagrams that accept a
-layout block), see xref:layout.adoc[layout]. A `relationship(...)` is declared at model level; inside the
+layout block), see xref:layout.adoc[layout]. `layout { boundaryDirection = Right }` lays the elements inside the system or container boundary out in their own direction. It works only when no relationship crosses the boundary, for example in a component view without external actors; in a typical container diagram it does not apply, the picture stays unchanged and `KUML-LAYOUT-W009` names the first crossing relationship. A `relationship(...)` is declared at model level; inside the
 `softwareSystem { }` block call it with an explicit receiver, `this@c4Model.relationship(...)`. The scripts
 report this as "Declare relationships at model level, or call `this@c4Model.relationship(...)` inside the
 softwareSystem block." The same applies to `note(...)`: the hint reads "Declare notes at model level after the

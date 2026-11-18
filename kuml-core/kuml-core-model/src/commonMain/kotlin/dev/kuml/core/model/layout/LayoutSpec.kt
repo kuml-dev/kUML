@@ -26,6 +26,8 @@ enum class LayoutFlow { Down, Right, Up, Left }
  *   `null` / `false` (the default) shows the subject as a text line in the card instead
  * @property actorSide use-case diagrams only (wave 2E-b): which side of the subject frame the actors stand on
  *   (`null` = [ActorSide.Auto])
+ * @property boundaryDirection C4 container / component diagrams only (Nacharbeit 106): own flow direction of the boundary's
+ *   members; applies only when no relationship crosses the boundary (`null` = the diagram direction)
  */
 @Serializable
 data class LayoutSpec(
@@ -39,6 +41,7 @@ data class LayoutSpec(
     val labelMaxWidth: Int? = null,
     val showSubjectEdges: Boolean? = null,
     val actorSide: ActorSide? = null,
+    val boundaryDirection: LayoutFlow? = null,
 ) {
     /** True if the spec carries no hint at all. */
     val isEmpty: Boolean
@@ -52,7 +55,8 @@ data class LayoutSpec(
                 aspectRatio == null &&
                 labelMaxWidth == null &&
                 showSubjectEdges == null &&
-                actorSide == null
+                actorSide == null &&
+                boundaryDirection == null
 
     /** Merges [next] onto this spec: scalars of [next] win when set, lists are appended. */
     fun mergedWith(next: LayoutSpec): LayoutSpec =
@@ -67,6 +71,7 @@ data class LayoutSpec(
             labelMaxWidth = next.labelMaxWidth ?: labelMaxWidth,
             showSubjectEdges = next.showSubjectEdges ?: showSubjectEdges,
             actorSide = next.actorSide ?: actorSide,
+            boundaryDirection = next.boundaryDirection ?: boundaryDirection,
         )
 }
 
@@ -82,6 +87,7 @@ enum class LayoutOption {
     LABEL_MAX_WIDTH,
     SHOW_SUBJECT_EDGES,
     ACTOR_SIDE,
+    BOUNDARY_DIRECTION,
 }
 
 /** Where the actors of a use-case diagram stand relative to the subject frame (wave 2E-b). */
@@ -142,6 +148,12 @@ object LayoutCodes {
      * with incoming ones); the engine draws those edges against the flow direction (Nacharbeit 79). The pin is kept.
      */
     const val LAYER_PIN_CONFLICT = "KUML-LAYOUT-W008"
+
+    /**
+     * `boundaryDirection` of a C4 diagram is ignored because a relationship crosses the boundary (the layered engine
+     * cannot route it); the boundary keeps the diagram direction (Nacharbeit 106).
+     */
+    const val BOUNDARY_DIRECTION_IGNORED = "KUML-LAYOUT-W009"
     const val OUT_OF_RANGE = "KUML-LAYOUT-E001"
 
     /** Informational: a `sameLayer` of groups widens its row beyond the column count (wave 2E-a). Not an error. */
