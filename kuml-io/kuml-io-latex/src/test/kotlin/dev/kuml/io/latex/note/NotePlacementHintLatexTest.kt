@@ -13,6 +13,8 @@ import dev.kuml.layout.Point
 import dev.kuml.layout.Rect
 import dev.kuml.layout.Size
 import dev.kuml.layout.bridge.note.NotePlacementMissCollector
+import dev.kuml.sysml2.Sysml2Comment
+import dev.kuml.uml.UmlComment
 import io.kotest.core.spec.style.StringSpec
 import io.kotest.matchers.collections.shouldBeEmpty
 import io.kotest.matchers.collections.shouldHaveSize
@@ -99,5 +101,60 @@ class NotePlacementHintLatexTest :
             val (_, miss) = NotePlacementMissCollector.collecting { c4(NotePlacement.ABOVE, blocked = true) }
             miss shouldHaveSize 1
             miss.single().wanted shouldBe NotePlacement.ABOVE
+        }
+
+        val roof = NodeLayout(bounds = Rect(origin = Point(-2000f, -2000f), size = Size(width = 5000f, height = 2000f + 20f)))
+
+        "uml: a honoured ABOVE hint reports nothing, a blocked one reaches the collector in the latex path" {
+            fun render(
+                placement: NotePlacement?,
+                blocked: Boolean,
+            ): String {
+                val (d, l) = NoteFixtures.uml(body = "Hinted note")
+                val diagram =
+                    d.copy(elements = d.elements.map { if (it is UmlComment) it.copy(placement = placement) else it })
+                val layout = if (blocked) l.copy(nodes = l.nodes + (NodeId("roof") to roof)) else l
+                return KumlLatexRenderer.toLatex(diagram = diagram, layoutResult = layout)
+            }
+            val (_, ok) = NotePlacementMissCollector.collecting { render(NotePlacement.ABOVE, blocked = false) }
+            ok.shouldBeEmpty()
+            val (_, miss) = NotePlacementMissCollector.collecting { render(NotePlacement.ABOVE, blocked = true) }
+            miss shouldHaveSize 1
+            miss.single().wanted shouldBe NotePlacement.ABOVE
+            val (_, none) = NotePlacementMissCollector.collecting { render(null, blocked = true) }
+            none.shouldBeEmpty()
+        }
+
+        "sysml2: a honoured ABOVE hint reports nothing, a blocked one reaches the collector in the latex path" {
+            fun render(
+                placement: NotePlacement?,
+                blocked: Boolean,
+            ): String {
+                val (m, d, l) = NoteFixtures.bddModel(body = "Hinted note")
+                val model =
+                    m.copy(
+                        comments =
+                            m.comments.map {
+                                Sysml2Comment(
+                                    note =
+                                        KumlNote(
+                                            id = it.note.id,
+                                            body = it.note.body,
+                                            kind = it.note.kind,
+                                            sourceLine = 3,
+                                            placement = placement,
+                                        ),
+                                )
+                            },
+                    )
+                val layout = if (blocked) l.copy(nodes = l.nodes + (NodeId("roof") to roof)) else l
+                return KumlLatexRenderer.toLatex(model = model, diagram = d, layoutResult = layout)
+            }
+            val (_, ok) = NotePlacementMissCollector.collecting { render(NotePlacement.ABOVE, blocked = false) }
+            ok.shouldBeEmpty()
+            val (_, miss) = NotePlacementMissCollector.collecting { render(NotePlacement.ABOVE, blocked = true) }
+            miss shouldHaveSize 1
+            miss.single().wanted shouldBe NotePlacement.ABOVE
+            miss.single().sourceLine shouldBe 3
         }
     })

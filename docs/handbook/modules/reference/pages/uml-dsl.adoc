@@ -440,7 +440,7 @@ Which diagram types evaluate the hint:
 | UML sequence diagram | evaluated in the note columns (see below; `KUML-NOTE-W004` when not honoured)
 | C4 | evaluated (`KUML-NOTE-W004` when not honoured)
 | Service Blueprint | evaluated within the note column (`KUML-NOTE-W004` when not honoured; LEFT never can be)
-| BPMN (process and collaboration) | evaluated within the lane or pool of the anchor or outside all pools (`KUML-NOTE-W004` when not honoured, see xref:bpmn-dsl.adoc#_text_annotations[BPMN text annotations]); choreography and conversation diagrams draw no notes
+| BPMN (process and collaboration) | evaluated within the lane or pool of the anchor or outside all pools (`KUML-NOTE-W004` when not honoured, see xref:bpmn-dsl.adoc#_text_annotations[BPMN text annotations]); the LaTeX output evaluates it on an estimated geometry; choreography and conversation diagrams draw no notes
 | ERM (Martin, Bachman, Chen, IDEF1X) | evaluated (`KUML-NOTE-W004` when not honoured)
 |===
 
@@ -497,7 +497,7 @@ Rules:
 
 A link is a real `<a href>` in the SVG. In a PNG it is only underlined (the URL is not kept), and whether it can be clicked
 in a viewer depends on how the SVG is embedded: an `<img>` element disables links, and some sanitisers remove `<a>`.
-LaTeX/TikZ output draws notes for UML, SysML 2, C4, BPMN and Service Blueprint: a dog-ear frame, the kind symbol and tone, formatted text and an anchor line. Limits: ERM has no LaTeX renderer; BPMN collaborations have no association line (the inner nodes are not drawn there); a SysML 2 note anchored only to a port, an owner frame, a partition or a nested constraint is left out; in Service Blueprint only steps are valid anchors.
+LaTeX/TikZ output draws notes for UML, SysML 2, C4, BPMN and Service Blueprint: a dog-ear frame, the kind symbol and tone, formatted text and an anchor line. Limits: ERM has no LaTeX renderer; a SysML 2 note anchored only to a port, an owner frame, a partition or a nested constraint is left out; in Service Blueprint only steps are valid anchors.
 
 == Object diagrams
 

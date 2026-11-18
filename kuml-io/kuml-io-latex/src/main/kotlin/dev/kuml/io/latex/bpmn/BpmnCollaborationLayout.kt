@@ -42,6 +42,8 @@ internal object BpmnCollaborationLayout {
     private const val EVENT_HALF_W = 14f
     private const val INTERMEDIATE_HALF_W = 16f
     private const val GATEWAY_HALF_W = 25f
+    private const val GATEWAY_SIZE = 36f
+    private const val TASK_H = 40f
     private const val LABEL_CHAR_PT = 3.4f
     private const val LABEL_HALF_MAX = 60f
 
@@ -134,6 +136,18 @@ internal object BpmnCollaborationLayout {
         val bandTops: List<Float>,
         val height: Float,
     )
+
+    /** The drawn shape of [node] without its external label, as a width and height in pt (used for note placement). */
+    internal fun rawSizeOf(node: BpmnFlowNode): Pair<Float, Float> =
+        when (node) {
+            is BpmnEvent -> {
+                val d = (if (node.position == EventPosition.INTERMEDIATE) INTERMEDIATE_HALF_W else EVENT_HALF_W) * 2f
+                d to d
+            }
+            is BpmnGateway -> GATEWAY_SIZE to GATEWAY_SIZE
+            is BpmnTask, is BpmnSubProcess -> TASK_HALF_W * 2f to TASK_H
+            is BpmnCallActivity -> (TASK_HALF_W + CALL_ACTIVITY_EXTRA) * 2f to TASK_H + CALL_ACTIVITY_EXTRA * 2f
+        }
 
     private fun halfWidthOf(node: BpmnFlowNode): Float {
         val label = minOf((node.name?.length ?: 0) * LABEL_CHAR_PT / 2f, LABEL_HALF_MAX)

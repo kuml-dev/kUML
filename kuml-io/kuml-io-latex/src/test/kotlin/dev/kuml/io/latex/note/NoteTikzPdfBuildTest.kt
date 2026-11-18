@@ -1,6 +1,9 @@
 package dev.kuml.io.latex.note
 
 import dev.kuml.core.model.note.NoteKind
+import dev.kuml.core.model.note.NotePlacement
+import dev.kuml.io.latex.KumlLatexRenderer
+import dev.kuml.io.latex.LatexRenderOptions
 import io.kotest.core.spec.style.StringSpec
 import io.kotest.matchers.shouldBe
 import io.kotest.matchers.string.shouldNotContain
@@ -104,6 +107,44 @@ class NoteTikzPdfBuildTest :
                 )
             for ((name, doc) in docs) {
                 val log = compile(name = name, tex = doc)
+                log shouldNotContain "Undefined control sequence"
+                log shouldNotContain "shell escape"
+            }
+        }
+
+        "BPMN notes with placement hints compile (skipped when TeX is not installed)".config(enabled = tex) {
+            val notes = listOf(Triple("One", NoteKind.INFO, listOf("t1")), Triple("Two", NoteKind.RISK, listOf("end1")))
+            for (placement in listOf(NotePlacement.BELOW, NotePlacement.RIGHT, NotePlacement.LEFT)) {
+                val (m, d) = NoteFixtures.bpmnProcessModel(notes = notes)
+                val model =
+                    m.copy(
+                        processes =
+                            m.processes.map { p ->
+                                p.copy(textAnnotations = p.textAnnotations.map { it.copy(note = it.note.copy(placement = placement)) })
+                            },
+                    )
+                val log =
+                    compile(
+                        name = "bpmn-hint-process-${placement.name.lowercase()}",
+                        tex = KumlLatexRenderer.toLatex(model = model, diagram = d, options = LatexRenderOptions(standalone = true)),
+                    )
+                log shouldNotContain "Undefined control sequence"
+                log shouldNotContain "shell escape"
+            }
+            for (placement in listOf(NotePlacement.ABOVE, NotePlacement.BELOW, NotePlacement.RIGHT)) {
+                val (m, d) = NoteFixtures.bpmnCollaborationModel(notes = notes.take(1).map { Triple(it.first, it.second, listOf("tA")) })
+                val model =
+                    m.copy(
+                        collaborations =
+                            m.collaborations.map { c ->
+                                c.copy(textAnnotations = c.textAnnotations.map { it.copy(note = it.note.copy(placement = placement)) })
+                            },
+                    )
+                val log =
+                    compile(
+                        name = "bpmn-hint-collab-${placement.name.lowercase()}",
+                        tex = KumlLatexRenderer.toLatex(model = model, diagram = d, options = LatexRenderOptions(standalone = true)),
+                    )
                 log shouldNotContain "Undefined control sequence"
                 log shouldNotContain "shell escape"
             }
