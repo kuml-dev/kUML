@@ -71,8 +71,10 @@ import dev.kuml.sysml2.UcDiagram
 import dev.kuml.sysml2.UseCaseDefinition
 import dev.kuml.sysml2.UseCaseUsage
 import dev.kuml.sysml2.durationLiteral
+import dev.kuml.sysml2.projection.isDefaultLiteral
 import dev.kuml.sysml2.projection.isDerived
 import dev.kuml.sysml2.projection.isExternal
+import dev.kuml.sysml2.units.Unit as SysUnit
 
 /**
  * Pretty-prints a [Sysml2Model] as a `*.kuml.kts` source string.
@@ -119,21 +121,21 @@ import dev.kuml.sysml2.projection.isExternal
  *
  * ## Known non-round-tripping data
  *
- * - [AttributeUsage.defaultExpression] — stored as
- *   [dev.kuml.sysml2.units.UnitValue.toSpecForm]'s raw string
- *   (`"1500.0[kg]"`); there is no public parser back from that string to a
- *   [dev.kuml.sysml2.units.UnitValue], so `default = …` cannot be
- *   reconstructed. Flagged with a `// TODO` instead of guessed at. This is the
- *   one remaining gap after Wave B (ADR-0017) — see CHANGELOG for the three
- *   DSL-builder gaps closed in that wave (`isAbstract` on
- *   AttributeDefinition/PortDefinition/ConnectionDefinition, `specializesId`
- *   on all 12 definition types, and DSL constructors for the 8
- *   previously-missing `Sysml2Usage` subtypes). `IncludeUsage`/`ExtendUsage`
- *   remain intentionally unsupported by any top-level usage constructor —
+ * - Wave B (ADR-0017) closed three DSL-builder gaps — see CHANGELOG (`isAbstract` on
+ *   AttributeDefinition/PortDefinition/ConnectionDefinition, `specializesId` on all 12 definition
+ *   types, and DSL constructors for the 8 previously-missing `Sysml2Usage` subtypes).
+ *   `IncludeUsage`/`ExtendUsage` remain intentionally unsupported by any top-level usage constructor —
  *   the diagram-level [UcDiagram] edges are the DSL-supported path for that
  *   relationship — and any instance of these (or any other still-unsupported
  *   `Sysml2Usage` subtype) found as a top-level usage is flagged with a
  *   `// TODO` rather than silently dropped.
+ *
+ * ## Attribute defaults
+ *
+ * Numeric defaults print as `default = <Double>`, `<n>[<symbol>]` as
+ * `default = dev.kuml.sysml2.units.UnitValue(...)` (fully qualified, no imports), and the literal
+ * flag or free-text expressions as `defaultLiteral = "..."` (free text therefore gains the literal
+ * flag on reparse).
  *
  * All 8 diagram kinds ([BdDiagram], [IbdDiagram], [UcDiagram], [ReqDiagram],
  * [StmDiagram], [dev.kuml.sysml2.ActDiagram], [SeqDiagram], [ParDiagram])
@@ -696,15 +698,9 @@ public object Sysml2DslPrinter {
                 is AttributeUsage -> {
                     val args = mutableListOf("name = ${quote(usage.name)}", "typeId = ${quote(usage.definitionId)}")
                     multiplicityExpr(usage.multiplicity)?.let { args += "multiplicity = $it" }
+                    defaultArg(usage)?.let { args += it }
                     if (isDerived(metadata = usage.metadata)) args += "derived = true"
                     sb.appendLine("$indent attribute(${args.joinToString(", ")})")
-                    if (usage.defaultExpression != null) {
-                        sb.appendLine(
-                            "$indent // TODO: AttributeUsage '${sanitizeForComment(usage.name)}' had defaultExpression = " +
-                                "${quote(usage.defaultExpression)} — no public UnitValue parser exists to reconstruct a " +
-                                "`default = ...` argument from the stored spec-form string; the default value is lost.",
-                        )
-                    }
                 }
                 is PartUsage -> {
                     val args = mutableListOf("name = ${quote(usage.name)}", "typeId = ${quote(usage.definitionId)}")
@@ -1290,6 +1286,44 @@ public object Sysml2DslPrinter {
 
     private fun needsKermlMultiplicityImport(model: Sysml2Model): Boolean =
         model.usages.any { it.multiplicity != KermlMultiplicity.EXACTLY_ONE }
+
+    /**
+     * Builds the `default = …` / `defaultLiteral = …` argument for an [AttributeUsage], or `null`
+     * when it has no default. Classification: literal flag -> `defaultLiteral`; `<n>[<symbol>]`
+     * with a canonical [Double] -> `default = UnitValue(...)`; canonical numeric -> `default = <n>`;
+     * anything else (free text) -> `defaultLiteral` so the text is preserved.
+     */
+    private fun defaultArg(usage: AttributeUsage): String? {
+        val expr = usage.defaultExpression ?: return null
+        if (isDefaultLiteral(metadata = usage.metadata)) return "defaultLiteral = ${quote(expr)}"
+        val open = expr.lastIndexOf('[')
+        if (open > 0 && expr.endsWith("]") && expr.length - open > 2) {
+            val symbol = expr.substring(open + 1, expr.length - 1)
+            val value = doubleLiteral(expr.substring(0, open))
+            if (value != null) {
+                val known = SysUnit.ALL.firstOrNull { it.symbol == symbol }
+                val unit =
+                    "dev.kuml.sysml2.units.Unit(symbol = ${quote(symbol)}, " +
+                        "longName = ${quote(known?.longName ?: symbol)}, " +
+                        "quantityKind = ${quote(known?.quantityKind ?: "")})"
+                return "default = dev.kuml.sysml2.units.UnitValue(value = $value, unit = $unit)"
+            }
+        }
+        doubleLiteral(expr)?.let { return "default = $it" }
+        return "defaultLiteral = ${quote(expr)}"
+    }
+
+    /** Kotlin source for [text] when it is a [Double] whose canonical `toString()` equals [text], else `null`. */
+    private fun doubleLiteral(text: String): String? {
+        val d = text.toDoubleOrNull() ?: return null
+        if (d.toString() != text) return null
+        return when {
+            d.isNaN() -> "Double.NaN"
+            d == Double.POSITIVE_INFINITY -> "Double.POSITIVE_INFINITY"
+            d == Double.NEGATIVE_INFINITY -> "Double.NEGATIVE_INFINITY"
+            else -> text
+        }
+    }
 
     private fun quote(s: String): String =
         buildString {

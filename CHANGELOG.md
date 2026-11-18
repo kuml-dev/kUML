@@ -6,6 +6,14 @@ All notable changes to this project are documented here. Format follows
 
 ## [Unreleased]
 
+### Nacharbeit 109: SysML 2 DSL printer keeps attribute defaults
+
+- **Why.** The SysML 2 DSL printer wrote a `// TODO` comment and dropped `AttributeUsage.defaultExpression`, so the desktop round trip and AI patches lost attribute defaults ("Not fixed" of Nacharbeit 72).
+- **Change.** The printer emits the default as a named argument after `multiplicity` and before `derived`: the literal flag or a free-text expression prints as `defaultLiteral = "..."`; `<n>[<symbol>]` prints as `default = dev.kuml.sysml2.units.UnitValue(...)` (fully qualified, so no imports and no clash with `kotlin.Unit`); a canonical numeric prints as `default = <Double>` (`NaN` and infinities as `Double.NaN` etc.). Only text that round-trips through `Double.toString()` is printed numerically. Free text gains the literal flag on reparse (documented in the class KDoc). Output without defaults is unchanged. All strings go through the escaping `quote()`. No persistence or metamodel change.
+- **Verification.** New printer tests (unit and numeric forms, `km/h`, `°C`, unknown unit symbol with quote, escaping and injection attempt, derived order, NaN, free text, no-default model) and `Sysml2AttributeDefaultRoundTripTest` (print, reparse, compare `defaultExpression` and metadata, render, check text).
+- **Not verified.** Intel Mac, Windows, a real desktop run.
+- **Not fixed.** The printed unit form is verbose; `5.Pa` with imports was not chosen.
+
 ### Nacharbeit 108: desktop ERM preview and OKF vocabulary 1.1
 
 - **Why.** The desktop workspace preview refused ERM documents with a "not yet supported" message, and a document whose `type:` the vocabulary did not know (short SysML 2 names, C4 landscape/deployment/dynamic) showed up as unknown although its diagram rendered.
@@ -580,7 +588,7 @@ touched and do not show `external`.
 **Not fixed.** (e) range type: `AttributeDefinition` has only `unit`; a real fix needs a metamodel field, DSL parameter,
 printer, validation and serialization. Workaround: two attributes or prose. (g3) parametrizable attribute: no notation in
 SysML 2 / UML, semantics unclear. Drawing enumeration or value type boxes that are not `include`d (projection change, per
-design decision). The printer still drops `default` / `defaultLiteral` of attributes (existing TODO). The presentation
+design decision). The printer still dropped `default` / `defaultLiteral` of attributes (closed by Nacharbeit 109). The presentation
 repo SVG copy was not run.
 
 ### Nacharbeit 71: activity diagrams: aspect-ratio report measured on the final image, note dog-ear proven (items i, j)

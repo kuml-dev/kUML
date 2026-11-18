@@ -9,12 +9,14 @@ import dev.kuml.sysml2.ExecutionSpecificationUsage
 import dev.kuml.sysml2.IbdDiagram
 import dev.kuml.sysml2.PartDefinition
 import dev.kuml.sysml2.dsl.sysml2Model
+import dev.kuml.sysml2.units.UnitValue
 import dev.kuml.sysml2.units.kg
 import io.kotest.core.spec.style.FunSpec
 import io.kotest.matchers.booleans.shouldBeTrue
 import io.kotest.matchers.string.shouldContain
 import io.kotest.matchers.string.shouldNotContain
 import io.kotest.matchers.string.shouldStartWith
+import dev.kuml.sysml2.units.Unit as SysUnit
 
 class Sysml2DslPrinterTest :
     FunSpec(body = {
@@ -49,12 +51,15 @@ class Sysml2DslPrinterTest :
                 }
             val dsl = Sysml2DslPrinter.print(model)
             dsl shouldContain "partDef(name = \"Vehicle\", id = \"Vehicle\")"
-            dsl shouldContain "attribute(name = \"mass\", typeId = \"Mass\")"
+            dsl shouldContain "attribute(name = \"mass\", typeId = \"Mass\", default = "
             dsl shouldContain "part(name = \"engine\", typeId = \"Engine\")"
             dsl shouldContain "connect(name = \"wiring\""
             dsl shouldContain "port(name = \"inlet\", typeId = \"Inlet\")"
-            // default value cannot be reconstructed — documented as a TODO, not silently dropped.
-            dsl shouldContain "TODO: AttributeUsage 'mass'"
+            // the default is printed as a UnitValue constructor call, not dropped.
+            dsl shouldContain
+                "default = dev.kuml.sysml2.units.UnitValue(value = 1500.0, unit = " +
+                "dev.kuml.sysml2.units.Unit(symbol = \"kg\", longName = \"kilogram\", quantityKind = \"Mass\"))"
+            dsl shouldNotContain "TODO"
         }
 
         test("non-default multiplicity triggers the KermlMultiplicity import") {
@@ -505,7 +510,7 @@ class Sysml2DslPrinterTest :
             todoLine.trimStart() shouldStartWith "//"
         }
 
-        test("AttributeUsage default-expression TODO with an embedded newline in the usage name cannot break out of the comment") {
+        test("AttributeUsage with an embedded newline in the name and a default stays one escaped line") {
             val model =
                 sysml2Model(name = "Test") {
                     attributeDef(name = "Mass")
@@ -515,12 +520,64 @@ class Sysml2DslPrinterTest :
                 }
             val dsl = Sysml2DslPrinter.print(model)
             dsl shouldNotContain "mass\nfun injected"
-            // `usage.name` is also printed, correctly quote()d, as the attribute(...) name
-            // argument — so we check the TODO comment line specifically, not every line
-            // mentioning "injected".
             dsl shouldContain "mass\\nfun injected"
-            val todoLine = dsl.lines().single { "// TODO" in it && "injected" in it }
-            todoLine.trimStart() shouldStartWith "//"
+            dsl shouldNotContain "// TODO"
+            dsl.lines().single { "injected" in it }.trimStart() shouldStartWith "attribute("
+        }
+
+        test("attribute defaults are classified into default / defaultLiteral arguments") {
+            val model =
+                sysml2Model(name = "Test") {
+                    attributeDef(name = "T")
+                    partDef(name = "P") {
+                        attribute(name = "neg", typeId = "T", default = -5.0)
+                        attribute(name = "lit", typeId = "T", defaultLiteral = "1.0")
+                        attribute(name = "enum", typeId = "T", defaultLiteral = "Red")
+                        attribute(name = "esc", typeId = "T", defaultLiteral = "a\"b\\c\$x\nd\"; evil() //")
+                        attribute(name = "speed", typeId = "T", default = UnitValue(value = 50.0, unit = SysUnit.KMPH))
+                        attribute(name = "temp", typeId = "T", default = UnitValue(value = 21.5, unit = SysUnit.CELSIUS))
+                        attribute(
+                            name = "odd",
+                            typeId = "T",
+                            default = UnitValue(value = 2.0, unit = SysUnit(symbol = "w\"x", longName = "w", quantityKind = "Q")),
+                            derived = true,
+                        )
+                        attribute(name = "nan", typeId = "T", default = Double.NaN)
+                    }
+                }
+            val dsl = Sysml2DslPrinter.print(model)
+            dsl shouldContain "name = \"neg\", typeId = \"T\", default = -5.0)"
+            dsl shouldContain "name = \"lit\", typeId = \"T\", defaultLiteral = \"1.0\")"
+            dsl shouldContain "defaultLiteral = \"Red\")"
+            dsl shouldContain "defaultLiteral = \"a\\\"b\\\\c\\\$x\\nd\\\"; evil() //\")"
+            dsl shouldContain "UnitValue(value = 50.0, unit = dev.kuml.sysml2.units.Unit(symbol = \"km/h\""
+            dsl shouldContain "symbol = \"°C\""
+            dsl shouldContain "symbol = \"w\\\"x\", longName = \"w\\\"x\", quantityKind = \"\""
+            dsl shouldContain "default = Double.NaN)"
+            dsl.lines().single { "\"odd\"" in it } shouldContain "), derived = true)"
+            dsl shouldNotContain "TODO"
+        }
+
+        test("non-classifiable free-text default is printed as defaultLiteral") {
+            val base =
+                sysml2Model(name = "Test") {
+                    attributeDef(name = "T")
+                    partDef(name = "P") { attribute(name = "x", typeId = "T") }
+                }
+            val usage = base.usages.filterIsInstance<dev.kuml.sysml2.AttributeUsage>().single()
+            val patched = base.copy(usages = listOf(usage.copy(defaultExpression = "x + 1")))
+            Sysml2DslPrinter.print(patched) shouldContain "defaultLiteral = \"x + 1\")"
+        }
+
+        test("model without defaults prints no default argument") {
+            val model =
+                sysml2Model(name = "Test") {
+                    attributeDef(name = "T")
+                    partDef(name = "P") { attribute(name = "x", typeId = "T") }
+                }
+            val dsl = Sysml2DslPrinter.print(model)
+            dsl shouldNotContain "default"
+            dsl shouldNotContain "TODO"
         }
 
         test("unresolvable feature TODO with an embedded newline in the feature name cannot break out of the comment") {
