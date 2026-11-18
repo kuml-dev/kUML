@@ -6,6 +6,19 @@ All notable changes to this project are documented here. Format follows
 
 ## [Unreleased]
 
+## [0.58.0] — 2026-11-18
+
+### Highlights
+
+- **Steerable note placement everywhere.** A note's `placement` hint (ABOVE, BELOW, LEFT, RIGHT, NEAR) is honoured in UML, C4, SysML 2, ERM, sequence diagrams, BPMN annotations and Service Blueprint, in SVG and now also in the LaTeX/TikZ export (UML, C4, SysML 2, BPMN, Service Blueprint). Anchor lines of notes in Service Blueprint and sequence diagrams are drawn; note tone colours can be overridden per theme.
+- **Hierarchical layout per group.** A self-contained group gets its own flow direction (`boundaryDirection`, pilot: C4 boundary) and its own layer hints (`wrapColumns`, `sameLayer`, `first`, `last`, pilot: UML package diagram). Where a hint cannot take effect, `KUML-LAYOUT-W001` / `KUML-LAYOUT-W009` say so; default output without hints is unchanged.
+- **Layout hints in more diagram kinds.** `wrapColumns` and `sameLayer` in C4 container diagrams and inside compound groups of UML and SysML 2 package diagrams; `wrapColumns` and `direction = Up` for block definition diagrams; BDD hub edges drawn as an orthogonal fan.
+- **UML class diagrams.** General class on top, visibility mark default and enumeration type edge fixed; PAR binding lanes get readable spacing.
+- **Documentation.** The layout-effect table in the handbook is kept in sync with the code by a test; the `sameLayer`, `first` and `last` block keywords are documented.
+- **Release size.** Fewer files per Maven Central release.
+
+Details per change follow below.
+
 ### Nacharbeit 107: layer hints inside self-contained packages (pilot: UML package diagram)
 
 - **Why.** Wave 1 (Nacharbeit 106) gave a self-contained compound group its own direction. `wrapColumns` and `sameLayer` still did nothing for the members of a package and were reported as `KUML-LAYOUT-W001`, because ELK ignores layer hints below an `INCLUDE_CHILDREN` root.
