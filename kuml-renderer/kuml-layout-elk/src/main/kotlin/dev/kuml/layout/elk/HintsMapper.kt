@@ -14,6 +14,7 @@ import dev.kuml.layout.LayoutNode
 import dev.kuml.layout.LayoutWarning
 import dev.kuml.layout.ModelOrder
 import dev.kuml.layout.NodeId
+import dev.kuml.layout.crossingEdgeOf
 import org.eclipse.elk.alg.layered.options.CrossingMinimizationStrategy
 import org.eclipse.elk.alg.layered.options.LayeredOptions
 import org.eclipse.elk.core.math.ElkPadding
@@ -231,12 +232,18 @@ internal object HintsMapper {
                 .filter { it.layoutAsCompound }
                 .map { it.id }
                 .toSet()
+        // Nacharbeit 107: members of a compound that honours their layer hints get no warning.
+        val honouring =
+            graph.groups
+                .filter { honoursMemberLayers(graph = graph, group = it) }
+                .map { it.id }
+                .toSet()
 
         for (node in graph.nodes) {
             val hints = node.hints
             val id = node.id
 
-            if ((hints.layerIndex != null || hints.layerPin != null) && node.groupId in compoundIds) {
+            if ((hints.layerIndex != null || hints.layerPin != null) && node.groupId in compoundIds && node.groupId !in honouring) {
                 // Spike C3-1: ELK 0.12.0 wertet Partitionen innerhalb von INCLUDE_CHILDREN-Compounds nicht aus.
                 warnings.add(
                     LayoutWarning(
@@ -388,26 +395,7 @@ internal object HintsMapper {
         nodes: List<LayoutNode>,
         edges: List<LayoutEdge>,
         group: LayoutGroup,
-    ): EdgeId? {
-        val groupIds = mutableSetOf(group.id)
-        var grew = true
-        while (grew) {
-            grew = false
-            for (g in groups) if (g.parent in groupIds && groupIds.add(g.id)) grew = true
-        }
-        val allGroupNames = groups.map { it.id.value }.toSet()
-        val allNodeNames = nodes.map { it.id.value }.toSet()
-        val members =
-            nodes.filter { it.groupId in groupIds }.map { it.id.value }.toSet() + (groupIds - group.id).map { it.value }
-        for (edge in edges) {
-            val s = edge.source.nodeId.value
-            val t = edge.target.nodeId.value
-            val known = { id: String -> id in allNodeNames || id in allGroupNames }
-            if (!known(s) || !known(t)) continue
-            if ((s in members) != (t in members)) return edge.id
-        }
-        return null
-    }
+    ): EdgeId? = LayoutGraph(nodes = nodes, edges = edges, groups = groups).crossingEdgeOf(group)
 
     /**
      * Nacharbeit 106: one `group.direction.crossEdges` warning per compound group that asks for its own direction but
@@ -454,20 +442,79 @@ internal object HintsMapper {
             }
         if (withIndex.isEmpty()) return
 
-        fun enable(elk: ElkNode) {
-            elk.setProperty(CoreOptions.PARTITIONING_ACTIVATE, true)
-            // Simple node placement packs every layer to the start instead of centring wrapped layers on
-            // the edges to the next layer (Brandes-Koepf would stagger a wrapped grid diagonally).
-            elk.setProperty(
-                LayeredOptions.NODE_PLACEMENT_STRATEGY,
-                org.eclipse.elk.alg.layered.options.NodePlacementStrategy.SIMPLE,
-            )
-            // Ohne diese Option layoutet ELK jede Zusammenhangskomponente einzeln — kantenlose
-            // Knoten landen dann alle in Ebene 0 und Ebenen-Hints laufen ins Leere.
-            elk.setProperty(CoreOptions.SEPARATE_CONNECTED_COMPONENTS, false)
-        }
-        enable(root)
+        enablePartitioning(root)
     }
+
+    /** Switches ELK partitioning on for [elk] (shared by the root and honouring compounds). */
+    private fun enablePartitioning(elk: ElkNode) {
+        elk.setProperty(CoreOptions.PARTITIONING_ACTIVATE, true)
+        // Simple node placement packs every layer to the start instead of centring wrapped layers on
+        // the edges to the next layer (Brandes-Koepf would stagger a wrapped grid diagonally).
+        elk.setProperty(
+            LayeredOptions.NODE_PLACEMENT_STRATEGY,
+            org.eclipse.elk.alg.layered.options.NodePlacementStrategy.SIMPLE,
+        )
+        // Ohne diese Option layoutet ELK jede Zusammenhangskomponente einzeln — kantenlose
+        // Knoten landen dann alle in Ebene 0 und Ebenen-Hints laufen ins Leere.
+        elk.setProperty(CoreOptions.SEPARATE_CONNECTED_COMPONENTS, false)
+    }
+
+    /**
+     * Nacharbeit 107: true when the members' layer hints of [group] are honoured: the group is a compound that asked for
+     * it ([LayoutGroup.memberLayerHints]), has no nested group and no edge across its border. Shared by the warning
+     * and the decision, so they cannot drift apart.
+     */
+    internal fun honoursMemberLayers(
+        graph: LayoutGraph,
+        group: LayoutGroup,
+    ): Boolean =
+        group.layoutAsCompound &&
+            group.memberLayerHints &&
+            graph.groups.none { it.parent == group.id } &&
+            graph.crossingEdgeOf(group) == null
+
+    /**
+     * Nacharbeit 107: lets a self-contained compound lay out its children separately so their layer hints take effect
+     * (spike GroupLayerHintsSpikeTest: ELK ignores partitions below an `INCLUDE_CHILDREN` root, but honours them in a
+     * `SEPARATE_CHILDREN` compound). A separately laid out compound does not inherit the root options, so the flow
+     * direction, the edge routing, the edge-label spacing and the model-order strategy are copied explicitly. Other
+     * options (crossing-minimisation strategy, merge edges, random seed, edge-node spacing, engine options) are not
+     * copied and keep ELK's defaults inside the package. Groups without a member that carries a layer hint
+     * stay untouched.
+     */
+    fun applyCompoundLayerStrategy(
+        builder: ElkGraphBuilder,
+        hints: LayoutHints,
+    ) {
+        val graph = LayoutGraph(nodes = builder.nodes(), edges = builder.edges(), groups = builder.groups())
+        for (group in graph.groups) {
+            if (!honoursMemberLayers(graph = graph, group = group)) continue
+            val members = graph.nodes.filter { it.groupId == group.id }
+            if (members.none { it.hints.layerIndex != null || it.hints.layerPin != null }) continue
+            val elkGroup = builder.groupMap[group.id] ?: continue
+            elkGroup.setProperty(CoreOptions.HIERARCHY_HANDLING, HierarchyHandling.SEPARATE_CHILDREN)
+            elkGroup.setProperty(CoreOptions.DIRECTION, elkDirection(group.direction ?: hints.direction))
+            elkGroup.setProperty(CoreOptions.EDGE_ROUTING, edgeRouting(hints))
+            elkGroup.setProperty(CoreOptions.SPACING_EDGE_LABEL, EDGE_LABEL_SPACING)
+            if (hints.modelOrder == ModelOrder.NodesAndEdges) {
+                elkGroup.setProperty(
+                    LayeredOptions.CONSIDER_MODEL_ORDER_STRATEGY,
+                    org.eclipse.elk.alg.layered.options.OrderingStrategy.NODES_AND_EDGES,
+                )
+            }
+            // Like the root: also for pins alone, else every connected component is laid out on its own and FIRST/LAST
+            // only act inside a component.
+            enablePartitioning(elkGroup)
+        }
+    }
+
+    private fun edgeRouting(hints: LayoutHints): EdgeRouting =
+        when (hints.defaultEdgeStyle) {
+            EdgeRouteStyle.Direct -> EdgeRouting.POLYLINE
+            EdgeRouteStyle.OrthogonalRounded -> EdgeRouting.ORTHOGONAL
+            EdgeRouteStyle.TreeRounded -> EdgeRouting.ORTHOGONAL
+            EdgeRouteStyle.Bezier -> EdgeRouting.SPLINES
+        }
 
     /**
      * Copies the spacing-relevant layout options from [hints] / [config] onto a

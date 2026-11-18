@@ -149,6 +149,7 @@ public class ElkLayoutEngine(
             passWarnings += HintsMapper.collectGroupDirectionWarnings(graph)
             HintsMapper.applyGroupPadding(builder = builder, hints = hints, config = configuration, extraPadding = extraPaddingByGroup)
             HintsMapper.applyLayerStrategy(builder = builder, root = root)
+            HintsMapper.applyCompoundLayerStrategy(builder = builder, hints = hints)
 
             // 3. Time-budget tracking (accumulated across all re-layout attempts so the
             // warning reflects the real total work performed for this [layout] call).

@@ -268,6 +268,14 @@ inside compound boundaries.
   can still move, and `direction`, `first`, `last` and `aspectRatio` still act. SysML 2 requirement groups, the
   use-case system boundary and activity lanes lay their members out in a grid of their own; they are not reported.
   Other arts that can draw compounds (UML object, composite structure, profile) were not measured and are not reported.
+  Exception (Nacharbeit 107), UML package diagrams: `wrapColumns` and `sameLayer` (and `first`/`last`, counted within
+  the package) act on the members of a package when no relationship connects a member with an element outside it and
+  the package has no nested package. Relationships between packages (`packageImport`, `packageAccess`) are fine. If a
+  relationship crosses the package border, the members stay where they are and `KUML-LAYOUT-W001` names the package and
+  the relationship. A `sameLayer` group that mixes elements of different packages, or of a package and the top level,
+  cannot share one layer and is `KUML-LAYOUT-W001` too. The package is then laid out separately from the diagram, so the
+  rows are counted inside the package. Class, component and deployment diagrams with packages, state frames, SysML 2 and
+  C4 still report `KUML-LAYOUT-W001` as described above.
 
 Options that belong to one diagram kind only: `labelMaxWidth` (SysML 2 state machines; `KUML-LAYOUT-W001` elsewhere,
 `KUML-LAYOUT-E001` outside 120..400), `showSubjectEdges` (SysML 2 requirement diagrams) and `actorSide` (SysML 2 use-case
@@ -442,7 +450,8 @@ reqDiagram("Requirements") {
   region are left to the engine. UML state machines keep their nodes in a compound frame, where layer hints are
   ignored, so there the cycle-breaking priority and the placement above do the work.
 * Layer hints are honoured for nodes that are not inside a compound group. ELK ignores them inside
-  compounds and reports `hint.ignored.layerInCompound`. For `wrapColumns` and `sameLayer` the diagram art reports
+  compounds and reports `hint.ignored.layerInCompound`; the exception is a self-contained package of a UML package
+  diagram (note 3, Nacharbeit 107), which is laid out separately. For `wrapColumns` and `sameLayer` the diagram art reports
   `KUML-LAYOUT-W001` as well, see notes 1 and 3 under the keyword table.
 * Sequence diagrams ignore all hints (lifeline order is the declaration order); `kuml validate` warns (`LAYOUT412`).
 * The grid engine and the WebAssembly playground do not evaluate these hints.

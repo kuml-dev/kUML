@@ -124,6 +124,28 @@ class ValidationServiceTest :
             w001(script(withPackage = false, layoutBlock = "wrapColumns = 2")).shouldBeEmpty()
         }
 
+        test("Nacharbeit 107: in a package diagram wrapColumns inside a self-contained package is not KUML-LAYOUT-W001") {
+            fun script(layoutBlock: String) =
+                """
+                packageDiagram(name = "D") {
+                    val web = packageOf(name = "web") {
+                        classOf(name = "A")
+                        classOf(name = "B")
+                    }
+                    val service = packageOf(name = "service") {
+                        classOf(name = "C")
+                    }
+                    packageImport(client = web, supplier = service)
+                    layout { $layoutBlock }
+                }
+                """.trimIndent()
+
+            fun w001(s: String) = ValidationService.validate(script = s).filter { it.code == "KUML-LAYOUT-W001" }
+            ValidationService.validate(script = script("wrapColumns = 2")).filter { it.severity == Severity.ERROR }.shouldBeEmpty()
+            w001(script("wrapColumns = 2")).shouldBeEmpty()
+            w001(script("direction = Right")).shouldBeEmpty()
+        }
+
         val ibdScript =
             """
             sysml2Model(name = "M") {

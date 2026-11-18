@@ -6,6 +6,16 @@ All notable changes to this project are documented here. Format follows
 
 ## [Unreleased]
 
+### Nacharbeit 107: layer hints inside self-contained packages (pilot: UML package diagram)
+
+- **Why.** Wave 1 (Nacharbeit 106) gave a self-contained compound group its own direction. `wrapColumns` and `sameLayer` still did nothing for the members of a package and were reported as `KUML-LAYOUT-W001`, because ELK ignores layer hints below an `INCLUDE_CHILDREN` root.
+- **Spike.** In a compound with `HIERARCHY_HANDLING = SEPARATE_CHILDREN` ELK 0.12.0 honours partitions (wrap, sameLayer) and layer constraints (first, last): rows are ordered, members and edges stay inside the frame, edge ends sit on the node borders, an outside-node-to-anchor edge works, root partitioning still works beside a separate compound, a crossing edge still throws. Pinned by `GroupLayerHintsSpikeTest`.
+- **Change.** `LayoutGroup.memberLayerHints` (default `false`, output unchanged). `crossingEdgeOf` (layout API) is the shared self-containment test. `HintsMapper.applyCompoundLayerStrategy` lets a flagged, self-contained group without nested groups lay out its children separately (direction, edge routing, label spacing and model order are copied, partitioning is switched on) and the warning `hint.ignored.layerInCompound` disappears for it. The bridge flags groups from the user's spec only (`withMemberLayerHints`), so the automatic aspect iteration never changes default output. `LayoutEffectMatrix.honouredInSelfContainedCompound` (UML_PACKAGE: wrapColumns, sameLayer). `CompoundLayerScope` lets `validate`, `kuml validate` and `kuml render` report W001 only for a package that has a crossing relationship or nested packages (the message names the package and the relationship), or for a `sameLayer` group that mixes scopes.
+- **Fix (review).** `wrapColumns` rows are counted per package (the members of a self-contained package form their own layering), not over the whole diagram, so a class declared before the package no longer shifts its rows. A `sameLayer` group with an unknown id no longer reports the mixed-scope `W001`.
+- **Docs.** `layout.adoc` (note 3, hint list), `uml-dsl.adoc` (Layout of package diagrams).
+- **Verification.** New `GroupLayerHintsSpikeTest`, `GroupLayerHintsTest` (engine), `UmlPackageLayerHintsTest` (bridge, end to end), matrix and `ValidationServiceTest` cases. Existing pin tests (`CompoundLayoutOptionsTest`, `ElkPortsAndLayerHintsTest`, `C4ContainerLayoutOptionsTest`) are unchanged.
+- **Not fixed.** Only UML package diagrams; class, component and deployment diagrams with packages, state frames, SysML 2 and C4 keep W001. Nested groups are not honoured. `first`/`last` count within the package. The direction path of Nacharbeit 106 does not copy the root edge options onto separate compounds (possible follow-up).
+
 ### Nacharbeit 106: own flow direction of a group (pilot: C4 boundary)
 
 - **Why.** A group (boundary) always followed the diagram direction. Wanted: a component view laid out left to right inside a boundary while the diagram flows top to bottom.

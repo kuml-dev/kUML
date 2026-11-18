@@ -135,7 +135,8 @@ public object LayoutEffectMatrix {
      * with and without the option). Kinds with their own grid inside the boundary (SysML 2 requirement groups, use-case
      * system boundary, activity lanes) are deliberately absent. Reported as `KUML-LAYOUT-W001` when the diagram has
      * compound members; not part of the handbook table cells (note 1 under the table explains it), so
-     * `LayoutEffectMatrixDocSyncTest` ignores it.
+     * `LayoutEffectMatrixDocSyncTest` ignores it. Since Nacharbeit 107 the kinds in [honouredInSelfContainedCompound]
+     * are exceptions for self-contained compounds: there the options act when no relationship crosses the border.
      */
     public val ignoredInsideCompound: Map<SpecDiagramKind, Set<LayoutOption>> =
         run {
@@ -150,6 +151,14 @@ public object LayoutEffectMatrix {
                 SpecDiagramKind.SYSML2_PKG to both,
             )
         }
+
+    /**
+     * Nacharbeit 107: options of [ignoredInsideCompound] that nevertheless act on the members of a compound group when
+     * it is self-contained (no relationship crosses its border, no nested group). Pilot: UML package diagrams. Not part
+     * of the handbook table cells, so `LayoutEffectMatrixDocSyncTest` ignores it. Other kinds keep reporting W001.
+     */
+    public val honouredInSelfContainedCompound: Map<SpecDiagramKind, Set<LayoutOption>> =
+        mapOf(SpecDiagramKind.UML_PACKAGE to setOf(LayoutOption.WRAP_COLUMNS, LayoutOption.SAME_LAYER))
 
     /** The options that have an effect on [kind]. */
     public fun effectiveFor(kind: SpecDiagramKind): Set<LayoutOption> = effective.getValue(kind)

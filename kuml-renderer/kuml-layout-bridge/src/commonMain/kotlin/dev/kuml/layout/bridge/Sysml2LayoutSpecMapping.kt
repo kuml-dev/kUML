@@ -67,12 +67,31 @@ internal fun LayoutGraph.withSpec(
     if (wrap != null || groups.isNotEmpty() || (initials.isNotEmpty() && (first.isNotEmpty() || last.isNotEmpty()))) {
         // Initials are the DFS roots first, so a cycle through the first real state never breaks at the initial edge.
         val ordered = nodes.map { it.id.value }.let { ids -> ids.filter { it in initials } + ids.filter { it !in initials } }
-        val base =
-            wrapLayers(
-                nodes = ordered,
-                edges = edges.map { it.source.nodeId.value to it.target.nodeId.value },
-                columns = wrap,
-            )
+        val allEdges = edges.map { it.source.nodeId.value to it.target.nodeId.value }
+        // Nacharbeit 107: the members of a package flagged with memberLayerHints (and honoured) are laid out as a graph
+        // of their own (the engine places them separately), so their rows are counted inside the package and not over
+        // the whole diagram. Everything else, including unflagged packages, forms the top-level partition.
+        val scope = CompoundLayerScope.of(this)
+        val flagged =
+            this.groups
+                .filter { it.memberLayerHints }
+                .map { it.id.value }
+                .toSet()
+        val partitions = mutableListOf<Set<String>>()
+        for (group in scope.members.keys) {
+            if (group in flagged && scope.honours(group)) partitions += scope.members.getValue(group)
+        }
+        val inPackage = partitions.flatten().toSet()
+        val rootPartition = ordered.filter { it !in inPackage }.toSet()
+        val base = HashMap<String, Int>()
+        for (part in listOf(rootPartition) + partitions) {
+            base +=
+                wrapLayers(
+                    nodes = ordered.filter { it in part },
+                    edges = allEdges.filter { (s, t) -> s in part && t in part },
+                    columns = wrap,
+                )
+        }
         val adjusted = base.toMutableMap()
         for (g in groups) {
             val target = g.maxOf { adjusted.getValue(it) }

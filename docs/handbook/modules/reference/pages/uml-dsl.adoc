@@ -319,6 +319,14 @@ without an edge, which is the usual UML presentation.
 The diagram-level `layout { }` block (`wrapColumns`, `aspectRatio`, `maxWidth`, `sameLayer`, `first`, `last`) is described in
 xref:layout.adoc[layout], including a xref:layout.adoc#samelayer-siblings[`sameLayer` example for class diagrams].
 
+=== Layout of package diagrams
+
+In a package diagram `wrapColumns` and `sameLayer` (and `first` / `last`, counted within the package) arrange the members
+of a package when no relationship connects a member with an element outside it and the package has no nested package.
+Relationships between packages do not count. Otherwise the members stay where they are and `KUML-LAYOUT-W001` names the
+package and the relationship. This is a pilot: class diagrams with packages still report `KUML-LAYOUT-W001`. See
+xref:layout.adoc[layout], note 3 under the keyword table.
+
 == Comments
 
 A UML comment (note) is a free-text annotation box with a folded top-right corner,

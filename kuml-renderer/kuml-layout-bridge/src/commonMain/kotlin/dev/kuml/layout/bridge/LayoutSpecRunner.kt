@@ -66,6 +66,7 @@ public object LayoutSpecRunner {
         spec: LayoutSpec?,
         kind: SpecDiagramKind,
         compoundMembers: Boolean = false,
+        scope: CompoundLayerScope? = null,
     ): List<LayoutOption> {
         if (spec == null) return emptyList()
         val set =
@@ -83,9 +84,22 @@ public object LayoutSpecRunner {
                 if (spec.boundaryDirection != null) add(LayoutOption.BOUNDARY_DIRECTION)
             }
         val effective = LayoutEffectMatrix.effectiveFor(kind)
-        val insideCompound = if (compoundMembers) LayoutEffectMatrix.ignoredInsideCompound[kind].orEmpty() else emptySet()
+        val honoured = if (scope != null) LayoutEffectMatrix.honouredInSelfContainedCompound[kind].orEmpty() else emptySet()
+        val insideCompound =
+            if (compoundMembers) LayoutEffectMatrix.ignoredInsideCompound[kind].orEmpty() - honoured else emptySet()
+        val scoped =
+            if (scope == null) {
+                emptySet()
+            } else {
+                honoured.filter { scope.noEffectMessage(option = it, spec = spec, diagramName = null, kindName = "") != null }.toSet()
+            }
         val noBoundary = kind == SpecDiagramKind.C4 && !compoundMembers
-        return set.filter { it !in effective || it in insideCompound || (noBoundary && it == LayoutOption.BOUNDARY_DIRECTION) }
+        return set.filter {
+            it !in effective ||
+                it in insideCompound ||
+                it in scoped ||
+                (noBoundary && it == LayoutOption.BOUNDARY_DIRECTION)
+        }
     }
 
     /** One `KUML-LAYOUT-W001` per ignored option (never per element); nothing for an empty block. */
@@ -94,6 +108,7 @@ public object LayoutSpecRunner {
         kind: SpecDiagramKind,
         diagramName: String?,
         compoundMembers: Boolean = false,
+        scope: CompoundLayerScope? = null,
     ): List<LayoutSpecFinding> {
         val where =
             if (diagramName !=
@@ -105,9 +120,18 @@ public object LayoutSpecRunner {
             }
         val inside = if (compoundMembers) LayoutEffectMatrix.ignoredInsideCompound[kind].orEmpty() else emptySet()
         val effective = LayoutEffectMatrix.effectiveFor(kind)
-        return ignoredOptions(spec = spec, kind = kind, compoundMembers = compoundMembers).map {
+        val honoured = if (scope != null) LayoutEffectMatrix.honouredInSelfContainedCompound[kind].orEmpty() else emptySet()
+        return ignoredOptions(spec = spec, kind = kind, compoundMembers = compoundMembers, scope = scope).map {
+            val scoped =
+                if (scope != null && spec != null && it in honoured) {
+                    scope.noEffectMessage(option = it, spec = spec, diagramName = diagramName, kindName = kind.name.lowercase())
+                } else {
+                    null
+                }
             val message =
-                if (it == LayoutOption.BOUNDARY_DIRECTION && it in effective) {
+                if (scoped != null) {
+                    scoped
+                } else if (it == LayoutOption.BOUNDARY_DIRECTION && it in effective) {
                     "layout option 'boundaryDirection' has no effect on $where: it has no boundary with elements inside."
                 } else if (it in inside && it in effective) {
                     val scope =
@@ -140,10 +164,17 @@ public object LayoutSpecRunner {
         diagramName: String? = null,
         edgeDegrees: Map<String, EdgeDegree>? = null,
         compoundMembers: Boolean = false,
+        scope: CompoundLayerScope? = null,
     ): List<LayoutSpecFinding> {
         if (spec == null) return emptyList()
         val findings =
-            noEffectFindings(spec = spec, kind = kind, diagramName = diagramName, compoundMembers = compoundMembers).toMutableList()
+            noEffectFindings(
+                spec = spec,
+                kind = kind,
+                diagramName = diagramName,
+                compoundMembers = compoundMembers,
+                scope = scope,
+            ).toMutableList()
         val checked = sanitize(spec = spec, findings = findings)
         checkIdSet(spec = checked, known = knownIds, findings = findings)
         findings += layerPinFindings(kind = kind, spec = checked, degrees = edgeDegrees)
@@ -366,7 +397,15 @@ public object LayoutSpecRunner {
         diagramName: String?,
     ): SpecLayoutOutcome {
         val findings = mutableListOf<LayoutSpecFinding>()
-        findings += noEffectFindings(spec = spec, kind = kind, diagramName = diagramName, compoundMembers = hasCompoundMembers(graph))
+        val scope = if (kind in LayoutEffectMatrix.honouredInSelfContainedCompound) CompoundLayerScope.of(graph) else null
+        findings +=
+            noEffectFindings(
+                spec = spec,
+                kind = kind,
+                diagramName = diagramName,
+                compoundMembers = hasCompoundMembers(graph),
+                scope = scope,
+            )
         if (LayoutEffectMatrix.effectiveFor(kind).isEmpty()) {
             return SpecLayoutOutcome(result = engine.layout(graph = graph, hints = hints), findings = findings)
         }
@@ -447,6 +486,9 @@ public object LayoutSpecRunner {
         val engineGraph =
             if (kind == SpecDiagramKind.SYSML2_STM || kind == SpecDiagramKind.UML_STATE) {
                 withoutInternal.withForwardEdgePriority()
+            } else if (kind in LayoutEffectMatrix.honouredInSelfContainedCompound) {
+                // Nacharbeit 107: based on the user's spec only, so the aspect iteration never switches honouring on.
+                withoutInternal.withMemberLayerHints(spec = checked)
             } else {
                 withoutInternal
             }

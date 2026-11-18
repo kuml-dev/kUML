@@ -150,7 +150,41 @@ public data class LayoutGroup(
      * the group follows the diagram direction, output unchanged.
      */
     val direction: LayoutDirection? = null,
+    /**
+     * Nacharbeit 107: the members' layer hints ([NodeHints.layerIndex] / [NodeHints.layerPin]) are honoured inside this
+     * compound when it is self-contained (see [crossingEdgeOf]) and has no nested groups; the engine then lays it out
+     * separately from the diagram. `false` (default) = unchanged: the hints are ignored for compound members.
+     */
+    val memberLayerHints: Boolean = false,
 )
+
+/**
+ * Nacharbeit 107 (moved here from the ELK mapper, Nacharbeit 106): the first edge (declaration order) that crosses the
+ * border of [group], or `null` when the group is self-contained. Members are the nodes of the group and of its nested
+ * groups, plus the nested groups themselves (an edge may end at their anchor). An edge at the group's own anchor does
+ * not count when its other end is also a non-member (anchor to a sibling), but an edge from the anchor to one of its own
+ * members does. An edge crosses when exactly one end is a member; edges with an unknown endpoint never count.
+ * Iterative with a visited set, so a cyclic parent chain cannot loop.
+ */
+public fun LayoutGraph.crossingEdgeOf(group: LayoutGroup): EdgeId? {
+    val groupIds = mutableSetOf(group.id)
+    var grew = true
+    while (grew) {
+        grew = false
+        for (g in groups) if (g.parent in groupIds && groupIds.add(g.id)) grew = true
+    }
+    val allGroupNames = groups.map { it.id.value }.toSet()
+    val allNodeNames = nodes.map { it.id.value }.toSet()
+    val members =
+        nodes.filter { it.groupId in groupIds }.map { it.id.value }.toSet() + (groupIds - group.id).map { it.value }
+    for (edge in edges) {
+        val s = edge.source.nodeId.value
+        val t = edge.target.nodeId.value
+        if ((s !in allNodeNames && s !in allGroupNames) || (t !in allNodeNames && t !in allGroupNames)) continue
+        if ((s in members) != (t in members)) return edge.id
+    }
+    return null
+}
 
 /** Estimated widths of a composite frame's header texts, see [LayoutGroup.headerTextWidths]. */
 @Serializable

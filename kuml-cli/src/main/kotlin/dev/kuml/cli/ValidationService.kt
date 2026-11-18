@@ -9,6 +9,7 @@ import dev.kuml.core.script.diagnostics.ScriptProblems
 import dev.kuml.erm.model.ErmNotation
 import dev.kuml.layout.LayoutGraph
 import dev.kuml.layout.bridge.C4LayoutBridge
+import dev.kuml.layout.bridge.CompoundLayerScope
 import dev.kuml.layout.bridge.LayerPinCheck
 import dev.kuml.layout.bridge.LayoutSpecRunner
 import dev.kuml.layout.bridge.SpecDiagramKind
@@ -145,6 +146,7 @@ public object ValidationService {
                         diagramName = diagramId,
                         edgeDegrees = graph?.let { LayerPinCheck.edgeDegrees(it) },
                         compoundMembers = graph?.let { LayoutSpecRunner.hasCompoundMembers(it) } ?: false,
+                        scope = graph?.let { CompoundLayerScope.of(it) },
                     ).map {
                         Finding(
                             code = it.code,
