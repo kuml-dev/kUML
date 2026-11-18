@@ -4,7 +4,7 @@
 `note(text, vararg stepIds, id = null, kind = NoteKind.NOTE)` in a `blueprint(...)` block adds a note; a kind other than `NOTE` adds a symbol, an accent stripe and a tone (see xref:uml-dsl.adoc#note-kinds[Note kinds]). The ids are the values the step
 functions (`customer(...)`, `frontstage(...)`, `backstage(...)`, `support(...)`) return.
 
-`placement = NotePlacement.X` is evaluated against the first anchor card, inside the note column: `ABOVE` puts the note entirely above that card, `BELOW` entirely below it, `RIGHT` (the column lies right of the lanes) and `NEAR` keep the default placement. `LEFT` cannot be honoured because no note sits inside the lanes; neither can `ABOVE` when notes or the top of the grid leave no room. Then the default placement is used and `kuml render` reports `KUML-NOTE-W004` (see xref:uml-dsl.adoc#note-placement-hint[Note placement hint]). Free-standing notes ignore the hint.
+`placement = NotePlacement.X` is evaluated against the first anchor card, inside the note column: `ABOVE` puts the note entirely above that card, `BELOW` entirely below it, `RIGHT` (the column lies right of the lanes) and `NEAR` keep the default placement. `LEFT` cannot be honoured because no note sits inside the lanes; neither can `ABOVE` when notes or the top of the grid leave no room. Then the default placement is used and `kuml render` reports `KUML-NOTE-W004` (see xref:uml-dsl.adoc#note-placement-hint[Note placement hint]). The LaTeX output (`--format latex`) follows the same rule and reports the same warning. Free-standing notes ignore the hint.
 
 The tone colours can be set per theme, see xref:themes.adoc#note-tone-colours[Note tone colours].
 

@@ -15,6 +15,8 @@ import dev.kuml.io.latex.note.NoteTikzSpec
 import dev.kuml.layout.Point
 import dev.kuml.layout.Rect
 import dev.kuml.layout.bridge.NoteFrameStyle
+import dev.kuml.layout.bridge.note.ColumnNoteHint
+import dev.kuml.layout.bridge.note.NotePlacementMissCollector
 import kotlin.math.max
 
 /**
@@ -84,6 +86,8 @@ internal object BlueprintLatexRenderer {
         /** Distance of the anchor above the south edge for a box partly covered by a stacked box; null: east centre. */
         val endLift: Double?,
         val lastColumn: Boolean,
+        /** Centre of the step box (cm, TikZ y axis). */
+        val centerY: Double,
     )
 
     /** Emits the blueprint-specific TikZ styles into the shared `\tikzset` block. */
@@ -218,6 +222,7 @@ internal object BlueprintLatexRenderer {
                                         // strip of one pitch at its bottom: anchor in the middle of that strip.
                                         endLift = if (si < steps.size - 1) STEP_STACK_PITCH / 2.0 else null,
                                         lastColumn = pi == phases.size - 1,
+                                        centerY = bandCenterY(li) + yOff,
                                     )
                                 " ($name)"
                             } else {
@@ -305,7 +310,22 @@ internal object BlueprintLatexRenderer {
         options: LatexRenderOptions,
     ) {
         val ind = options.indent
-        val placed = BlueprintNoteTikz.place(model.notes)
+        val result =
+            BlueprintNoteTikz.place(notes = model.notes, anchorOf = { note ->
+                // First drawn anchor card, in pt below the grid top.
+                model.noteLinks
+                    .firstOrNull { it.noteId == note.id && stepRoutes.containsKey(it.targetId) }
+                    ?.let { stepRoutes.getValue(it.targetId) }
+                    ?.let { r ->
+                        val stepHPt = STEP_H * BlueprintNoteTikz.PT_PER_CM
+                        ColumnNoteHint.Anchor(
+                            y = (gridTop - r.centerY) * BlueprintNoteTikz.PT_PER_CM - stepHPt / 2.0,
+                            h = stepHPt,
+                        )
+                    }
+            })
+        NotePlacementMissCollector.report(result.misses)
+        val placed = result.placed
         val x0 = COL_W * columns + BlueprintNoteTikz.COLUMN_GAP_CM
         appendLine()
         appendLine("$ind% notes")

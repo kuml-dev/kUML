@@ -6,6 +6,13 @@ All notable changes to this project are documented here. Format follows
 
 ## [Unreleased]
 
+### Nacharbeit 104a: the LaTeX Service Blueprint renderer honours the placement hint
+
+- **Why.** Several "Not fixed" lines say the LaTeX renderer does not evaluate the placement hint. UML, C4 and SysML 2 LaTeX already go through the shared placers (and so report `KUML-NOTE-W004`); Service Blueprint LaTeX did not.
+- **Change.** The Blueprint column rule moved from `BlueprintGeometry` (SVG) into the shared, unit-neutral `ColumnNoteHint` (layout bridge); the SVG renderer calls it, output unchanged. `BlueprintNoteTikz.place` uses it too: an ABOVE/BELOW hint puts the note next to its first drawn anchor card (never above the stack bottom), RIGHT always holds, LEFT and an impossible side are reported through `NotePlacementMissCollector` as `KUML-NOTE-W004` (`placed` RIGHT for LEFT). Notes without a hint or with `NEAR` take the old stacking (byte-identical).
+- **Verification.** New `NotePlacementHintLatexTest` (Blueprint: BELOW honoured, RIGHT unchanged, LEFT/ABOVE miss without note body, NEAR equals no hint; C4 LaTeX: honoured hint silent, impossible hint reaches the collector). Existing SVG Blueprint, layout-bridge and LaTeX suites unchanged and green.
+- **Not fixed.** BPMN LaTeX (process and collaboration) still ignores the hint: the process view has no geometry (`right of=` chaining) and the collaboration view needs a synthetic layout; planned as Nacharbeit 104b. The SysML 2 sequence LaTeX fallback (plain rectangles) cannot evaluate a hint. UML sequence and ERM have no LaTeX renderer.
+
 ### Nacharbeit 103: BPMN text annotations honour the placement hint
 
 - **Why.** Not fixed of Nacharbeit 102: BPMN text annotations accepted `placement` but ignored it and reported `KUML-NOTE-W005`.

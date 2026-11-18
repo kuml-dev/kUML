@@ -161,13 +161,14 @@ class BlueprintNoteTikzTest :
         "the placement stacks downwards without overlap" {
             val placed =
                 BlueprintNoteTikz.place(
-                    (0 until 6).map {
-                        dev.kuml.core.model.note
-                            .KumlNote(id = "n$it", body = "Note $it")
-                    },
+                    notes =
+                        (0 until 6).map {
+                            dev.kuml.core.model.note
+                                .KumlNote(id = "n$it", body = "Note $it")
+                        },
                 )
-            placed.size shouldBe 6
-            placed.zipWithNext().forEach { (a, b) -> (b.yPt >= a.yPt + a.size.height) shouldBe true }
+            placed.placed.size shouldBe 6
+            placed.placed.zipWithNext().forEach { (a, b) -> (b.yPt >= a.yPt + a.size.height) shouldBe true }
         }
 
         "the height limit omits further notes with a comment" {

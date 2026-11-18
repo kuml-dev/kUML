@@ -6,7 +6,6 @@ import dev.kuml.blueprint.model.BlueprintLayer
 import dev.kuml.blueprint.model.BlueprintLine
 import dev.kuml.blueprint.model.BlueprintModel
 import dev.kuml.blueprint.model.Phase
-import dev.kuml.core.model.note.NotePlacement
 import dev.kuml.core.model.note.isHint
 import dev.kuml.layout.bridge.note.NotePlacementMissCollector
 import dev.kuml.layout.bridge.note.PlacementHintMiss
@@ -198,32 +197,25 @@ internal class BlueprintGeometry(
             // Nacharbeit 101: a side hint places the note against the first anchor card (the note column stays right of the lanes).
             val hint = n.placement.takeIf { it.isHint() && first != null }
             val anchorCard = if (hint != null) cardRects[steps.first().id] else null
-            val desired =
-                when {
-                    anchorCard != null && hint == NotePlacement.ABOVE -> anchorCard.y - NOTE_GAP - h
-                    anchorCard != null && hint == NotePlacement.BELOW -> anchorCard.y + anchorCard.h + NOTE_GAP
-                    first != null -> first.second + bandHeight(steps.first().layer) / 2 - h / 2
-                    else -> bottom
-                }
-            val y = maxOf(desired, bottom)
+            val default = if (first != null) first.second + bandHeight(steps.first().layer) / 2 - h / 2 else bottom
+            var y = maxOf(default, bottom)
             if (hint != null && anchorCard != null) {
-                val placed =
-                    when {
-                        y + h <= anchorCard.y + EPS -> NotePlacement.ABOVE
-                        y >= anchorCard.y + anchorCard.h - EPS -> NotePlacement.BELOW
-                        else -> NotePlacement.NEAR
-                    }
-                // The column lies right of the lanes, so RIGHT always holds and LEFT never can.
-                val honoured =
-                    when (hint) {
-                        NotePlacement.RIGHT -> true
-                        NotePlacement.LEFT -> false
-                        else -> placed == hint
-                    }
-                if (!honoured) {
-                    val actual = if (hint == NotePlacement.LEFT) NotePlacement.RIGHT else placed
-                    misses += PlacementHintMiss(noteId = n.id, wanted = hint, placed = actual, sourceLine = n.sourceLine)
-                }
+                val r =
+                    dev.kuml.layout.bridge.note.ColumnNoteHint.resolve(
+                        noteId = n.id,
+                        sourceLine = n.sourceLine,
+                        hint = hint,
+                        anchor =
+                            dev.kuml.layout.bridge.note.ColumnNoteHint
+                                .Anchor(y = anchorCard.y, h = anchorCard.h),
+                        noteHeight = h,
+                        fallbackY = default,
+                        minY = bottom,
+                        gap = NOTE_GAP,
+                        eps = EPS,
+                    )
+                y = r.y
+                r.miss?.let { misses += it }
             }
             bottom = y + h + NOTE_GAP
             val targets =
