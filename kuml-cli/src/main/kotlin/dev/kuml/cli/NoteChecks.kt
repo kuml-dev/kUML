@@ -3,6 +3,8 @@ package dev.kuml.cli
 import dev.kuml.blueprint.constraint.BlueprintCodes
 import dev.kuml.blueprint.constraint.BlueprintDuplicateIds
 import dev.kuml.bpmn.constraint.BpmnNoteChecker
+import dev.kuml.c4.constraint.C4Codes
+import dev.kuml.c4.constraint.C4DuplicateRelationships
 import dev.kuml.core.model.note.KumlNoteCodes
 import dev.kuml.core.model.note.KumlNoteIssue
 import dev.kuml.core.script.ExtractedDiagram
@@ -20,7 +22,7 @@ import dev.kuml.sysml2.constraint.Sysml2NoteChecker
  * Messages name note ids and limits, never note bodies.
  *
  * It also carries the Service Blueprint finding `KUML-BP-W001` (duplicate step ids), because this is the single funnel
- * that both `render` and `validate` already consume.
+ * that both `render` and `validate` already consume, and the C4 finding `KUML-C4-W001` (duplicate relationships).
  */
 public object NoteChecks {
     public data class Finding(
@@ -135,7 +137,7 @@ public object NoteChecks {
             truncated.map {
                 Finding(code = it.code, isError = false, subjectId = it.noteId, message = it.message, sourceLine = lines[it.noteId])
             }
-        return structural + display + blueprintFindings(extracted)
+        return structural + display + blueprintFindings(extracted) + c4Findings(extracted)
     }
 
     /** `KUML-BP-W001`: one warning per duplicated step id of a Service Blueprint model; empty for every other diagram. */
@@ -147,6 +149,22 @@ public object NoteChecks {
                         code = BlueprintCodes.DUPLICATE_STEP_ID,
                         isError = false,
                         subjectId = it.id,
+                        message = it.message(),
+                        sourceLine = null,
+                    )
+                }
+            else -> emptyList()
+        }
+
+    /** `KUML-C4-W001`: one warning per group of identical relationships of a C4 model; empty for every other diagram. */
+    private fun c4Findings(extracted: ExtractedDiagram): List<Finding> =
+        when (extracted) {
+            is ExtractedDiagram.C4 ->
+                C4DuplicateRelationships.find(extracted.model).map {
+                    Finding(
+                        code = C4Codes.DUPLICATE_RELATIONSHIP,
+                        isError = false,
+                        subjectId = it.relationshipIds.first(),
                         message = it.message(),
                         sourceLine = null,
                     )

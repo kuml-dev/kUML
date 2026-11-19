@@ -6,6 +6,14 @@ All notable changes to this project are documented here. Format follows
 
 ## [Unreleased]
 
+### Nacharbeit 113: C4 warns about duplicate relationships
+
+- **Why.** The C4 DSL accepts identical parallel relationships (they only get distinct ids), so a pasted duplicate drew two identical edges without any hint.
+- **Change.** New warning `KUML-C4-W001`, reported once per group of relationships with the same source, target, direction, label, technology, bidirectional flag and description, with the occurrence count and the relationship ids, through the shared note-findings path: visible in `kuml validate` (category `c4`) and as a render warning. The drawing is unchanged; exit codes are unchanged (warning only, `--strict` does not promote it). No persistence or metamodel change.
+- **Verification.** `C4DuplicateRelationshipsTest` (two, three, several groups, different label, technology, direction or description, empty, message without the description) and `C4DuplicateRelationshipCliTest` (validate finding and severity, clean and reversed models, script-built duplicates through the DSL, `validate` output and `--strict` exit status).
+- **Not verified.** Intel Mac, Windows.
+- **Not fixed.** Relationships that differ only in id or metadata count as duplicates; no automatic de-duplication; no source line (the model does not carry one); near-duplicates (case or whitespace differences) and hierarchy-aware duplicates (a relationship to a child versus its parent) are not detected.
+
 ### Nacharbeit 112: remaining activity degree rules as warnings
 
 - **Why.** "Not fixed" of Nacharbeit 70: activity models that break the usual node degrees (a join that fans out, a decision with several inputs, a merge that fans out, an action with several outputs) rendered without any hint.

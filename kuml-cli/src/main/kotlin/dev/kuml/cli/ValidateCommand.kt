@@ -314,6 +314,7 @@ internal class ValidateCommand : CliktCommand(name = "validate") {
                                 when {
                                     f.code.startsWith("KUML-LAYOUT") -> "layout"
                                     f.code.startsWith("KUML-BP") -> "blueprint"
+                                    f.code.startsWith("KUML-C4") -> "c4"
                                     else -> "notes"
                                 },
                         )
