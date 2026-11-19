@@ -1,5 +1,7 @@
 package dev.kuml.cli
 
+import dev.kuml.blueprint.constraint.BlueprintCodes
+import dev.kuml.blueprint.constraint.BlueprintDuplicateIds
 import dev.kuml.bpmn.constraint.BpmnNoteChecker
 import dev.kuml.core.model.note.KumlNoteCodes
 import dev.kuml.core.model.note.KumlNoteIssue
@@ -16,6 +18,9 @@ import dev.kuml.sysml2.constraint.Sysml2NoteChecker
  * `render` (printed as warnings) and `validate` (folded into the result).
  *
  * Messages name note ids and limits, never note bodies.
+ *
+ * It also carries the Service Blueprint finding `KUML-BP-W001` (duplicate step ids), because this is the single funnel
+ * that both `render` and `validate` already consume.
  */
 public object NoteChecks {
     public data class Finding(
@@ -130,8 +135,24 @@ public object NoteChecks {
             truncated.map {
                 Finding(code = it.code, isError = false, subjectId = it.noteId, message = it.message, sourceLine = lines[it.noteId])
             }
-        return structural + display
+        return structural + display + blueprintFindings(extracted)
     }
+
+    /** `KUML-BP-W001`: one warning per duplicated step id of a Service Blueprint model; empty for every other diagram. */
+    private fun blueprintFindings(extracted: ExtractedDiagram): List<Finding> =
+        when (extracted) {
+            is ExtractedDiagram.Blueprint ->
+                BlueprintDuplicateIds.duplicateStepIds(extracted.model).map {
+                    Finding(
+                        code = BlueprintCodes.DUPLICATE_STEP_ID,
+                        isError = false,
+                        subjectId = it.id,
+                        message = it.message(),
+                        sourceLine = null,
+                    )
+                }
+            else -> emptyList()
+        }
 
     /** Script line of each note of [extracted] (note id to line); notes without a known line are absent. */
     private fun noteLines(extracted: ExtractedDiagram): Map<String, Int> {

@@ -6,6 +6,14 @@ All notable changes to this project are documented here. Format follows
 
 ## [Unreleased]
 
+### Nacharbeit 111: Service Blueprint warns about duplicate step ids
+
+- **Why.** Duplicate step ids from JSON or OKF imports collapsed silently into one card in the blueprint geometry ("Not fixed" of Nacharbeit 80).
+- **Change.** New warning `KUML-BP-W001`, reported once per duplicated id with the occurrence count, through the shared note-findings path: visible in `kuml validate` (category `blueprint`) and as a render warning. The drawing and the default output are unchanged; exit codes are unchanged (warning only). No persistence or metamodel change.
+- **Verification.** `BlueprintDuplicateIdsTest` (two, three, several duplicated ids, clean, empty, message, cross-kind ids) and `BlueprintDuplicateStepIdCliTest` (validate finding, severity, no step name in the message, clean model, script-built model).
+- **Not verified.** Intel Mac, Windows.
+- **Not fixed.** The duplicate steps are still drawn as one card; no automatic id repair; the source line is unknown for imports; ids shared between a step and a phase or actor are not checked.
+
 ### Nacharbeit 110: AI editing tools mark an explicit multiplicity
 
 - **Why.** `add_association` built association ends without the explicit-multiplicity flag, so a `1` set by the AI was silently not drawn ("Not fixed" of Nacharbeit 79).

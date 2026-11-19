@@ -75,3 +75,4 @@ column; headers and captions are limited to 60 characters.
 
 * The text width is estimated with an average character width, so a very wide font can still reach the card edge.
 * The LaTeX renderer uses the labels but has no footer: the actor is a `[ROLE]` suffix of the title.
+* Step ids must be unique. Duplicate ids can only come from JSON or OKF imports; they are drawn as one card and reported as `KUML-BP-W001`, see xref:validate.adoc[validate]. Ids shared between a step and a phase or actor are not checked.

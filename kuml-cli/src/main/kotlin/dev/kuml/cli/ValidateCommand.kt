@@ -310,7 +310,12 @@ internal class ValidateCommand : CliktCommand(name = "validate") {
                             severity = if (f.severity == Severity.ERROR) "error" else "warning",
                             message = f.format().removePrefix("[${f.code}] "),
                             location = f.anchorId ?: f.diagramId,
-                            category = if (f.code.startsWith("KUML-LAYOUT")) "layout" else "notes",
+                            category =
+                                when {
+                                    f.code.startsWith("KUML-LAYOUT") -> "layout"
+                                    f.code.startsWith("KUML-BP") -> "blueprint"
+                                    else -> "notes"
+                                },
                         )
                     }
             } ?: emptyList()
