@@ -93,17 +93,22 @@ class ValidationServiceTest :
             codes.count { it == "KUML-LAYOUT-W004" } shouldBe 1
         }
 
-        test("wrapColumns and sameLayer inside a package are KUML-LAYOUT-W001, without a package or without the option they are not") {
+        test("wrapColumns and sameLayer inside a package that a relationship crosses are KUML-LAYOUT-W001, otherwise they are not") {
             fun script(
                 withPackage: Boolean,
+                crossing: Boolean,
                 layoutBlock: String,
             ) = if (withPackage) {
                 """
                 classDiagram(name = "D") {
+                    lateinit var a: dev.kuml.uml.UmlClassifier
+                    lateinit var b: dev.kuml.uml.UmlClassifier
+                    val o = classOf(name = "O")
                     packageOf(name = "P") {
-                        classOf(name = "A")
-                        classOf(name = "B")
+                        a = classOf(name = "A")
+                        b = classOf(name = "B")
                     }
+                    ${if (crossing) "association(source = a, target = o)" else ""}
                     layout { $layoutBlock }
                 }
                 """.trimIndent()
@@ -118,10 +123,12 @@ class ValidationServiceTest :
             }
 
             fun w001(s: String) = ValidationService.validate(script = s).filter { it.code == "KUML-LAYOUT-W001" }
-            w001(script(withPackage = true, layoutBlock = "wrapColumns = 2")).size shouldBe 1
-            w001(script(withPackage = true, layoutBlock = "wrapColumns = 2; sameLayer(\"P.A\", \"P.B\")")).size shouldBe 2
-            w001(script(withPackage = true, layoutBlock = "direction = Right")).shouldBeEmpty()
-            w001(script(withPackage = false, layoutBlock = "wrapColumns = 2")).shouldBeEmpty()
+            w001(script(withPackage = true, crossing = true, layoutBlock = "wrapColumns = 2")).size shouldBe 1
+            w001(script(withPackage = true, crossing = true, layoutBlock = "wrapColumns = 2; sameLayer(a, b)")).size shouldBe 2
+            w001(script(withPackage = true, crossing = true, layoutBlock = "direction = Right")).shouldBeEmpty()
+            w001(script(withPackage = false, crossing = false, layoutBlock = "wrapColumns = 2")).shouldBeEmpty()
+            // Nacharbeit 115: a self-contained package of a class diagram honours the hints, nothing to report
+            w001(script(withPackage = true, crossing = false, layoutBlock = "wrapColumns = 2")).shouldBeEmpty()
         }
 
         test("Nacharbeit 107: in a package diagram wrapColumns inside a self-contained package is not KUML-LAYOUT-W001") {

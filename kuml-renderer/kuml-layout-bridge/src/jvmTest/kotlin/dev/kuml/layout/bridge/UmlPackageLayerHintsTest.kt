@@ -261,7 +261,7 @@ class UmlPackageLayerHintsTest :
             LayoutSpecRunner
                 .ignoredOptions(
                     spec = LayoutSpec(wrapColumns = 2),
-                    kind = SpecDiagramKind.UML_COMPONENT,
+                    kind = SpecDiagramKind.UML_STATE,
                     compoundMembers = true,
                     scope = scope,
                 ) shouldHaveSize 1

@@ -6,6 +6,14 @@ All notable changes to this project are documented here. Format follows
 
 ## [Unreleased]
 
+### Nacharbeit 115: layer hints inside self-contained packages of class, component and deployment diagrams
+
+- **Why.** Nacharbeit 107 made `wrapColumns`, `sameLayer`, `first` and `last` act on the members of a self-contained package, but only for UML package diagrams; class, component and deployment diagrams with packages or nodes still reported `KUML-LAYOUT-W001` although they build the same kind of compound group.
+- **Change.** `LayoutEffectMatrix.honouredInSelfContainedCompound` now lists `UML_PACKAGE`, `UML_CLASS`, `UML_COMPONENT` and `UML_DEPLOYMENT` (both options). No change in the bridge, the layout engine or the ELK mapper: the verification showed that all four kinds emit a flat `LayoutGroup(layoutAsCompound = true)` with `groupId` members, which is the shape `CompoundLayerScope` expects. W001 and W009 codes and texts are reused unchanged. A package or deployment node whose member has a relationship to an element outside it (including an association class, which is drawn outside the package), a deployment node with nested nodes, and a `sameLayer` group that mixes scopes keep reporting `KUML-LAYOUT-W001`. Diagrams without `wrapColumns`, `sameLayer`, `first` or `last` are laid out exactly as before (`withMemberLayerHints` returns the identical graph).
+- **Docs.** `layout.adoc` (note 3, hint list), `uml-dsl.adoc` (layout of package diagrams).
+- **Verification.** New `CompoundLayerBaselineTest` (geometry without hints, recorded before the change and unchanged after it), `CompoundLayerHintsAllKindsTest` (per kind: wrapColumns rows, sameLayer, first/last, members inside the frame, crossing relationship, nested deployment node, sub-package, association class, mixed-scope sameLayer, `validate`), shared `CompoundLayerFixtures`. `LayoutEffectMatrixTest` pins the four kinds. All 86 vault example SVGs were compared before and after the change and are byte-identical; a hand-made class and a deployment diagram with `wrapColumns = 2` were rendered through the CLI and show three rows of two.
+- **Not fixed.** Nested packages and nodes are not honoured (a deployment node with nested nodes keeps W001); class and component diagrams flatten a sub-package into a sibling group, so it does not block the outer package. State frames, SysML 2 packages and C4 keep W001. The W001 text says "package" also for a deployment node.
+
 ### Nacharbeit 114: OKF alias to canonical id
 
 - **Why.** `OKF-I-001` told users that a `type:` value is an alias but carried no machine-readable canonical id, and no way to migrate existed.
@@ -81,7 +89,7 @@ Details per change follow below.
 - **Fix (review).** `wrapColumns` rows are counted per package (the members of a self-contained package form their own layering), not over the whole diagram, so a class declared before the package no longer shifts its rows. A `sameLayer` group with an unknown id no longer reports the mixed-scope `W001`.
 - **Docs.** `layout.adoc` (note 3, hint list), `uml-dsl.adoc` (Layout of package diagrams).
 - **Verification.** New `GroupLayerHintsSpikeTest`, `GroupLayerHintsTest` (engine), `UmlPackageLayerHintsTest` (bridge, end to end), matrix and `ValidationServiceTest` cases. Existing pin tests (`CompoundLayoutOptionsTest`, `ElkPortsAndLayerHintsTest`, `C4ContainerLayoutOptionsTest`) are unchanged.
-- **Not fixed.** Only UML package diagrams; class, component and deployment diagrams with packages, state frames, SysML 2 and C4 keep W001. Nested groups are not honoured. `first`/`last` count within the package. The direction path of Nacharbeit 106 does not copy the root edge options onto separate compounds (possible follow-up).
+- **Not fixed.** Only UML package diagrams (extended to class, component and deployment diagrams in Nacharbeit 115); state frames, SysML 2 and C4 keep W001. Nested groups are not honoured. `first`/`last` count within the package. The direction path of Nacharbeit 106 does not copy the root edge options onto separate compounds (possible follow-up).
 
 ### Nacharbeit 106: own flow direction of a group (pilot: C4 boundary)
 

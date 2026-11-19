@@ -102,8 +102,16 @@ class LayoutEffectMatrixTest :
             LayoutSpecRunner.validate(kind = SpecDiagramKind.C4, spec = null, knownIds = emptySet()).shouldBeEmpty()
         }
 
-        test("Nacharbeit 107: the self-contained exception is a subset of the compound rule and lists UML_PACKAGE only") {
-            LayoutEffectMatrix.honouredInSelfContainedCompound.keys shouldBe setOf(SpecDiagramKind.UML_PACKAGE)
+        test(
+            "Nacharbeit 107: the self-contained exception is a subset of the compound rule and lists package, class, component and deployment (Nacharbeit 115)",
+        ) {
+            LayoutEffectMatrix.honouredInSelfContainedCompound.keys shouldBe
+                setOf(
+                    SpecDiagramKind.UML_PACKAGE,
+                    SpecDiagramKind.UML_CLASS,
+                    SpecDiagramKind.UML_COMPONENT,
+                    SpecDiagramKind.UML_DEPLOYMENT,
+                )
             LayoutEffectMatrix.honouredInSelfContainedCompound.forEach { (kind, options) ->
                 (options - LayoutEffectMatrix.ignoredInsideCompound.getValue(kind)).shouldBeEmpty()
             }

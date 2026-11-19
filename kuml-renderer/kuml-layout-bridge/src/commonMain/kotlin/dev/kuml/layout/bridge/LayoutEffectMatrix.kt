@@ -135,8 +135,9 @@ public object LayoutEffectMatrix {
      * with and without the option). Kinds with their own grid inside the boundary (SysML 2 requirement groups, use-case
      * system boundary, activity lanes) are deliberately absent. Reported as `KUML-LAYOUT-W001` when the diagram has
      * compound members; not part of the handbook table cells (note 1 under the table explains it), so
-     * `LayoutEffectMatrixDocSyncTest` ignores it. Since Nacharbeit 107 the kinds in [honouredInSelfContainedCompound]
-     * are exceptions for self-contained compounds: there the options act when no relationship crosses the border.
+     * `LayoutEffectMatrixDocSyncTest` ignores it. Since Nacharbeit 107 (extended in Nacharbeit 115) the kinds in
+     * [honouredInSelfContainedCompound] are exceptions for self-contained compounds: there the options act on the members
+     * of a package or deployment node unless a relationship crosses the border or the compound has nested groups.
      */
     public val ignoredInsideCompound: Map<SpecDiagramKind, Set<LayoutOption>> =
         run {
@@ -154,11 +155,21 @@ public object LayoutEffectMatrix {
 
     /**
      * Nacharbeit 107: options of [ignoredInsideCompound] that nevertheless act on the members of a compound group when
-     * it is self-contained (no relationship crosses its border, no nested group). Pilot: UML package diagrams. Not part
-     * of the handbook table cells, so `LayoutEffectMatrixDocSyncTest` ignores it. Other kinds keep reporting W001.
+     * it is self-contained (no relationship crosses its border, no nested group). Nacharbeit 107 started with UML
+     * package diagrams; Nacharbeit 115 extended it to UML class, component and deployment diagrams, which build their
+     * packages and nodes as the same kind of compound group. Not part of the handbook table cells, so
+     * `LayoutEffectMatrixDocSyncTest` ignores it. State frames, SysML 2 and C4 keep reporting W001.
      */
     public val honouredInSelfContainedCompound: Map<SpecDiagramKind, Set<LayoutOption>> =
-        mapOf(SpecDiagramKind.UML_PACKAGE to setOf(LayoutOption.WRAP_COLUMNS, LayoutOption.SAME_LAYER))
+        run {
+            val both = setOf(LayoutOption.WRAP_COLUMNS, LayoutOption.SAME_LAYER)
+            mapOf(
+                SpecDiagramKind.UML_PACKAGE to both,
+                SpecDiagramKind.UML_CLASS to both,
+                SpecDiagramKind.UML_COMPONENT to both,
+                SpecDiagramKind.UML_DEPLOYMENT to both,
+            )
+        }
 
     /** The options that have an effect on [kind]. */
     public fun effectiveFor(kind: SpecDiagramKind): Set<LayoutOption> = effective.getValue(kind)
