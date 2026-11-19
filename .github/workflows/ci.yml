@@ -126,8 +126,15 @@ jobs:
         with:
           node-version: '22'
 
+      # Read-only: this job runs a narrow task set and only ever resolves a part of the
+      # dependency graph. When it was allowed to save its cache, a later run restored a
+      # cache with metadata but without the plugin jars and failed at configuration with
+      # "Could not find ...jar" (seen repeatedly on 2026-11-19). The build job above owns
+      # and writes the shared cache.
       - name: Setup Gradle
         uses: gradle/actions/setup-gradle@v4
+        with:
+          cache-read-only: true
 
       # Download first, install offline: a hung mirror then fails in the download step,
       # and the cached archives make later runs independent of it.
