@@ -6,6 +6,14 @@ All notable changes to this project are documented here. Format follows
 
 ## [Unreleased]
 
+### Nacharbeit 121b: near-duplicate C4 relationships as a warning
+
+Why: the "Not fixed" list of Nacharbeit 113 named relationships that differ only in letter case or whitespace; they were not detected.
+
+- New warning `KUML-C4-W002` (own code, so `KUML-C4-W001` messages, tests and docs stay unchanged). A normalised key (trim, collapse whitespace, lowercase) over label, technology and description is used for detection only; source, target, direction and the bidirectional flag must match exactly. Groups with at least two distinct exact variants are reported once with all ids; purely identical groups stay `KUML-C4-W001`. The message never contains the description. Warning only, not promoted by `--strict`; no rendering, persistence or metamodel change.
+- Not fixed: hierarchy-aware duplicates (a relationship to a container and another to a component inside it) are deliberately not detected, because they are different statements in C4 and a check would give false positives. No automatic de-duplication, no source line. `null` versus blank technology or description are treated as different; different spellings of a technology (for example `REST` versus `REST/JSON`) are not detected.
+- Tests: `C4NearDuplicateRelationshipsTest` (case, whitespace, technology, description, negatives, mixed groups, ordering, message hygiene), new cases in `C4DuplicateRelationshipCliTest` and fixture `near-duplicate-relationship-c4.kuml.kts`.
+
 ### Nacharbeit 121a: remaining activity degree rules as warnings
 
 - **Why.** "Not fixed" of Nacharbeit 112: initial and final nodes, call-behavior and send-signal nodes, and decisions or merges with a single branch were not checked.

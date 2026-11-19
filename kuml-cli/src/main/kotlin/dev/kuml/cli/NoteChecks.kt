@@ -5,6 +5,7 @@ import dev.kuml.blueprint.constraint.BlueprintDuplicateIds
 import dev.kuml.bpmn.constraint.BpmnNoteChecker
 import dev.kuml.c4.constraint.C4Codes
 import dev.kuml.c4.constraint.C4DuplicateRelationships
+import dev.kuml.c4.constraint.C4NearDuplicateRelationships
 import dev.kuml.core.model.note.KumlNoteCodes
 import dev.kuml.core.model.note.KumlNoteIssue
 import dev.kuml.core.script.ExtractedDiagram
@@ -22,7 +23,7 @@ import dev.kuml.sysml2.constraint.Sysml2NoteChecker
  * Messages name note ids and limits, never note bodies.
  *
  * It also carries the Service Blueprint finding `KUML-BP-W001` (duplicate step ids), because this is the single funnel
- * that both `render` and `validate` already consume, and the C4 finding `KUML-C4-W001` (duplicate relationships).
+ * that both `render` and `validate` already consume, and the C4 findings `KUML-C4-W001` / `KUML-C4-W002` (duplicate and near-duplicate relationships).
  */
 public object NoteChecks {
     public data class Finding(
@@ -156,7 +157,10 @@ public object NoteChecks {
             else -> emptyList()
         }
 
-    /** `KUML-C4-W001`: one warning per group of identical relationships of a C4 model; empty for every other diagram. */
+    /**
+     * `KUML-C4-W001` / `KUML-C4-W002`: one warning per group of identical / near-identical (case, whitespace)
+     * relationships of a C4 model; empty for every other diagram.
+     */
     private fun c4Findings(extracted: ExtractedDiagram): List<Finding> =
         when (extracted) {
             is ExtractedDiagram.C4 ->
@@ -168,7 +172,16 @@ public object NoteChecks {
                         message = it.message(),
                         sourceLine = null,
                     )
-                }
+                } +
+                    C4NearDuplicateRelationships.findNear(extracted.model).map {
+                        Finding(
+                            code = C4Codes.NEAR_DUPLICATE_RELATIONSHIP,
+                            isError = false,
+                            subjectId = it.relationshipIds.first(),
+                            message = it.message(),
+                            sourceLine = null,
+                        )
+                    }
             else -> emptyList()
         }
 

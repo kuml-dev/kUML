@@ -41,6 +41,45 @@ class C4DuplicateRelationshipCliTest :
             f.single().message shouldContain "2 occurrences"
         }
 
+        test("relationships differing only in case or whitespace are one warning KUML-C4-W002 and no W001") {
+            val all = ValidationService.findingsOf(extracted(rel("r1", label = "Uses"), rel("r2", label = "uses ")))
+            val f = all.filter { it.code == "KUML-C4-W002" }
+            f shouldHaveSize 1
+            f.single().severity shouldBe Severity.WARNING
+            f.single().message shouldContain "a -> b"
+            f.single().message shouldContain "near-duplicate"
+            all.filter { it.code == "KUML-C4-W001" }.shouldBeEmpty()
+        }
+
+        test("NoteChecks.of reports W002 as a non-error finding on the first relationship id") {
+            val f = NoteChecks.of(extracted(rel("r1", label = "Uses"), rel("r2", label = "uses "))).single { it.code == "KUML-C4-W002" }
+            f.isError shouldBe false
+            f.subjectId shouldBe "r1"
+        }
+
+        test("exact duplicates give W001 and no W002") {
+            val all = ValidationService.findingsOf(extracted(rel("r1"), rel("r2")))
+            all.filter { it.code == "KUML-C4-W002" }.shouldBeEmpty()
+            all.filter { it.code == "KUML-C4-W001" } shouldHaveSize 1
+        }
+
+        test("a script with a case/whitespace variant warns KUML-C4-W002 through the DSL path") {
+            val script = this::class.java.getResource("/near-duplicate-relationship-c4.kuml.kts")!!.readText()
+            val f = ValidationService.validate(script = script)
+            f.filter { it.code == "KUML-C4-W002" } shouldHaveSize 1
+            f.filter { it.code == "KUML-C4-W001" }.shouldBeEmpty()
+        }
+
+        test("validate prints KUML-C4-W002 in category c4 and exits 0, also with --strict").config(timeout = 120.seconds) {
+            val file = File("src/test/resources/near-duplicate-relationship-c4.kuml.kts")
+            val text = KumlCli().test(listOf("validate", file.absolutePath))
+            text.statusCode shouldBe 0
+            text.output shouldContain "KUML-C4-W002"
+            val json = KumlCli().test(listOf("validate", file.absolutePath, "--output", "json"))
+            json.output shouldContain "\"c4\""
+            KumlCli().test(listOf("validate", file.absolutePath, "--strict")).statusCode shouldBe 0
+        }
+
         test("NoteChecks.of reports it as a non-error finding on the first relationship id") {
             val f = NoteChecks.of(extracted(rel("r1"), rel("r2"))).single { it.code == "KUML-C4-W001" }
             f.isError shouldBe false
