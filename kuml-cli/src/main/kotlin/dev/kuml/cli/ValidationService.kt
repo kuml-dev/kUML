@@ -164,7 +164,7 @@ public object ValidationService {
     }
 
     /**
-     * Parametric (`PAR437`..`PAR442`) and internal-block (`IBD501`) structure findings, so the desktop sees what
+     * Parametric (`PAR437`..`PAR443`) and internal-block (`IBD501`) structure findings, so the desktop sees what
      * `kuml validate` reports (PAL wave 2C-b3). Messages carry the checker's hint; ids and limits only, no note text.
      */
     private fun structuralOf(

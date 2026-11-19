@@ -1176,7 +1176,7 @@ block.
 
 A binding that names a part attribute (`Part::attr`) ends at the row of that attribute on the side edge of the part box
 (left edge when the other end is an `in` pin, right edge for an `out`/`inout` pin), not at the top or bottom edge. No pin
-is drawn there. A binding to the part as a whole, or to an unknown attribute name, ends on the box border as before.
+is drawn there. A binding to the part as a whole, or to an unknown attribute name, ends on the box border as before; `kuml validate` warns about an unknown attribute name (`PAR443`). Nested paths, parts outside the diagram and external elements are not checked.
 
 Rendered live below (vault source: `03 Bereiche/kUML/Beispiele/51 SysML 2 PAR – Verschachtelte Constraints.md`):
 
@@ -1262,6 +1262,7 @@ sysml2Model(name = "VehicleDynamicsModel") {
 | `PAR440` | Error | more than 64 parameters on one constraint
 | `PAR441` | Warning | binding endpoint does not name a parameter of its constraint
 | `PAR442` | Warning | `include(...)` of an `attributeDef` in a `parDiagram` has no effect
+| `PAR443` | Warning | binding endpoint `Part::attr` names an attribute that the part does not have
 |===
 
 === Rows, expressions, units and binding labels

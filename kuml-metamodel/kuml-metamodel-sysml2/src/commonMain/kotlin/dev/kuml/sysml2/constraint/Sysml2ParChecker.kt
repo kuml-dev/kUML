@@ -1,9 +1,11 @@
 package dev.kuml.sysml2.constraint
 
 import dev.kuml.sysml2.AttributeDefinition
+import dev.kuml.sysml2.AttributeUsage
 import dev.kuml.sysml2.BindingConnectorUsage
 import dev.kuml.sysml2.ConstraintDefinition
 import dev.kuml.sysml2.ParDiagram
+import dev.kuml.sysml2.PartDefinition
 import dev.kuml.sysml2.Sysml2Limits
 import dev.kuml.sysml2.Sysml2Model
 
@@ -30,6 +32,7 @@ public data class ParIssue(
  * | 440 | Error | more than [Sysml2Limits.CONSTRAINT_PARAMETERS] parameters on one constraint |
  * | 441 | Warning | a binding endpoint addresses a constraint, but the rest is not one of its parameters |
  * | 442 | Warning | `include` of an `AttributeDefinition` in the diagram (no effect; the unit comes from `unitSymbol` on the parameter type) |
+ * | 443 | Warning | a binding endpoint addresses a visible part (`<part>::<attr>`), but the part has no attribute of that name |
  *
  * Chains are walked iteratively with a hard step bound, so hostile models cannot make the checker loop.
  */
@@ -93,28 +96,7 @@ public object Sysml2ParChecker {
                         )
             }
         }
-        val visibleIds = constraints.map { it.id }.toSet()
-        for (b in model.usages.filterIsInstance<BindingConnectorUsage>()) {
-            for (end in listOf(b.sourceEndId, b.targetEndId)) {
-                val owner = visibleIds.filter { end.startsWith("$it::") }.maxByOrNull { it.length } ?: continue
-                val rest = end.removePrefix("$owner::")
-                val params = byId.getValue(owner).parameters
-                if (params.none { it.name == rest }) {
-                    issues +=
-                        ParIssue(
-                            code = 441,
-                            severity = ParSeverity.Warning,
-                            elementId = b.id,
-                            message =
-                                "Binding endpoint '$end' does not name a parameter of constraint '$owner'; " +
-                                    "the edge ends at the box centre.",
-                            hint = "Use one of: ${params.joinToString {
-                                it.name
-                            }.ifEmpty { "(none declared)" }}. The pin() helper checks this at build time.",
-                        )
-                }
-            }
-        }
+        issues += checkBindingEnds(model = model, visible = visible, constraints = constraints, byId = byId)
         if (diagram != null) {
             val attributeDefs =
                 model.definitions
@@ -140,6 +122,109 @@ public object Sysml2ParChecker {
         return issues
     }
 
+    /** 441 (unknown constraint parameter) and 443 (unknown part attribute) for every binding endpoint. */
+    private fun checkBindingEnds(
+        model: Sysml2Model,
+        visible: Set<String>?,
+        constraints: List<ConstraintDefinition>,
+        byId: Map<String, ConstraintDefinition>,
+    ): List<ParIssue> {
+        val issues = mutableListOf<ParIssue>()
+        val visibleIds = constraints.map { it.id }.toSet()
+        val partById = LinkedHashMap<String, PartDefinition>()
+        model.definitions.filterIsInstance<PartDefinition>().forEach { if (it.id !in partById) partById[it.id] = it }
+        val visibleParts = partById.filterKeys { visible == null || it in visible }
+        for (b in model.usages.filterIsInstance<BindingConnectorUsage>()) {
+            for (end in listOf(b.sourceEndId, b.targetEndId)) {
+                // Longest prefix over constraints AND parts, as the renderer resolves it; a constraint wins a tie.
+                val owner =
+                    (visibleIds + visibleParts.keys)
+                        .filter { end.startsWith("$it::") }
+                        .maxWithOrNull(compareBy<String> { it.length }.thenBy { if (it in visibleIds) 1 else 0 })
+                        ?: continue
+                if (owner in visibleIds) {
+                    val rest = end.removePrefix("$owner::")
+                    val params = byId.getValue(owner).parameters
+                    if (params.none { it.name == rest }) {
+                        issues +=
+                            ParIssue(
+                                code = 441,
+                                severity = ParSeverity.Warning,
+                                elementId = b.id,
+                                message =
+                                    "Binding endpoint '$end' does not name a parameter of constraint '$owner'; " +
+                                        "the edge ends at the box centre.",
+                                hint = "Use one of: ${params.joinToString {
+                                    it.name
+                                }.ifEmpty { "(none declared)" }}. The pin() helper checks this at build time.",
+                            )
+                    }
+                } else {
+                    unknownAttributeIssue(
+                        model = model,
+                        bindingId = b.id,
+                        end = end,
+                        part = visibleParts.getValue(owner),
+                        partById = partById,
+                    )?.let { issues += it }
+                }
+            }
+        }
+        return issues
+    }
+
+    private fun unknownAttributeIssue(
+        model: Sysml2Model,
+        bindingId: String,
+        end: String,
+        part: PartDefinition,
+        partById: Map<String, PartDefinition>,
+    ): ParIssue? {
+        val rest = end.removePrefix("${part.id}::")
+        // Nested paths are not resolvable in this iteration.
+        if (rest.isEmpty() || "::" in rest || '.' in rest) return null
+        val known = knownAttributeNames(model = model, part = part, partById = partById) ?: return null
+        if (rest in known) return null
+        return ParIssue(
+            code = 443,
+            severity = ParSeverity.Warning,
+            elementId = bindingId,
+            message =
+                "Binding endpoint '${end.take(
+                    Sysml2Limits.TEXT,
+                )}' does not name an attribute of part '${part.name.take(Sysml2Limits.TEXT)}'; " +
+                    "attribute '${rest.take(Sysml2Limits.TEXT)}' is unknown and the edge ends at the box border.",
+            hint = "Use one of: ${known.take(MAX_HINT_NAMES).joinToString().ifEmpty { "(none declared)" }}.",
+        )
+    }
+
+    /**
+     * Names of the features of [part] (every feature counts, as the renderer lists every feature as a row), attribute usages
+     * keyed under the part, and the features of its generalizations. `null` when a generalization cannot be resolved.
+     */
+    private fun knownAttributeNames(
+        model: Sysml2Model,
+        part: PartDefinition,
+        partById: Map<String, PartDefinition>,
+    ): Set<String>? {
+        val names = LinkedHashSet<String>()
+        val prefix = "${part.id}::"
+        model.usages
+            .filterIsInstance<AttributeUsage>()
+            .filter { it.id.startsWith(prefix) }
+            .forEach { names += it.id.removePrefix(prefix) }
+        val seen = HashSet<String>()
+        var cur: PartDefinition? = part
+        var steps = 0
+        while (cur != null) {
+            if (!seen.add(cur.id) || ++steps > MAX_CHAIN_STEPS) return names
+            cur.features.forEach { names += it.name }
+            val generalId = cur.specializations.firstOrNull { it.specificId == cur!!.id }?.generalId ?: break
+            cur = partById[generalId] ?: return null
+        }
+        return names
+    }
+
     /** Depth of [start] in its owner chain (root = 1), or -1 when the chain has a cycle or exceeds the step bound. */
     private fun nestingDepth(
         byId: Map<String, ConstraintDefinition>,
@@ -158,4 +243,5 @@ public object Sysml2ParChecker {
     }
 
     private const val MAX_CHAIN_STEPS: Int = 64
+    private const val MAX_HINT_NAMES: Int = 20
 }

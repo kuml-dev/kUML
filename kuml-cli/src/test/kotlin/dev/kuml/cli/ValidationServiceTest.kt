@@ -205,6 +205,53 @@ class ValidationServiceTest :
             }
         }
 
+        val parAttrScript =
+            """
+            sysml2Model(name = "P") {
+                val mass = attributeDef(name = "Mass")
+                val v = partDef(name = "Vehicle") { attribute(name = "mass", typeId = mass.id) }
+                val c = constraintDef(
+                    name = "Newton",
+                    expression = "F = m * a",
+                    parameters = listOf(
+                        dev.kuml.sysml2.ConstraintParameter(name = "m", typeId = mass.id, direction = dev.kuml.sysml2.ConstraintParameterDirection.In),
+                    ),
+                )
+                bind(name = "b1", source = "Vehicle::masse", target = "Newton::m")
+                parDiagram(name = "Par") {
+                    include(v)
+                    include(c)
+                }
+            }
+            """.trimIndent()
+
+        test("PAR443 is a structure finding for an unknown attribute in a binding, absent for a correct name") {
+            val found = ValidationService.validate(script = parAttrScript).filter { it.code == "PAR443" }
+            found.size shouldBe 1
+            found.single().severity shouldBe Severity.WARNING
+            found.single().format() shouldContain "Vehicle"
+            found.single().format() shouldContain "masse"
+            ValidationService
+                .validate(script = parAttrScript.replace("Vehicle::masse", "Vehicle::mass"))
+                .filter { it.code == "PAR443" }
+                .shouldBeEmpty()
+        }
+
+        test("kuml validate reports PAR443 once and exits 0, also with --strict") {
+            val file = java.io.File.createTempFile("parattr", ".kuml.kts")
+            try {
+                file.writeText(parAttrScript)
+                for (args in listOf(listOf("validate", file.absolutePath), listOf("validate", "--strict", file.absolutePath))) {
+                    val result = KumlCli().test(args)
+                    result.output.split("[PAR443]").size - 1 shouldBe 1
+                    result.output shouldContain "WARN  [PAR443]"
+                    result.statusCode shouldBe 0
+                }
+            } finally {
+                file.delete()
+            }
+        }
+
         test("a refPart with a mistyped typeId is an error finding SYSML2_REFPART_TYPE_UNKNOWN on the refPart usage") {
             val script =
                 """

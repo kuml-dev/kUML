@@ -6,6 +6,14 @@ All notable changes to this project are documented here. Format follows
 
 ## [Unreleased]
 
+### Nacharbeit 116: PAR443 warns about unknown attribute names in parametric bindings
+
+- **Why.** A binding endpoint `Part::attr` with a mistyped attribute name silently ended on the part box border (PAR441 only covered constraint parameters), so the typo was invisible.
+- **Change.** `Sysml2ParChecker` reports the new warning `PAR443` when a binding endpoint resolves (longest prefix over visible constraints and parts, as the renderer does; a constraint wins a tie) to a part whose features, attribute usages and features inherited through resolvable generalizations do not contain the name. The message names the part and the attribute, the hint lists the known names. `ValidationService` maps it automatically, `kuml validate` and the desktop show it; exit code stays 0.
+- **Docs.** `sysml2.adoc` (binding paragraph, code table).
+- **Verification.** New `Sysml2ParAttributeCheckerTest` (typo, valid name, external prefix, part outside the diagram, whole-part endpoint, nested path, unknown generalization, inherited attribute, no diagram, 441/443 do not overlap) and `ValidationServiceTest` (service, CLI output, `--strict` exit code).
+- **Not fixed.** Nested paths `Part::sub::attr`, parts not in the diagram, external elements and expressions are not checked. Rendering is unchanged (the edge still ends on the border). No `--strict` promotion, no source line.
+
 ### Nacharbeit 115: layer hints inside self-contained packages of class, component and deployment diagrams
 
 - **Why.** Nacharbeit 107 made `wrapColumns`, `sameLayer`, `first` and `last` act on the members of a self-contained package, but only for UML package diagrams; class, component and deployment diagrams with packages or nodes still reported `KUML-LAYOUT-W001` although they build the same kind of compound group.
