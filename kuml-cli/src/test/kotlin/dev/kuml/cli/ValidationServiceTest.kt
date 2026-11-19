@@ -252,6 +252,49 @@ class ValidationServiceTest :
             }
         }
 
+        val parNestedScript =
+            """
+            sysml2Model(name = "P") {
+                val mass = attributeDef(name = "Mass")
+                partDef(name = "Engine") { attribute(name = "power", typeId = mass.id) }
+                val v = partDef(name = "Vehicle") { part(name = "engine", typeId = "Engine") }
+                val c = constraintDef(
+                    name = "Newton",
+                    expression = "F = m * a",
+                    parameters = listOf(
+                        dev.kuml.sysml2.ConstraintParameter(name = "m", typeId = mass.id, direction = dev.kuml.sysml2.ConstraintParameterDirection.In),
+                    ),
+                )
+                bind(name = "b1", source = "Vehicle::engine::powr", target = "Newton::m")
+                parDiagram(name = "Par") {
+                    include(v)
+                    include(c)
+                }
+            }
+            """.trimIndent()
+
+        test("PAR443 covers nested binding paths, absent for the correct path, exit 0 also with --strict") {
+            val found = ValidationService.validate(script = parNestedScript).filter { it.code == "PAR443" }
+            found.size shouldBe 1
+            found.single().severity shouldBe Severity.WARNING
+            found.single().format() shouldContain "powr"
+            ValidationService
+                .validate(script = parNestedScript.replace("engine::powr", "engine::power"))
+                .filter { it.code == "PAR443" }
+                .shouldBeEmpty()
+            val file = java.io.File.createTempFile("parnested", ".kuml.kts")
+            try {
+                file.writeText(parNestedScript)
+                for (args in listOf(listOf("validate", file.absolutePath), listOf("validate", "--strict", file.absolutePath))) {
+                    val result = KumlCli().test(args)
+                    result.output.split("[PAR443]").size - 1 shouldBe 1
+                    result.statusCode shouldBe 0
+                }
+            } finally {
+                file.delete()
+            }
+        }
+
         test("a refPart with a mistyped typeId is an error finding SYSML2_REFPART_TYPE_UNKNOWN on the refPart usage") {
             val script =
                 """

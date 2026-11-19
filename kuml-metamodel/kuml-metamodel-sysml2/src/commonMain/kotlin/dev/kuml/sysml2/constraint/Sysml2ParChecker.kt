@@ -6,6 +6,7 @@ import dev.kuml.sysml2.BindingConnectorUsage
 import dev.kuml.sysml2.ConstraintDefinition
 import dev.kuml.sysml2.ParDiagram
 import dev.kuml.sysml2.PartDefinition
+import dev.kuml.sysml2.PartUsage
 import dev.kuml.sysml2.Sysml2Limits
 import dev.kuml.sysml2.Sysml2Model
 
@@ -32,7 +33,7 @@ public data class ParIssue(
  * | 440 | Error | more than [Sysml2Limits.CONSTRAINT_PARAMETERS] parameters on one constraint |
  * | 441 | Warning | a binding endpoint addresses a constraint, but the rest is not one of its parameters |
  * | 442 | Warning | `include` of an `AttributeDefinition` in the diagram (no effect; the unit comes from `unitSymbol` on the parameter type) |
- * | 443 | Warning | a binding endpoint addresses a visible part (`<part>::<attr>`), but the part has no attribute of that name |
+ * | 443 | Warning | a binding endpoint addresses a visible part, but `<part>::<attr>` or a nested path `<part>::<sub>::<attr>` names a feature the part (or the part definition reached through the path) does not have |
  *
  * Chains are walked iteratively with a hard step bound, so hostile models cannot make the checker loop.
  */
@@ -181,8 +182,12 @@ public object Sysml2ParChecker {
         partById: Map<String, PartDefinition>,
     ): ParIssue? {
         val rest = end.removePrefix("${part.id}::")
-        // Nested paths are not resolvable in this iteration.
-        if (rest.isEmpty() || "::" in rest || '.' in rest) return null
+        if (rest.isEmpty() || '.' in rest) return null
+        if ("::" in
+            rest
+        ) {
+            return unknownNestedIssue(bindingId = bindingId, end = end, rest = rest, part = part, partById = partById, model = model)
+        }
         val known = knownAttributeNames(model = model, part = part, partById = partById) ?: return null
         if (rest in known) return null
         return ParIssue(
@@ -196,6 +201,99 @@ public object Sysml2ParChecker {
                     "attribute '${rest.take(Sysml2Limits.TEXT)}' is unknown and the edge ends at the box border.",
             hint = "Use one of: ${known.take(MAX_HINT_NAMES).joinToString().ifEmpty { "(none declared)" }}.",
         )
+    }
+
+    /** Outcome of looking up one path segment on a part definition and its generalisation chain. */
+    private sealed interface Lookup {
+        data class Found(
+            val typeId: String?,
+        ) : Lookup
+
+        data class Absent(
+            val known: Set<String>,
+        ) : Lookup
+
+        data object Unknown : Lookup
+    }
+
+    /**
+     * 443 for a nested path `<part>::<sub>::<attr>`: every segment must resolve inside the model; part usages are followed
+     * through their type. Anything unresolvable (external types, attribute definitions, cycles, depth cap) stays silent.
+     */
+    private fun unknownNestedIssue(
+        model: Sysml2Model,
+        bindingId: String,
+        end: String,
+        rest: String,
+        part: PartDefinition,
+        partById: Map<String, PartDefinition>,
+    ): ParIssue? {
+        val segments = rest.split("::")
+        if (segments.size > MAX_PATH_DEPTH || segments.any { it.isBlank() }) return null
+        val visited = HashSet<String>()
+        var cur = part
+        for ((i, seg) in segments.withIndex()) {
+            if (!visited.add(cur.id)) return null
+            when (val result = lookupFeature(model = model, def = cur, seg = seg, partById = partById)) {
+                Lookup.Unknown -> return null
+                is Lookup.Absent -> {
+                    val via = if (i == 0) "" else " (reached via ${segments.take(i).joinToString("::").take(Sysml2Limits.TEXT)})"
+                    return ParIssue(
+                        code = 443,
+                        severity = ParSeverity.Warning,
+                        elementId = bindingId,
+                        message =
+                            "Binding endpoint '${end.take(Sysml2Limits.TEXT)}' does not resolve: " +
+                                "'${seg.take(
+                                    Sysml2Limits.TEXT,
+                                )}' is not an attribute or part of '${cur.name.take(Sysml2Limits.TEXT)}'$via; " +
+                                "the edge ends at the box border of '${part.name.take(Sysml2Limits.TEXT)}'.",
+                        hint = "Use one of: ${result.known.take(MAX_HINT_NAMES).joinToString().ifEmpty { "(none declared)" }}.",
+                    )
+                }
+                is Lookup.Found -> {
+                    if (i == segments.lastIndex) return null
+                    cur = result.typeId?.let { partById[it] } ?: return null
+                }
+            }
+        }
+        return null
+    }
+
+    private fun lookupFeature(
+        model: Sysml2Model,
+        def: PartDefinition,
+        seg: String,
+        partById: Map<String, PartDefinition>,
+    ): Lookup {
+        val known = LinkedHashSet<String>()
+        val seen = HashSet<String>()
+        var cur: PartDefinition? = def
+        var steps = 0
+        var found: Lookup.Found? = null
+        while (cur != null) {
+            if (!seen.add(cur.id) || ++steps > MAX_CHAIN_STEPS) return Lookup.Unknown
+            val level = cur
+            val prefix = "${level.id}::"
+            val usage =
+                model.usages.firstOrNull { (it is AttributeUsage || it is PartUsage) && it.id == "$prefix$seg" }
+            model.usages
+                .filter { it is AttributeUsage || it is PartUsage }
+                .filter { it.id.startsWith(prefix) }
+                .forEach { known += it.id.removePrefix(prefix) }
+            level.features.forEach { known += it.name }
+            if (found == null) {
+                val feature = level.features.firstOrNull { it.name == seg }
+                if (usage != null) {
+                    found = Lookup.Found(usage.definitionId)
+                } else if (feature != null) {
+                    found = Lookup.Found(feature.definitionId ?: feature.typeId)
+                }
+            }
+            val generalId = level.specializations.firstOrNull { it.specificId == level.id }?.generalId ?: break
+            cur = partById[generalId] ?: return Lookup.Unknown
+        }
+        return found ?: Lookup.Absent(known)
     }
 
     /**
@@ -244,4 +342,5 @@ public object Sysml2ParChecker {
 
     private const val MAX_CHAIN_STEPS: Int = 64
     private const val MAX_HINT_NAMES: Int = 20
+    private const val MAX_PATH_DEPTH: Int = 16
 }

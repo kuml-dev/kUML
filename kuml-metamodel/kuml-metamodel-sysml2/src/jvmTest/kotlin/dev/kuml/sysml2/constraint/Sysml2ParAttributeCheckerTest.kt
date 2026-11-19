@@ -72,7 +72,6 @@ class Sysml2ParAttributeCheckerTest :
         test("unresolvable endpoints give no warning") {
             issues("External::x").shouldBeEmpty()
             issues("Vehicle").shouldBeEmpty()
-            issues("Vehicle::engine::power").shouldBeEmpty()
             issues("Vehicle::masse", includeVehicle = false).shouldBeEmpty()
         }
 
@@ -99,5 +98,87 @@ class Sysml2ParAttributeCheckerTest :
                     }
                 }
             Sysml2ParChecker.check(model = m).map { it.code } shouldBe listOf(441)
+        }
+
+        // Nacharbeit 121c: nested paths.
+        fun nested(
+            path: String,
+            engineType: String = "Engine",
+            engineBase: String? = null,
+            engineSpecializes: String? = null,
+            deep: Boolean = false,
+        ): List<ParIssue> {
+            var diagram: dev.kuml.sysml2.ParDiagram? = null
+            val m =
+                sysml2Model(name = "N") {
+                    val mass = attributeDef(name = "Mass")
+                    if (engineBase != null) partDef(name = engineBase) { attribute(name = "inherited", typeId = mass.id) }
+                    partDef(name = "Block") { attribute(name = "bore", typeId = mass.id) }
+                    partDef(name = "Engine", specializesId = engineSpecializes ?: engineBase) {
+                        attribute(name = "power", typeId = mass.id)
+                        attribute(name = "torque", typeId = mass.id)
+                        if (deep) part(name = "block", typeId = "Block")
+                    }
+                    partDef(name = "Cyc") { part(name = "a", typeId = "Cyc") }
+                    val vehicle =
+                        partDef(name = "Vehicle") {
+                            part(name = "engine", typeId = engineType)
+                            refPart(name = "spare", typeId = "Engine")
+                            attribute(name = "mass", typeId = mass.id)
+                        }
+                    val cyc = partDef(name = "Holder") { part(name = "c", typeId = "Cyc") }
+                    val newton = constraintDef(name = "Newton", expression = "F = m * a")
+                    bind(name = "b1", source = path, target = "Newton::m")
+                    diagram =
+                        parDiagram(name = "par") {
+                            include(vehicle)
+                            include(cyc)
+                            include(newton)
+                        }
+                }
+            return Sysml2ParChecker.check(model = m, diagram = diagram!!).filter { it.code == 443 }
+        }
+
+        test("nested: unknown last segment warns naming segment and reached part") {
+            val found = nested("Vehicle::engine::powr")
+            found shouldHaveSize 1
+            found.single().message shouldContain "powr"
+            found.single().message shouldContain "Engine"
+            found.single().message shouldContain "reached via engine"
+            found.single().hint shouldContain "power"
+        }
+
+        test("nested: unknown middle segment warns naming segment and owner") {
+            val found = nested("Vehicle::motor::power")
+            found shouldHaveSize 1
+            found.single().message shouldContain "motor"
+            found.single().message shouldContain "Vehicle"
+        }
+
+        test("nested: valid paths pass, also deeper and via ref part") {
+            nested("Vehicle::engine::power").shouldBeEmpty()
+            nested("Vehicle::spare::torque").shouldBeEmpty()
+            nested("Vehicle::engine::block::bore", deep = true).shouldBeEmpty()
+            nested("Vehicle::engine::block::bor", deep = true) shouldHaveSize 1
+        }
+
+        test("nested: generalisation contributes features") {
+            nested("Vehicle::engine::inherited", engineBase = "Base").shouldBeEmpty()
+            nested("Vehicle::engine::missing", engineBase = "Base") shouldHaveSize 1
+            nested("Vehicle::engine::power", engineSpecializes = "Unknown").shouldBeEmpty()
+            nested("Vehicle::engine::missing", engineSpecializes = "Unknown").shouldBeEmpty()
+        }
+
+        test("nested: unresolvable types stay silent") {
+            nested("Vehicle::engine::whatever", engineType = "External").shouldBeEmpty()
+            nested("Vehicle::engine::whatever", engineType = "Mass").shouldBeEmpty()
+            nested("Vehicle::mass::value").shouldBeEmpty()
+        }
+
+        test("nested: cycles, depth cap, blank segments and dotted ends stay silent") {
+            nested("Holder::c::a::a::a::x").shouldBeEmpty()
+            nested("Vehicle::" + List(20) { "engine" }.joinToString("::") + "::x").shouldBeEmpty()
+            nested("Vehicle::engine::").shouldBeEmpty()
+            nested("Vehicle::engine::power.x").shouldBeEmpty()
         }
     })

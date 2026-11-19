@@ -6,6 +6,13 @@ All notable changes to this project are documented here. Format follows
 
 ## [Unreleased]
 
+### Nacharbeit 121c: PAR443 for nested binding paths
+
+- **Why.** The "Not fixed" line of Nacharbeit 116 named nested binding paths (`Part::sub::attr`): they were never checked, so a mistyped segment went unnoticed.
+- **Change.** `Sysml2ParChecker` now resolves nested paths segment by segment: part usages (including `refPart`) are followed through their part definition, generalisations contribute features. An unknown segment gives `PAR443` (warning) naming the segment and the part it was looked up on. Flat paths (`Part::attr`) behave and read exactly as before. Checker only; no metamodel, persistence or renderer change.
+- **Verification.** New cases in `Sysml2ParAttributeCheckerTest` (unknown last and middle segment, three-level chain, generalisation, ref part, silent cases) and a CLI test in `ValidationServiceTest` (one `PAR443`, exit 0 also with `--strict`, none for the correct path).
+- **Not fixed.** External elements, expressions, parts outside the diagram, redefinition and subsetting, paths deeper than 16 segments, features owned by attribute definitions, and constraint-parameter paths (still `PAR441`) are not checked and stay silent. Nested paths are not drawn differently: the edge still docks to the border of the first segment's box, so the warning means the path cannot be attached to a row.
+
 ### Nacharbeit 121b: near-duplicate C4 relationships as a warning
 
 Why: the "Not fixed" list of Nacharbeit 113 named relationships that differ only in letter case or whitespace; they were not detected.
