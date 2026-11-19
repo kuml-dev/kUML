@@ -6,6 +6,13 @@ All notable changes to this project are documented here. Format follows
 
 ## [Unreleased]
 
+### Nacharbeit 121d: cross-kind id collisions in Service Blueprints
+
+- **Why.** The "Not fixed" line of Nacharbeit 111: ids shared between a step and a phase or actor were not checked, although anchors, notes and imports resolve by id.
+- **Change.** New warning `KUML-BP-W002`, reported once per id with all element kinds that use it (actor, channel, touchpoint, phase, step, connection, in that fixed order), through the shared note-findings path: visible in `kuml validate` (category `blueprint`) and as a render warning. The message names only the id and the kind names. Warning only, not promoted by `--strict`; drawing, `KUML-BP-W001` semantics, persistence and metamodel are unchanged.
+- **Verification.** New cases in `BlueprintDuplicateIdsTest`, a CLI test `BlueprintCrossKindIdCliTest` (including `--strict`), and a vault-example invariant test asserting that no blueprint example triggers it.
+- **Not fixed.** The DSL cannot produce collisions (distinct auto-id prefixes), so this concerns JSON and OKF imports. Note ids are a separate namespace and are not compared. Duplicates within one non-step kind are not reported (`KUML-BP-W001` covers steps only).
+
 ### Nacharbeit 121c: PAR443 for nested binding paths
 
 - **Why.** The "Not fixed" line of Nacharbeit 116 named nested binding paths (`Part::sub::attr`): they were never checked, so a mistyped segment went unnoticed.

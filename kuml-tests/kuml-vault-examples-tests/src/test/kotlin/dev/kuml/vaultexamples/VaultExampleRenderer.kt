@@ -1,5 +1,6 @@
 package dev.kuml.vaultexamples
 
+import dev.kuml.blueprint.constraint.BlueprintDuplicateIds
 import dev.kuml.bpmn.model.ChoreographyDiagram
 import dev.kuml.bpmn.model.CollaborationDiagram
 import dev.kuml.bpmn.model.ConversationDiagram
@@ -133,6 +134,22 @@ object VaultExampleRenderer {
                 ?: return emptyList()
         val diagram = extracted.diagram as? ActDiagram ?: return emptyList()
         return Sysml2ActChecker.check(model = extracted.model, diagram = diagram).map { it.code to it.severity }
+    }
+
+    /**
+     * Ids used by several Service Blueprint element kinds (`KUML-BP-W002`, Nacharbeit 121d) in a blueprint script; empty for
+     * other diagrams and for scripts that fail to evaluate.
+     */
+    fun blueprintCrossKindIds(script: String): List<String> {
+        ensureInit()
+        val success = KumlScriptHost.eval(code = script) as? ResultWithDiagnostics.Success ?: return emptyList()
+        val extracted =
+            DiagramExtractor.extractAny(
+                returnValue = success.value.returnValue,
+                input = File("inline.kuml.kts"),
+            ) as? ExtractedDiagram.Blueprint
+                ?: return emptyList()
+        return BlueprintDuplicateIds.crossKindIds(extracted.model).map { it.id }
     }
 
     fun render(

@@ -22,7 +22,7 @@ import dev.kuml.sysml2.constraint.Sysml2NoteChecker
  *
  * Messages name note ids and limits, never note bodies.
  *
- * It also carries the Service Blueprint finding `KUML-BP-W001` (duplicate step ids), because this is the single funnel
+ * It also carries the Service Blueprint findings `KUML-BP-W001` (duplicate step ids) and `KUML-BP-W002` (one id used by several element kinds), because this is the single funnel
  * that both `render` and `validate` already consume, and the C4 findings `KUML-C4-W001` / `KUML-C4-W002` (duplicate and near-duplicate relationships).
  */
 public object NoteChecks {
@@ -141,7 +141,7 @@ public object NoteChecks {
         return structural + display + blueprintFindings(extracted) + c4Findings(extracted)
     }
 
-    /** `KUML-BP-W001`: one warning per duplicated step id of a Service Blueprint model; empty for every other diagram. */
+    /** `KUML-BP-W001` (duplicated step id) and `KUML-BP-W002` (id shared by several element kinds): one warning each per id of a Service Blueprint model; empty for every other diagram. */
     private fun blueprintFindings(extracted: ExtractedDiagram): List<Finding> =
         when (extracted) {
             is ExtractedDiagram.Blueprint ->
@@ -153,7 +153,16 @@ public object NoteChecks {
                         message = it.message(),
                         sourceLine = null,
                     )
-                }
+                } +
+                    BlueprintDuplicateIds.crossKindIds(extracted.model).map {
+                        Finding(
+                            code = BlueprintCodes.CROSS_KIND_ID,
+                            isError = false,
+                            subjectId = it.id,
+                            message = it.message(),
+                            sourceLine = null,
+                        )
+                    }
             else -> emptyList()
         }
 
