@@ -291,8 +291,13 @@ Some types also accept a short alias in the `type:` field. An alias is resolved 
 document is *read*: it counts as the canonical type, so a diagram under an alias is rendered
 and validated like any other, and `strictVocabulary` does not turn it into an error. The
 validator reports it once as the info finding `OKF-I-001`
-(`type 'Sysml2Bdd' is an alias; canonical id is 'Sysml2BlockDefinition'`). kUML never rewrites
-the file, and editors list and write only the canonical ids. Matching is case-sensitive.
+(`type 'Sysml2Bdd' is an alias; canonical id is 'Sysml2BlockDefinition'`). kUML does not rewrite
+the file during validation, rendering or listing. The finding carries the canonical id (field
+`canonicalId` in `kuml workspace validate --format json`), and its suggestion names the replacement.
+To migrate, change the value of `type:` in the frontmatter to the canonical id by hand. The internal
+helper `dev.kuml.workspace.OkfAliasFix` performs the same edit and preserves every other byte, but it is
+not yet exposed as a command or editor action. Editors list and write only the canonical ids.
+Matching is case-sensitive.
 
 [cols="2,2"]
 |===

@@ -17,6 +17,13 @@ public data class OkfFinding(
     public val line: Int,
     public val message: String,
     public val suggestion: String? = null,
+    /**
+     * For `OKF-I-001`, the canonical id the alias resolves to; `null` for all other findings.
+     *
+     * Limitation: [line] stays `1` for `OKF-I-001`; there is no range type. The exact `type:` line
+     * is located by [OkfAliasFix.typeLineNumber].
+     */
+    public val canonicalId: String? = null,
 )
 
 /**
@@ -132,7 +139,10 @@ public object OkfValidator {
                     file = doc.relativePath,
                     line = 1,
                     message = "type '${doc.rawType}' is an alias; canonical id is '$canonical'.",
-                    suggestion = "The alias is accepted as-is; the file is never rewritten automatically.",
+                    suggestion =
+                        "Replace 'type: ${doc.rawType}' with 'type: $canonical' to use the canonical id; " +
+                            "the alias is accepted as-is and the file is never rewritten automatically.",
+                    canonicalId = canonical,
                 ),
             )
         }

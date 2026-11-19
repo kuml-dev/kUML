@@ -6,6 +6,13 @@ All notable changes to this project are documented here. Format follows
 
 ## [Unreleased]
 
+### Nacharbeit 114: OKF alias to canonical id
+
+- **Why.** `OKF-I-001` told users that a `type:` value is an alias but carried no machine-readable canonical id, and no way to migrate existed.
+- **Change.** `OKF-I-001` findings (and the `workspace validate` JSON) now carry `canonicalId`; the suggestion names the replacement. New pure helper `OkfAliasFix.canonicalizeType` rewrites only the alias value of the `type:` line and preserves all other bytes, including CRLF; it is a no-op for canonical or unknown ids. Rendering is unchanged.
+- **Verification.** `OkfAliasFixTest` (alias, canonical, unknown, no frontmatter, byte and CRLF preservation, quotes, body-only occurrence, idempotence, code fence), `OkfValidatorTest` and `WorkspaceCommandTest` (JSON shape).
+- **Not fixed.** No automatic rewrite, CLI `--fix`, LSP code action or desktop action was added, because no OKF quick-fix mechanism exists yet; the helper is not wired anywhere. The finding line stays `1`.
+
 ### Nacharbeit 113: C4 warns about duplicate relationships
 
 - **Why.** The C4 DSL accepts identical parallel relationships (they only get distinct ids), so a pasted duplicate drew two identical edges without any hint.

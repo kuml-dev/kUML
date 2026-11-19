@@ -261,6 +261,8 @@ internal data class OkfFindingJson(
     val line: Int,
     val message: String,
     val suggestion: String? = null,
+    // Only present for OKF-I-001 (null default => omitted otherwise).
+    val canonicalId: String? = null,
 )
 
 private fun OkfSeverity.tag5(): String =
@@ -283,6 +285,7 @@ internal fun OkfFinding.toJson(): OkfFindingJson =
         line = line,
         message = message,
         suggestion = suggestion,
+        canonicalId = canonicalId,
     )
 
 // ── `kuml workspace render` ───────────────────────────────────────────────────

@@ -234,6 +234,23 @@ class WorkspaceCommandTest :
             root.deleteRecursively()
         }
 
+        test("workspace validate carries canonicalId for an alias finding and omits it otherwise") {
+            val root = tempWorkspace()
+            File(root, "alias.md").writeText(
+                "---\ntype: Sysml2Bdd\n---\n```kuml\nx\n```\n",
+            )
+            File(root, "typo.md").writeText("---\ntype: UmlClassDigram\n---\nBody.\n")
+
+            val json = KumlCli().test(listOf("workspace", "validate", root.absolutePath, "-o", "json")).output
+            json shouldContain "\"canonicalId\": \"Sysml2BlockDefinition\""
+            json.split("canonicalId").size shouldBe 2
+
+            val text = KumlCli().test(listOf("workspace", "validate", root.absolutePath)).output
+            text shouldContain "type: Sysml2BlockDefinition"
+
+            root.deleteRecursively()
+        }
+
         test("workspace validate --strict-vocabulary escalates an unknown type to ERROR and exits 5") {
             val root = tempWorkspace()
             File(root, "typo.md").writeText(

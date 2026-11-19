@@ -95,6 +95,9 @@ class OkfValidatorTest :
             val info = strict.filter { it.code == "OKF-I-001" }
             info.size shouldBe 1
             info.single().severity shouldBe OkfSeverity.INFO
+            info.single().canonicalId shouldBe "Sysml2BlockDefinition"
+            (info.single().suggestion ?: "").contains("type: Sysml2BlockDefinition") shouldBe true
+            strict.filter { it.code != "OKF-I-001" }.all { it.canonicalId == null } shouldBe true
             info.single().message shouldBe "type 'Sysml2Bdd' is an alias; canonical id is 'Sysml2BlockDefinition'."
             strict.none { it.code == "OKF-W-002" } shouldBe true
             strict.none { it.severity == OkfSeverity.ERROR && it.code != "OKF-W-006" } shouldBe true
