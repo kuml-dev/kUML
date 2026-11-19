@@ -6,6 +6,13 @@ All notable changes to this project are documented here. Format follows
 
 ## [Unreleased]
 
+### Nacharbeit 119: layer hints in groups with nested groups
+
+- **Why.** Since Nacharbeit 107/115, `wrapColumns`, `sameLayer`, `first` and `last` act inside a self-contained package or deployment node, but any group that contained a nested group was reported with `KUML-LAYOUT-W001` ("it contains nested groups"), even when nothing crossed a border.
+- **Change.** A group honours the hints when its whole subtree is self-contained: no relationship crosses its border or the border of any group nested in it, at any depth (new `LayoutGraph.blockingEdgeInSubtree`, `blockingEdgeInSubtreeDetailed`, `descendantGroups` in `kuml-layout-api`; `crossingEdgeOf` is unchanged). The engine then lays out the group and every nested compound separately (`SEPARATE_CHILDREN`, options copied by a shared helper), so nested groups stay closed boxes and get their own rows when the options name their members. `KUML-LAYOUT-W001` now says `relationship 'x' crosses the border of nested group 'N1'` when the nested border is crossed. `CompoundLayerScope` gained `crossingGroup` (default empty).
+- **Verification.** Spike `NestedGroupLayerHintsSpikeTest` (ELK: partitions honoured with separately laid out nested compounds, two levels, three levels, hinted child under an un-hinted parent; an edge across a separately laid out nested border yields a degenerate route, which justifies the subtree rule). New `BlockingEdgeInSubtreeTest`, `CompoundLayerNestedHintsTest` (deployment nesting: wrapColumns, both levels hinted, hints only in the nested node, three levels, nested and outer crossing, group-id hint, no-spec, bridge/engine drift), updated `GroupLayerHintsTest` and `CompoundLayerHintsAllKindsTest`; sample `deployment-nested-node-wrap-columns` inspected as PNG. The 86 vault example SVGs are byte-identical before and after.
+- **Not fixed.** (1) Class, component and package diagrams still flatten sub-packages into sibling groups, so real package nesting is untouched. (2) Hints that address the id of a nested group are not supported. (3) The W001 text says "package" also for deployment nodes. (4) State frames, SysML 2 packages and C4 still report W001. (5) A relationship across a nested border is never honoured, only reported.
+
 ### Nacharbeit 118: LaTeX placement hints, what is and is not evaluated
 
 - **Why.** The "Not fixed" lines of Nacharbeit 104/105 and the 0.58.0 highlight said the SysML 2 sequence LaTeX fallback cannot evaluate a placement hint. That is wrong: the fallback already places its notes through the shared placer, it was only untested. The opposite gap was silent: a note of a UML sequence diagram vanished from the LaTeX output without any message.

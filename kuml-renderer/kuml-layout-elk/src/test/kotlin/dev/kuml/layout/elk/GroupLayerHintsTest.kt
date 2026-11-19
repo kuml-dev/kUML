@@ -186,10 +186,19 @@ class GroupLayerHintsTest :
             flagged.groups shouldBe plain.groups
         }
 
-        test("a group with a nested group is still ignored") {
+        test("a group with a self-contained nested group is honoured (Nacharbeit 119)") {
             val flagged = layout(graph(wrapNodes(), flagged = true, nestedGroup = true))
-            warnings(flagged) shouldHaveSize 6
+            warnings(flagged).shouldBeEmpty()
             val plain = layout(graph(wrapNodes(), flagged = false, nestedGroup = true))
+            (flagged.nodes == plain.nodes) shouldBe false
+            ids.groupBy { Math.round(y(flagged, it) / 4f) }.values.maxOf { it.size } shouldBeLessThanOrEqualTo 2
+        }
+
+        test("a group whose nested group has a crossing edge is still ignored") {
+            val edges = listOf(edge("xh", "X", "H"))
+            val flagged = layout(graph(wrapNodes(), edges, flagged = true, nestedGroup = true))
+            warnings(flagged) shouldHaveSize 6
+            val plain = layout(graph(wrapNodes(), edges, flagged = false, nestedGroup = true))
             flagged.nodes shouldBe plain.nodes
         }
 

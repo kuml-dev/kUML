@@ -3,17 +3,20 @@ package dev.kuml.layout.bridge
 import dev.kuml.core.model.layout.LayoutOption
 import dev.kuml.core.model.layout.LayoutSpec
 import dev.kuml.layout.LayoutGraph
-import dev.kuml.layout.crossingEdgeOf
+import dev.kuml.layout.blockingEdgeInSubtreeDetailed
 
 /**
- * Nacharbeit 107: per compound group with members, its member ids, its first crossing edge (absent = self-contained)
- * and whether it contains nested groups. Layer options act inside a group only when it is self-contained and has no
- * nested group (see [LayoutEffectMatrix.honouredInSelfContainedCompound]). Group order is declaration order.
+ * Nacharbeit 107: per compound group with members, its member ids and its first blocking edge (absent = self-contained)
+ * and whether it contains nested groups. Nacharbeit 119: an edge blocks when it crosses the border of the group or of
+ * any group nested in it, so layer options act inside a group when its whole subtree is self-contained (see
+ * [LayoutEffectMatrix.honouredInSelfContainedCompound]). Group order is declaration order.
  */
 public data class CompoundLayerScope(
     val members: Map<String, Set<String>>,
     val crossing: Map<String, String>,
     val nested: Set<String>,
+    /** Per group with a blocking edge: the id of the (own or nested) group whose border that edge crosses. */
+    val crossingGroup: Map<String, String> = emptyMap(),
     /** Ids of all nodes of the graph; ids outside it are unknown and ignored when scopes are compared. */
     val nodeIds: Set<String> = emptySet(),
 ) {
@@ -22,6 +25,7 @@ public data class CompoundLayerScope(
         public fun of(graph: LayoutGraph): CompoundLayerScope {
             val members = linkedMapOf<String, Set<String>>()
             val crossing = linkedMapOf<String, String>()
+            val crossingGroup = linkedMapOf<String, String>()
             val nested = linkedSetOf<String>()
             val parents = graph.groups.mapNotNull { it.parent?.value }.toSet()
             for (group in graph.groups) {
@@ -33,23 +37,34 @@ public data class CompoundLayerScope(
                         .toSet()
                 if (direct.isEmpty()) continue
                 members[group.id.value] = direct
-                graph.crossingEdgeOf(group)?.let { crossing[group.id.value] = it.value }
+                graph.blockingEdgeInSubtreeDetailed(group)?.let {
+                    crossing[group.id.value] = it.edge.value
+                    crossingGroup[group.id.value] = it.group.value
+                }
                 if (group.id.value in parents) nested += group.id.value
             }
             return CompoundLayerScope(
                 members = members,
                 crossing = crossing,
                 nested = nested,
+                crossingGroup = crossingGroup,
                 nodeIds = graph.nodes.map { it.id.value }.toSet(),
             )
         }
     }
 
     /** True when the layer hints of the members of [group] can be honoured. */
-    internal fun honours(group: String): Boolean = group in members && group !in crossing && group !in nested
+    internal fun honours(group: String): Boolean = group in members && group !in crossing
 
     private fun blockedReason(group: String): String =
-        crossing[group]?.let { "relationship '$it' crosses its border" } ?: "it contains nested groups"
+        crossing[group]?.let { edge ->
+            val border = crossingGroup[group]
+            if (border == null || border == group) {
+                "relationship '$edge' crosses its border"
+            } else {
+                "relationship '$edge' crosses the border of nested group '$border'"
+            }
+        } ?: "it is not a self-contained group"
 
     /**
      * The `KUML-LAYOUT-W001` text for [option] when it has no effect inside the compound groups of [kindName], or `null`
@@ -62,7 +77,7 @@ public data class CompoundLayerScope(
         kindName: String,
     ): String? {
         val where = if (diagramName != null) "diagram '$diagramName' ($kindName)" else "this diagram ($kindName)"
-        val rule = "layer options act inside a package only when no relationship crosses its border and it has no nested package"
+        val rule = "layer options act inside a package only when no relationship crosses its border or the border of a group nested in it"
         return when (option) {
             LayoutOption.WRAP_COLUMNS -> {
                 val blocked = members.keys.firstOrNull { !honours(it) } ?: return null

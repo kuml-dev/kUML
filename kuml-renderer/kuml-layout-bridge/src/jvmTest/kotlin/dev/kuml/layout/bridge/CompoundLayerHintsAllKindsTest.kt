@@ -20,7 +20,7 @@ import kotlin.math.abs
 /**
  * Nacharbeit 115: `wrapColumns`, `sameLayer`, `first` and `last` act on the members of a self-contained package of a class
  * or component diagram and of a deployment node that holds artifacts, exactly as for UML package diagrams
- * (Nacharbeit 107). Crossing relationships, nested containers and mixed-scope `sameLayer` groups stay reported with
+ * (Nacharbeit 107). Crossing relationships (also across the border of a nested container, Nacharbeit 119) and mixed-scope `sameLayer` groups stay reported with
  * `KUML-LAYOUT-W001`. Geometry only, fixed node sizes, no fonts.
  */
 class CompoundLayerHintsAllKindsTest :
@@ -100,12 +100,12 @@ class CompoundLayerHintsAllKindsTest :
             }
 
             if (f == Flavour.DEPLOYMENT) {
-                test("$f: a node with a nested node is a nested group, W001 stays and the members stay in place") {
+                test("$f: a node with a self-contained nested node is honoured, no W001 (Nacharbeit 119)") {
                     val plain = run(flavour = f, graph = CompoundLayerFixtures.nested(f), spec = null)
                     val wrap = run(flavour = f, graph = CompoundLayerFixtures.nested(f), spec = LayoutSpec(wrapColumns = 2))
-                    boundsOf(result = wrap.result, ids = members) shouldBe boundsOf(result = plain.result, ids = members)
-                    w001(wrap) shouldHaveSize 1
-                    w001(wrap).single().message shouldContain "nested"
+                    boundsOf(result = wrap.result, ids = members) shouldNotBe boundsOf(result = plain.result, ids = members)
+                    w001(wrap).shouldBeEmpty()
+                    maxPerRow(wrap.result, members) shouldBeLessThanOrEqualTo 2
                 }
             } else {
                 test("$f: a sub-package is laid out as a sibling group (bridge flattens one level), it does not block the outer package") {

@@ -14,7 +14,9 @@ import dev.kuml.layout.LayoutNode
 import dev.kuml.layout.LayoutWarning
 import dev.kuml.layout.ModelOrder
 import dev.kuml.layout.NodeId
+import dev.kuml.layout.blockingEdgeInSubtree
 import dev.kuml.layout.crossingEdgeOf
+import dev.kuml.layout.descendantGroups
 import org.eclipse.elk.alg.layered.options.CrossingMinimizationStrategy
 import org.eclipse.elk.alg.layered.options.LayeredOptions
 import org.eclipse.elk.core.math.ElkPadding
@@ -461,7 +463,8 @@ internal object HintsMapper {
 
     /**
      * Nacharbeit 107: true when the members' layer hints of [group] are honoured: the group is a compound that asked for
-     * it ([LayoutGroup.memberLayerHints]), has no nested group and no edge across its border. Shared by the warning
+     * it ([LayoutGroup.memberLayerHints]) and no edge crosses its border or the border of a group nested in it
+     * (Nacharbeit 119). Shared by the warning
      * and the decision, so they cannot drift apart.
      */
     internal fun honoursMemberLayers(
@@ -470,8 +473,7 @@ internal object HintsMapper {
     ): Boolean =
         group.layoutAsCompound &&
             group.memberLayerHints &&
-            graph.groups.none { it.parent == group.id } &&
-            graph.crossingEdgeOf(group) == null
+            graph.blockingEdgeInSubtree(group) == null
 
     /**
      * Nacharbeit 107: lets a self-contained compound lay out its children separately so their layer hints take effect
@@ -492,19 +494,36 @@ internal object HintsMapper {
             val members = graph.nodes.filter { it.groupId == group.id }
             if (members.none { it.hints.layerIndex != null || it.hints.layerPin != null }) continue
             val elkGroup = builder.groupMap[group.id] ?: continue
-            elkGroup.setProperty(CoreOptions.HIERARCHY_HANDLING, HierarchyHandling.SEPARATE_CHILDREN)
-            elkGroup.setProperty(CoreOptions.DIRECTION, elkDirection(group.direction ?: hints.direction))
-            elkGroup.setProperty(CoreOptions.EDGE_ROUTING, edgeRouting(hints))
-            elkGroup.setProperty(CoreOptions.SPACING_EDGE_LABEL, EDGE_LABEL_SPACING)
-            if (hints.modelOrder == ModelOrder.NodesAndEdges) {
-                elkGroup.setProperty(
-                    LayeredOptions.CONSIDER_MODEL_ORDER_STRATEGY,
-                    org.eclipse.elk.alg.layered.options.OrderingStrategy.NODES_AND_EDGES,
-                )
-            }
+            applySeparateChildren(elkGroup = elkGroup, direction = group.direction ?: hints.direction, hints = hints)
             // Like the root: also for pins alone, else every connected component is laid out on its own and FIRST/LAST
             // only act inside a component.
             enablePartitioning(elkGroup)
+            // Nacharbeit 119 (spike NestedGroupLayerHintsSpikeTest): the whole subtree is self-contained, so every nested
+            // compound lays out its children separately too. A nested group that carries hints of its own gets
+            // partitioning in its own iteration of this loop.
+            for (nested in graph.descendantGroups(group)) {
+                if (!nested.layoutAsCompound) continue
+                val elkNested = builder.groupMap[nested.id] ?: continue
+                applySeparateChildren(elkGroup = elkNested, direction = nested.direction ?: hints.direction, hints = hints)
+            }
+        }
+    }
+
+    /** `SEPARATE_CHILDREN` with the options a separately laid out compound does not inherit (see [applyCompoundLayerStrategy]). */
+    private fun applySeparateChildren(
+        elkGroup: ElkNode,
+        direction: LayoutDirection,
+        hints: LayoutHints,
+    ) {
+        elkGroup.setProperty(CoreOptions.HIERARCHY_HANDLING, HierarchyHandling.SEPARATE_CHILDREN)
+        elkGroup.setProperty(CoreOptions.DIRECTION, elkDirection(direction))
+        elkGroup.setProperty(CoreOptions.EDGE_ROUTING, edgeRouting(hints))
+        elkGroup.setProperty(CoreOptions.SPACING_EDGE_LABEL, EDGE_LABEL_SPACING)
+        if (hints.modelOrder == ModelOrder.NodesAndEdges) {
+            elkGroup.setProperty(
+                LayeredOptions.CONSIDER_MODEL_ORDER_STRATEGY,
+                org.eclipse.elk.alg.layered.options.OrderingStrategy.NODES_AND_EDGES,
+            )
         }
     }
 

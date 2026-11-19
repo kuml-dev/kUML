@@ -117,7 +117,7 @@ internal object CompoundLayerFixtures {
                 inner(flavour),
         )
 
-    /** C1 contains a nested container N1 (a sub-package, a nested deployment node): hints stay reported. */
+    /** C1 contains a nested container N1 (a sub-package, a nested deployment node); no relationship touches N1. */
     fun nested(flavour: Flavour): LayoutGraph {
         val nestedMember: KumlElement =
             if (flavour == Flavour.DEPLOYMENT) {
@@ -144,6 +144,32 @@ internal object CompoundLayerFixtures {
                 ) + inner(flavour),
             )
         }
+    }
+
+    /**
+     * Nacharbeit 119, deployment only: C1 holds [members] and the nested node N1 with the artifacts [inner]. With [deep],
+     * N1 holds a further nested node K1 with the artifacts `R1`, `R2`. [extra] are additional dependencies (id, client,
+     * supplier); [outside] adds a loose artifact `O1` next to C1.
+     */
+    fun nestedDeployment(
+        inner: List<String> = listOf("Q1", "Q2", "Q3"),
+        deep: Boolean = false,
+        extra: List<Triple<String, String, String>> = emptyList(),
+        outside: Boolean = false,
+    ): LayoutGraph {
+        val k1 = UmlNode(id = "K1", name = "K1", artifacts = listOf("R1", "R2").map { UmlArtifact(id = it, name = it) })
+        val n1 =
+            UmlNode(
+                id = "N1",
+                name = "N1",
+                artifacts = inner.map { UmlArtifact(id = it, name = it) },
+                children = if (deep) listOf(k1) else emptyList(),
+            )
+        val c1 = UmlNode(id = "C1", name = "C1", artifacts = members.map { UmlArtifact(id = it, name = it) }, children = listOf(n1))
+        val loose = if (outside) listOf<KumlElement>(UmlArtifact(id = "O1", name = "O1")) else emptyList()
+        return graphOf(
+            listOf<KumlElement>(c1) + loose + inner(Flavour.DEPLOYMENT) + extra.map { (id, a, b) -> dep(id = id, a = a, b = b) },
+        )
     }
 
     /** Class diagrams only: an association class between two members of C1 sits outside the package (groupId = null). */

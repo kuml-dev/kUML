@@ -152,8 +152,8 @@ public data class LayoutGroup(
     val direction: LayoutDirection? = null,
     /**
      * Nacharbeit 107: the members' layer hints ([NodeHints.layerIndex] / [NodeHints.layerPin]) are honoured inside this
-     * compound when it is self-contained (see [crossingEdgeOf]) and has no nested groups; the engine then lays it out
-     * separately from the diagram. `false` (default) = unchanged: the hints are ignored for compound members.
+     * compound when it and all groups nested in it are self-contained (see [blockingEdgeInSubtree], Nacharbeit 119); the
+     * engine then lays it out and its nested groups separately from the diagram. `false` (default) = unchanged: the hints are ignored for compound members.
      */
     val memberLayerHints: Boolean = false,
 )
@@ -167,12 +167,7 @@ public data class LayoutGroup(
  * Iterative with a visited set, so a cyclic parent chain cannot loop.
  */
 public fun LayoutGraph.crossingEdgeOf(group: LayoutGroup): EdgeId? {
-    val groupIds = mutableSetOf(group.id)
-    var grew = true
-    while (grew) {
-        grew = false
-        for (g in groups) if (g.parent in groupIds && groupIds.add(g.id)) grew = true
-    }
+    val groupIds = descendantGroupIds(group)
     val allGroupNames = groups.map { it.id.value }.toSet()
     val allNodeNames = nodes.map { it.id.value }.toSet()
     val members =
@@ -185,6 +180,46 @@ public fun LayoutGraph.crossingEdgeOf(group: LayoutGroup): EdgeId? {
     }
     return null
 }
+
+/** [group] and all groups nested in it (any depth). Iterative with a visited set, so a cyclic parent chain cannot loop. */
+private fun LayoutGraph.descendantGroupIds(group: LayoutGroup): Set<GroupId> {
+    val groupIds = mutableSetOf(group.id)
+    var grew = true
+    while (grew) {
+        grew = false
+        for (g in groups) if (g.parent in groupIds && groupIds.add(g.id)) grew = true
+    }
+    return groupIds
+}
+
+/** The groups nested in [group] at any depth, in declaration order ([group] itself excluded). */
+public fun LayoutGraph.descendantGroups(group: LayoutGroup): List<LayoutGroup> {
+    val ids = descendantGroupIds(group) - group.id
+    return groups.filter { it.id in ids }
+}
+
+/** An edge that crosses the border of [group] (the group whose border it crosses). */
+public class BlockingEdge(
+    public val edge: EdgeId,
+    public val group: GroupId,
+)
+
+/**
+ * Nacharbeit 119: the first edge (declaration order) that crosses the border of [group] or of any group nested in it
+ * (any depth), together with the group whose border it crosses; `null` when the whole subtree is self-contained. The
+ * group's own border is checked first. Used where nested groups are laid out separately: ELK cannot route an edge
+ * across the border of a separately laid out compound, so every group of the subtree must be self-contained.
+ */
+public fun LayoutGraph.blockingEdgeInSubtreeDetailed(group: LayoutGroup): BlockingEdge? {
+    crossingEdgeOf(group)?.let { return BlockingEdge(edge = it, group = group.id) }
+    for (nested in descendantGroups(group)) {
+        crossingEdgeOf(nested)?.let { return BlockingEdge(edge = it, group = nested.id) }
+    }
+    return null
+}
+
+/** The edge of [blockingEdgeInSubtreeDetailed], or `null` when the whole subtree of [group] is self-contained. */
+public fun LayoutGraph.blockingEdgeInSubtree(group: LayoutGroup): EdgeId? = blockingEdgeInSubtreeDetailed(group)?.edge
 
 /** Estimated widths of a composite frame's header texts, see [LayoutGroup.headerTextWidths]. */
 @Serializable
