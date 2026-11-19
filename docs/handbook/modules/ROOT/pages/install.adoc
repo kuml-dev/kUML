@@ -130,7 +130,7 @@ chmod +x kuml-desktop-<version>-x86_64.AppImage
 * The AppImage is built by the release pipeline from the first release after this change on; it is not attached to
   earlier releases unless the maintainer backfills it.
 
-=== SDKMAN! (coming soon)
+=== SDKMAN!
 
 SDKMAN! is the JVM-ecosystem package manager (`kotlin`, `gradle`, `maven`, `springboot`, …).
 kUML is published as a single `UNIVERSAL` candidate — one archive for every platform, no
@@ -139,22 +139,12 @@ active Java 21+** (`sdk install java` if you don't already have one); SDKMAN!'s 
 purpose is managing that for you, so kUML relies on it here instead of shipping its own
 runtime the way the Homebrew/Chocolatey/direct-download channels do.
 
-[NOTE]
-====
-SDKMAN! installation is **not available yet**. The release pipeline is in place, but the
-SDKMAN! vendor onboarding (API keys) is still pending. Until it completes, please use
-xref:#_homebrew_macos_linux[Homebrew], the native installers, or a
-xref:#_direct_download[direct download]. This page will be updated with the working
-`sdk install kuml` command as soon as the candidate goes live.
-====
-
-Once the candidate is published, installation will work like this:
+The candidate `kuml` has been published since release 0.58.0.
 
 [source,bash]
 ----
 # Make sure a Java 21+ is active first (skip if you already have one):
-sdk install java 21.0.10-tem
-sdk use java 21.0.10-tem
+sdk install java
 
 # Install the latest stable kUML:
 sdk install kuml
@@ -166,8 +156,13 @@ sdk install kuml {kuml-version}
 sdk use kuml {kuml-version}
 ----
 
-Because the candidate is `UNIVERSAL`, this works identically on macOS, Linux, and Windows
-(via WSL or Git Bash) — there is no per-platform gating.
+[NOTE]
+====
+The candidate is verified through the SDKMAN! API (it lists the current release as the default and
+the download resolves). An end-to-end `sdk install kuml` has not yet been tested on every platform.
+Because the candidate is `UNIVERSAL`, it is meant to work on macOS, Linux, and Windows (via WSL or
+Git Bash), but the Windows path has not been tested on a real Windows installation.
+====
 
 === Direct download
 

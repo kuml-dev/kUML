@@ -161,7 +161,7 @@ flows and a stroke-width pulse highlights each active task. Rendered by `BpmnSmi
 | `implementation("dev.kuml:kuml-core-dsl:<version>")` — use the version shown in the badge above.
 |===
 
-SDKMAN! is built but not live yet (vendor onboarding is pending). The full guide, including the Gradle
+SDKMAN! is available as the `kuml` candidate (`sdk install kuml`, Java 21+ required). The full guide, including the Gradle
 plugin, the JetBrains plugin, the VS Code extension and building from source, is in
 link:docs/handbook/modules/ROOT/pages/install.adoc[Installation].
 

@@ -6,6 +6,12 @@ All notable changes to this project are documented here. Format follows
 
 ## [Unreleased]
 
+### Documentation: SDKMAN! installation is live
+
+- **Why.** The README and the handbook still said the SDKMAN! channel was "not live yet" (vendor onboarding pending), although the candidate `kuml` has been published since 0.58.0 (default version 0.58.0).
+- **Change.** `README.adoc` and `docs/handbook/modules/ROOT/pages/install.adoc` now describe `sdk install kuml` (Java 21+ required, `sdk install java` as the simple way to get one). The kuml.dev quickstart (EN and DE) shows the same block; its features, comparison and about pages no longer list SDKMAN! as planned.
+- **Not verified.** The candidate is verified through the SDKMAN! API (default version, download redirect to the universal archive), but an end-to-end `sdk install kuml` was not run on any platform; Windows via WSL or Git Bash is untested.
+
 ### Nacharbeit 117: desktop MCP tool kuml_desktop_workspace_open
 
 - **Why.** An agent could only work in a workspace the user had already opened by hand; without one every `kuml_desktop_workspace_*` tool answered `NO_WORKSPACE_OPEN`.
