@@ -251,6 +251,8 @@ evaluated after the layout in all four notations: the note is placed on the wish
 exists. If none exists, the default placement is used and `kuml render` reports `KUML-NOTE-W004`. A free-standing note
 and `NEAR` never warn. In Chen notation the note is placed relative to the entity or view box. See
 xref:uml-dsl.adoc#note-placement-hint[Note placement hint].
+A hinted note also avoids the (estimated) name label at the centre of a relationship edge in Martin, Bachman and IDEF1X notation;
+cardinalities and role labels are not yet avoided, and a note without a hint still ignores labels.
 
 NOTE: ERM diagrams have no LaTeX output (`kuml export --format latex` fails with a clear message), so placement hints apply to SVG and PNG only.
 

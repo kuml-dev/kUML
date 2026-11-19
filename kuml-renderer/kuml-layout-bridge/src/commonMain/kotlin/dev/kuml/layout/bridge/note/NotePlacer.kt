@@ -138,6 +138,12 @@ public data class NotePlacementConfig(
      * routed); when none works the general search decides as for every other note.
      */
     val noteHomes: Map<String, Rect> = emptyMap(),
+    /**
+     * Nacharbeit 120: the lane or pool rectangle of a hinted note's anchor (note id to rectangle). The hinted search
+     * first runs confined to it (inset by [laneInset]); when no free position exists there, the search runs as before
+     * and a note that ends up outside the rectangle is reported as a placement miss with `outsideHomeLane`.
+     */
+    val homeLanes: Map<String, Rect> = emptyMap(),
 )
 
 /** One anchor link of a note: [linkId] names the drawn line, [targetId] the annotated element. */
@@ -372,8 +378,10 @@ public object NotePlacer {
             }
             // N2: a side hint is tried first; without one (null / NEAR) the path below is the unchanged default.
             val hint = note.placement?.takeIf { it.isHint() }
-            val hinted =
-                if (hint == null) {
+            // Nacharbeit 120: pass 1 of a note with a home lane, confined to that lane.
+            val home = if (hint == null) null else config.homeLanes[note.noteId]
+            val confined =
+                if (hint == null || home == null) {
                     null
                 } else {
                     preferredPlan(
@@ -386,7 +394,25 @@ public object NotePlacer {
                         obstacles = obstacles,
                         config = config,
                         budget = budget,
+                        confine = home,
                     )
+                }
+            val hinted =
+                if (hint == null) {
+                    null
+                } else {
+                    confined
+                        ?: preferredPlan(
+                            noteId = note.noteId,
+                            hint = hint,
+                            size = size,
+                            anchors = resolved,
+                            extent = extent,
+                            baseExtent = baseExtent,
+                            obstacles = obstacles,
+                            config = config,
+                            budget = budget,
+                        )
                 }
             val plan =
                 hinted
@@ -407,10 +433,18 @@ public object NotePlacer {
                         config = config,
                         budget = budget,
                     )
-            if (hint != null && hinted == null) {
+            if (hint != null && confined == null) {
                 val box = anchorsBox(resolved)
-                if (!onSide(rect = plan.rect, box = box, side = hint)) {
-                    hintMisses += PlacementHintMiss(noteId = note.noteId, wanted = hint, placed = sideOf(rect = plan.rect, box = box))
+                // Exactly one miss per note: the out-of-lane variant replaces the plain hint miss.
+                val outside = home != null && !insideLane(rect = plan.rect, lane = home, inset = config.laneInset)
+                if (outside || (hinted == null && !onSide(rect = plan.rect, box = box, side = hint))) {
+                    hintMisses +=
+                        PlacementHintMiss(
+                            noteId = note.noteId,
+                            wanted = hint,
+                            placed = sideOf(rect = plan.rect, box = box),
+                            outsideHomeLane = outside,
+                        )
                 }
             }
             if (plan.stripExhausted) truncated += note.noteId
@@ -507,7 +541,8 @@ public object NotePlacer {
      * decides). Candidates are the area of the note (if it has one) and the usual candidate set, filtered to the half
      * plane and ordered by distance, centred before diagonal. The hard rules are never relaxed: no overlap with a note
      * or part, with edge clearance (state machines) the clearance rule, otherwise no node, port, label, title, frame
-     * band or edge under the rectangle; the anchor lines must be routable.
+     * band or edge under the rectangle; the anchor lines must be routable. With [confine] (Nacharbeit 120) only
+     * rectangles inside that lane rectangle (inset by the lane inset) are accepted.
      */
     private fun preferredPlan(
         noteId: String,
@@ -519,11 +554,13 @@ public object NotePlacer {
         obstacles: ObstacleIndex,
         config: NotePlacementConfig,
         budget: ObstacleIndex.Budget,
+        confine: Rect? = null,
     ): Plan? {
         val box = anchorsBox(anchors)
         val clearance = config.edgeClearance
 
         fun accept(rect: Rect): Plan? {
+            if (confine != null && !insideLane(rect = rect, lane = confine, inset = config.laneInset)) return null
             if (obstacles.overlapsNote(rect)) return null
             if (clearance != null) {
                 if (blocked(rect = rect, obstacles = obstacles, config = config, clearance = clearance, budget = budget)) return null

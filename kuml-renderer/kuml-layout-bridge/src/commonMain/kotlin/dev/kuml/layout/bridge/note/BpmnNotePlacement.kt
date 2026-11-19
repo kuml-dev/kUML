@@ -20,8 +20,10 @@ import dev.kuml.layout.Size
  * Note placement for BPMN process and collaboration diagrams (Nacharbeit 103). BPMN text annotations are ordinary ELK
  * nodes joined to their anchors by association edges. An annotation that carries a side hint (ABOVE/BELOW/LEFT/RIGHT)
  * is taken out of the ELK result and placed by [NotePlacer] against the finished layout, with the strict lane rules:
- * inside the lane (or pool) of its anchor, or fully outside all pools. A hint that no free position satisfies falls
- * back to the default rules and is reported as `KUML-NOTE-W004`. Choreography and conversation diagrams draw no
+ * inside a lane (or pool), or fully outside all pools. Since Nacharbeit 120 the note first looks for a free position
+ * inside its home lane, the innermost lane or pool that contains the anchor; only when none exists it may land in
+ * another lane or outside, and `KUML-NOTE-W004` says so. A hint that no free position satisfies falls back to the
+ * default rules and is reported as `KUML-NOTE-W004`. Choreography and conversation diagrams draw no
  * notes and are not handled here.
  *
  * Annotations without a hint (and NEAR hints) and layouts without a hinted annotation stay byte-identical: the
@@ -170,6 +172,47 @@ public object BpmnNotePlacement {
             }
         }
 
+    /**
+     * Nacharbeit 120: per hinted note the rectangle of its home lane: the innermost container (smallest area, ties to
+     * the first in [containers]) that contains the centre of the note's first anchor, boundary inclusive. A note whose
+     * anchor lies in no container gets no entry and stays unrestricted; so does a note anchored on a pool or lane
+     * itself (it has no "own" lane and may sit outside).
+     */
+    internal fun homeLanesOf(
+        inputs: List<NotePlacementInput>,
+        containers: List<LaneRect>,
+        layout: LayoutResult,
+        anchorExtras: Map<String, AnchorGeometry>,
+        bands: Map<String, TitleBand> = emptyMap(),
+    ): Map<String, Rect> {
+        if (containers.isEmpty()) return emptyMap()
+        val frames = containers.map { it.id }.toSet() + anchorExtras.keys + bands.keys
+        val resolver = AnchorGeometryResolver(layout = layout, extras = anchorExtras)
+        val out = LinkedHashMap<String, Rect>()
+        for (input in inputs) {
+            val first = input.anchors.firstOrNull { resolver.canResolve(it.targetId) } ?: continue
+            if (first.targetId in frames) continue
+            val geometry = resolver.resolve(first.targetId) ?: continue
+            val c = centreOf(geometry)
+            val home =
+                containers
+                    .filter { it.rect.contains(c) }
+                    .minByOrNull { it.rect.size.width * it.rect.size.height }
+            if (home != null) out[input.noteId] = home.rect
+        }
+        return out
+    }
+
+    private fun centreOf(g: AnchorGeometry): Point =
+        when (g) {
+            is AnchorGeometry.At -> g.p
+            is AnchorGeometry.Port -> Point(x = g.box.cx, y = g.box.cy)
+            is AnchorGeometry.Stem -> Point(x = g.x, y = (g.top + g.bottom) / 2f)
+            is AnchorGeometry.Along -> polylineMidpoint(g.pts)
+            is AnchorGeometry.Around -> Point(x = g.r.cx, y = g.r.cy)
+            is AnchorGeometry.Ellipse -> Point(x = g.cx, y = g.cy)
+        }
+
     private fun contains(
         outer: Rect,
         inner: Rect,
@@ -238,6 +281,14 @@ public object BpmnNotePlacement {
         val policy =
             StrictNotePolicy(
                 lanes = containers,
+                homeLanes =
+                    homeLanesOf(
+                        inputs = inputs,
+                        containers = containers,
+                        layout = base,
+                        anchorExtras = anchorExtras,
+                        bands = bands,
+                    ),
                 hardLabelsAndTitles = true,
                 flow = FlowAxis.NONE,
                 laneInset = 16f,

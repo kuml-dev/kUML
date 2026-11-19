@@ -6,6 +6,15 @@ All notable changes to this project are documented here. Format follows
 
 ## [Unreleased]
 
+### Nacharbeit 120: notes avoid edge labels (UML, ERM), BPMN notes stay in their lane
+
+- **Why.** A note with a placement hint could sit on top of the centre label of an edge (UML, ERM), and a BPMN text annotation could leave its lane for a neighbouring lane or pool whenever the wished side was free there. Both were listed as "Not fixed" in Nacharbeit 99, 100 and 103.
+- **Change (UML, ERM).** Hinted notes treat the centre label of an edge as a hard obstacle, exactly like C4 notes: the stereotype header and name of a UML edge, the name of an ERM relationship. The label rectangle is estimated at the edge midpoint (notes are placed before the labels are planned). A label that blocks the wished side makes the next free position win, or `KUML-NOTE-W004`; a note is never dropped.
+- **Change (BPMN).** A hinted annotation first looks for a free position inside its home lane (innermost lane or pool of its anchor; smallest area, ties to the first declared). Only when none exists it may land in another lane or outside the pools, and `KUML-NOTE-W004` then ends with `, outside the lane or pool of its anchor`. One warning per note, decided per note. `StrictNotePolicy.homeLanes` and `NotePlacementConfig.homeLanes` (default empty) carry the rule; `PlacementHintMiss.outsideHomeLane` (default `false`) marks the variant.
+- **Unchanged.** Notes without a placement hint, `NEAR`, and diagrams without notes stay byte-identical (all 86 vault example SVGs compared before and after: no change). No vault example uses a placement hint next to a centre label or inside a lane, so the effect is covered by font-independent geometry tests.
+- **Tests.** `UmlNotePlacementHintTest`, `ErmNotePlacementHintTest`, `BpmnNotePlacementHintTest`, `NotePlacerLaneTest`, new `UmlNoteLabelEndToEndTest` (real ELK layout).
+- **Not fixed.** UML multiplicity and role labels and ERM cardinalities and roles are not yet obstacles. Notes without a placement hint still ignore labels and lanes. Lanes and pools do not grow for a note.
+
 ### Nacharbeit 119: layer hints in groups with nested groups
 
 - **Why.** Since Nacharbeit 107/115, `wrapColumns`, `sameLayer`, `first` and `last` act inside a self-contained package or deployment node, but any group that contained a nested group was reported with `KUML-LAYOUT-W001` ("it contains nested groups"), even when nothing crossed a border.

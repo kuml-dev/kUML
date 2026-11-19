@@ -7,6 +7,9 @@ import dev.kuml.core.model.note.NotePlacement
  * left no free position on that side, so the default rules decided and the note ended up on [placed]
  * ([NotePlacement.NEAR] when it sits on no single side of its anchors). Reported as `KUML-NOTE-W004`.
  *
+ * [outsideHomeLane] (Nacharbeit 120, BPMN): the note also ended up outside the lane or pool of its anchor, because no
+ * free position inside it existed; the message then says so.
+ *
  * The message names the note id and the two sides, never the note body.
  */
 public data class PlacementHintMiss(
@@ -14,9 +17,15 @@ public data class PlacementHintMiss(
     val wanted: NotePlacement,
     val placed: NotePlacement,
     val sourceLine: Int? = null,
+    val outsideHomeLane: Boolean = false,
 ) {
-    /** The text of the finding: `placement hint not honoured: <id>, wanted <SIDE>, placed <SIDE|NEAR>`. */
-    public fun message(): String = "placement hint not honoured: $noteId, wanted ${wanted.name}, placed ${placed.name}"
+    /**
+     * The text of the finding: `placement hint not honoured: <id>, wanted <SIDE>, placed <SIDE|NEAR>`, followed by
+     * `, outside the lane or pool of its anchor` when [outsideHomeLane] is set.
+     */
+    public fun message(): String =
+        "placement hint not honoured: $noteId, wanted ${wanted.name}, placed ${placed.name}" +
+            if (outsideHomeLane) ", outside the lane or pool of its anchor" else ""
 }
 
 /**

@@ -4,8 +4,19 @@ import dev.kuml.core.model.DiagramType
 import dev.kuml.core.model.KumlDiagram
 import dev.kuml.core.model.note.isHint
 import dev.kuml.layout.LayoutResult
+import dev.kuml.uml.Stereotypable
+import dev.kuml.uml.UmlAssociation
+import dev.kuml.uml.UmlAssociationClass
 import dev.kuml.uml.UmlComment
 import dev.kuml.uml.UmlCommentLink
+import dev.kuml.uml.UmlCommunicationPath
+import dev.kuml.uml.UmlConnector
+import dev.kuml.uml.UmlDependency
+import dev.kuml.uml.UmlExtend
+import dev.kuml.uml.UmlGeneralization
+import dev.kuml.uml.UmlInclude
+import dev.kuml.uml.UmlInterfaceRealization
+import dev.kuml.uml.UmlNamedElement
 
 /**
  * Note placement for UML diagrams (Nacharbeit 99). UML notes are ordinary ELK nodes joined to their anchors by
@@ -16,6 +27,10 @@ import dev.kuml.uml.UmlCommentLink
  *
  * Sequence diagrams are skipped here: their notes are placed by [SeqNotePlacer], which evaluates the hint itself
  * (Nacharbeit 102).
+ *
+ * Since Nacharbeit 120 a hinted note also avoids the (estimated) centre label of every edge: stereotype header and
+ * name. Multiplicity and role labels at the edge ends are not yet obstacles, and notes without a hint still ignore
+ * labels.
  *
  * Notes without a hint (and NEAR hints), notes without a resolvable anchor and every layout without a hinted note stay
  * byte-identical: [place] returns the layout it was given.
@@ -68,7 +83,9 @@ public object UmlNotePlacement {
                 nodes = layout.nodes.filterKeys { it.value !in taken },
                 edges = layout.edges.filterKeys { it.value !in takenLinks },
             )
-        val obstacles = Sysml2NotePlacement.obstaclesOf(layout = base)
+        // Nacharbeit 120: the centre label (stereotype header, name) of an edge is an obstacle for the hinted notes.
+        val labelLines = centreLabelLines(diagram)
+        val obstacles = Sysml2NotePlacement.obstaclesOf(layout = base, edgeLabels = { id -> labelLines[id].orEmpty() })
         val placed =
             NotePlacer.place(
                 layout = base,
@@ -79,6 +96,43 @@ public object UmlNotePlacement {
             )
         if (placed.hintNotHonoured.isNotEmpty()) NotePlacementMissCollector.report(placed.hintNotHonoured)
         return placed
+    }
+
+    /**
+     * The lines of the centre label of every UML edge element by element id, in drawn order: the stereotype header
+     * `«a, b»` (if any), then the name (if any). Mirrors the label plan of the SVG renderer (which this module cannot
+     * call); the sizes derived from it are estimates, as for the notes. Multiplicity and role labels are not covered.
+     */
+    internal fun centreLabelLines(diagram: KumlDiagram): Map<String, List<String>> {
+        val out = LinkedHashMap<String, List<String>>()
+        for (el in diagram.elements) {
+            val lines: List<String> =
+                when (el) {
+                    is UmlAssociation -> listOfNotNull(header(el), el.name)
+                    is UmlAssociationClass -> listOfNotNull(header(el), el.name)
+                    is UmlDependency -> listOfNotNull(header(el), el.name)
+                    is UmlConnector -> listOfNotNull(header(el), el.name)
+                    is UmlCommunicationPath -> listOfNotNull(header(el), el.name)
+                    is UmlGeneralization -> listOfNotNull(header(el))
+                    is UmlInterfaceRealization -> listOfNotNull(header(el))
+                    is UmlInclude -> listOf("«include»")
+                    is UmlExtend -> listOf("«extend»")
+                    else -> emptyList()
+                }.filter { it.isNotBlank() }
+            if (lines.isNotEmpty()) out[el.id] = lines
+        }
+        return out
+    }
+
+    private fun header(el: Stereotypable): String? {
+        val plain =
+            when (el) {
+                is UmlNamedElement -> el.stereotypes
+                is UmlAssociation -> el.stereotypes
+                else -> emptyList()
+            }
+        val names = (el.appliedStereotypes.map { it.stereotypeName } + plain.filter { it.isNotBlank() }).distinct()
+        return if (names.isEmpty()) null else "«" + names.joinToString(", ") + "»"
     }
 
     private fun layoutNodeIds(layout: LayoutResult): Set<String> =

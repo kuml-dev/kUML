@@ -176,4 +176,29 @@ class NotePlacerLaneTest :
                 .polylinePoints()
                 .size shouldBeGreaterThanOrEqualTo 2
         }
+
+        // Nacharbeit 120: a hinted note with a home lane is confined to it; the default (no home lane) is unchanged.
+        test("a hinted note with a home lane stays in it, and without one the plain lane rules apply as before") {
+            val hinted = input(id = "N", anchor = "A").copy(placement = dev.kuml.core.model.note.NotePlacement.RIGHT)
+            val layout = layoutOf()
+
+            fun run(p: StrictNotePolicy): NotePlacementResult {
+                val obstacles = Sysml2NotePlacement.obstaclesOf(layout)
+                return NotePlacer.place(
+                    layout = layout,
+                    notes = listOf(hinted),
+                    resolver = AnchorGeometryResolver(layout = layout),
+                    obstacles = obstacles,
+                    config = p.toConfig(NotePlacementConfig()),
+                )
+            }
+            val withHome = run(policy.copy(homeLanes = mapOf("N" to wideLane)))
+            val n =
+                withHome.layout.nodes
+                    .getValue(NodeId("N"))
+                    .bounds
+            n.within(wideLane, 16f) shouldBe true
+            withHome.hintNotHonoured shouldBe emptyList()
+            run(policy.copy(homeLanes = emptyMap())) shouldBe run(policy)
+        }
     })

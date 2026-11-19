@@ -168,10 +168,12 @@ class BpmnNotePlacementHintTest :
             }
         }
 
-        test("collaboration: BELOW a task of the bottom pool lands outside all pools, 24 px away") {
+        test("collaboration: BELOW a task of the bottom pool lands outside all pools, 24 px away, reported as left its pool") {
             val (res, misses) = collab(NotePlacement.BELOW, "tBot", bottomTask = taskBottomNearBottom)
             val n = res.layout.noteRect()
-            misses.shouldBeEmpty()
+            // Nacharbeit 120: the pool is the home of the note; leaving it is reported once
+            misses shouldHaveSize 1
+            misses.single().outsideHomeLane shouldBe true
             val bottomOfPool =
                 res.layout.groups
                     .getValue(GroupId("poolBottom"))
@@ -218,5 +220,168 @@ class BpmnNotePlacementHintTest :
             val b = collab(NotePlacement.RIGHT, "tTop").first.layout
             a shouldBe b
             process(NotePlacement.LEFT).first.layout shouldBe process(NotePlacement.LEFT).first.layout
+        }
+
+        // ------------------------------------------------------------ Nacharbeit 120: home lane
+
+        fun laneRect(
+            x: Float,
+            y: Float,
+            w: Float,
+            h: Float,
+        ) = rect(x = x, y = y, w = w, h = h)
+
+        fun lanePlace(
+            lanes: List<LaneRect>,
+            task: Rect,
+            placement: NotePlacement?,
+            extra: Map<String, Rect> = emptyMap(),
+            anchor: String = "t1",
+        ): Pair<NotePlacementResult, List<PlacementHintMiss>> {
+            val (a, l) = note(placement = placement, target = anchor, line = 3)
+            val layout =
+                LayoutResult(
+                    engineId = LayoutEngineId("test"),
+                    seed = null,
+                    canvas = Size(width = 900f, height = 700f),
+                    nodes =
+                        (mapOf("t1" to task, "n1" to rect(x = 860f, y = 300f, w = 100f, h = 40f)) + extra)
+                            .entries
+                            .associate { (k, v) -> NodeId(k) to NodeLayout(bounds = v) },
+                    edges = mapOf(EdgeId("l1") to EdgeRoute.Direct(source = Point(x = 860f, y = 320f), target = Point(x = 420f, y = 170f))),
+                    groups = emptyMap(),
+                )
+            return NotePlacementMissCollector.collecting {
+                BpmnNotePlacement.place(
+                    annotations = listOf(a),
+                    associations = listOf(l),
+                    layout = layout,
+                    containers = lanes,
+                    anchorExtras = emptyMap(),
+                    bands = emptyMap(),
+                    labelled = emptyMap(),
+                    config = NotePlacementConfig(),
+                )
+            }
+        }
+
+        fun inside(
+            n: Rect,
+            lane: Rect,
+        ) = n.left >= lane.left && n.right <= lane.right && n.top >= lane.top && n.bottom <= lane.bottom
+
+        val laneTall = laneRect(x = 40f, y = 40f, w = 800f, h = 260f)
+        val laneBelow = laneRect(x = 40f, y = 300f, w = 800f, h = 260f)
+
+        test("lanes: a hinted note stays in the lane of its anchor") {
+            val lanes = listOf(LaneRect("l1", laneTall), LaneRect("l2", laneBelow))
+            val (res, misses) = lanePlace(lanes = lanes, task = rect(x = 300f, y = 70f, w = 120f, h = 60f), placement = NotePlacement.BELOW)
+            misses.shouldBeEmpty()
+            inside(res.layout.noteRect(), laneTall) shouldBe true
+            (res.layout.noteRect().top >= 130f - 0.5f) shouldBe true
+        }
+
+        test("lanes: no free position in the lane gives a placement in another lane and exactly one W004") {
+            val lanes = listOf(LaneRect("l1", laneTall), LaneRect("l2", laneBelow))
+            // the task sits at the bottom of its lane: BELOW has no room in the lane, but is free in the lane below
+            val (res, misses) =
+                lanePlace(
+                    lanes = lanes,
+                    task = rect(x = 300f, y = 230f, w = 120f, h = 50f),
+                    placement = NotePlacement.BELOW,
+                )
+            misses shouldHaveSize 1
+            misses.single().outsideHomeLane shouldBe true
+            misses.single().noteId shouldBe "n1"
+            misses.single().sourceLine shouldBe 3
+            misses.single().message().endsWith("outside the lane or pool of its anchor") shouldBe true
+            (NodeId("n1") in res.layout.nodes) shouldBe true
+            inside(res.layout.noteRect(), laneBelow) shouldBe true
+            res.hintNotHonoured shouldHaveSize 1
+        }
+
+        test("lanes: a total miss is reported once, not twice") {
+            val lanes = listOf(LaneRect("l1", laneTall), LaneRect("l2", laneBelow))
+            val (res, misses) =
+                lanePlace(
+                    lanes = lanes,
+                    task = rect(x = 300f, y = 70f, w = 120f, h = 60f),
+                    placement = NotePlacement.ABOVE,
+                    extra = mapOf("roof" to rect(x = -400f, y = -400f, w = 1800f, h = 440f)),
+                )
+            misses shouldHaveSize 1
+            res.hintNotHonoured shouldHaveSize 1
+            (NodeId("n1") in res.layout.nodes) shouldBe true
+        }
+
+        test("lanes: without containers or without a hint nothing changes and nothing is reported") {
+            val (res, misses) =
+                lanePlace(
+                    lanes = emptyList(),
+                    task = rect(x = 300f, y = 70f, w = 120f, h = 60f),
+                    placement = NotePlacement.RIGHT,
+                )
+            misses.shouldBeEmpty()
+            (res.layout.noteRect().left >= 420f - 0.5f) shouldBe true
+        }
+
+        fun home(
+            lanes: List<LaneRect>,
+            at: Rect,
+            extras: Map<String, AnchorGeometry> = emptyMap(),
+            bands: Map<String, TitleBand> = emptyMap(),
+            target: String = "t1",
+        ): Map<String, Rect> {
+            val layout =
+                LayoutResult(
+                    engineId = LayoutEngineId("test"),
+                    seed = null,
+                    canvas = Size(width = 900f, height = 700f),
+                    nodes = mapOf(NodeId("t1") to NodeLayout(bounds = at)),
+                    edges = emptyMap(),
+                    groups = emptyMap(),
+                )
+            val input = NotePlacementInput(noteId = "n1", body = "x", anchors = listOf(NoteAnchorRef(linkId = "l1", targetId = target)))
+            return BpmnNotePlacement.homeLanesOf(
+                inputs = listOf(input),
+                containers = lanes,
+                layout = layout,
+                anchorExtras = extras,
+                bands = bands,
+            )
+        }
+
+        test("home lane: a pool without lanes is its own home") {
+            val pool = laneRect(x = 0f, y = 0f, w = 800f, h = 300f)
+            home(lanes = listOf(LaneRect("pool", pool)), at = rect(x = 100f, y = 100f, w = 100f, h = 50f)) shouldBe mapOf("n1" to pool)
+        }
+
+        test("home lane: an anchor in no container is unrestricted") {
+            val pool = laneRect(x = 0f, y = 0f, w = 200f, h = 200f)
+            home(lanes = listOf(LaneRect("pool", pool)), at = rect(x = 500f, y = 500f, w = 100f, h = 50f)) shouldBe emptyMap()
+        }
+
+        test("home lane: the innermost container wins, the first one on an equal area (boundary event on a lane edge)") {
+            val outer = laneRect(x = 0f, y = 0f, w = 800f, h = 400f)
+            val nested = laneRect(x = 0f, y = 0f, w = 400f, h = 200f)
+            val task = rect(x = 100f, y = 50f, w = 100f, h = 50f)
+            home(lanes = listOf(LaneRect("outer", outer), LaneRect("nested", nested)), at = task) shouldBe mapOf("n1" to nested)
+            home(lanes = listOf(LaneRect("nested", nested), LaneRect("outer", outer)), at = task) shouldBe mapOf("n1" to nested)
+            // centre exactly on the shared edge x = 100: both lanes contain it, equal area, the first wins
+            val left = laneRect(x = 0f, y = 0f, w = 100f, h = 100f)
+            val right = laneRect(x = 100f, y = 0f, w = 100f, h = 100f)
+            val onEdge = rect(x = 90f, y = 40f, w = 20f, h = 20f)
+            home(lanes = listOf(LaneRect("left", left), LaneRect("right", right)), at = onEdge) shouldBe mapOf("n1" to left)
+            home(lanes = listOf(LaneRect("right", right), LaneRect("left", left)), at = onEdge) shouldBe mapOf("n1" to right)
+        }
+
+        test("home lane: a note anchored on a pool itself has no home") {
+            val pool = laneRect(x = 0f, y = 0f, w = 800f, h = 300f)
+            home(
+                lanes = listOf(LaneRect("pool", pool)),
+                at = rect(x = 0f, y = 0f, w = 0f, h = 0f),
+                extras = mapOf("pool" to AnchorGeometry.Around(pool)),
+                target = "pool",
+            ) shouldBe emptyMap()
         }
     })

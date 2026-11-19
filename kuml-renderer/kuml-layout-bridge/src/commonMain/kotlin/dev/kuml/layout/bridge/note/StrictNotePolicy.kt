@@ -22,6 +22,9 @@ public data class LaneRect(
  * @property flow layout flow axis (Nacharbeit 38): a note beside its anchor along the flow costs [offAxisPenaltyPx]
  *   extra (a soft preference, never a hard rule); [FlowAxis.NONE] switches the preference off
  * @property hardAnchorLines a note rectangle keeps 6 px from the anchor lines of notes placed before it
+ * @property homeLanes (Nacharbeit 120) note id to the lane or pool rectangle of the note's anchor: a note with an entry is
+ *   first placed inside that rectangle; only when no free position exists there the plain [lanes] rule applies and the
+ *   note is reported as outside its home lane. Empty (the default) keeps the previous behaviour.
  * @property anchorNearPenalty soft cost of an anchor line running 6..12 px past a foreign node or port; 0 switches it off
  */
 public data class StrictNotePolicy(
@@ -37,6 +40,7 @@ public data class StrictNotePolicy(
     val offAxisPenaltyPx: Float = DEFAULT_OFF_AXIS_PENALTY,
     val anchorNearPenalty: Float = 0f,
     val hardAnchorLines: Boolean = false,
+    val homeLanes: Map<String, Rect> = emptyMap(),
 ) {
     /** The placer configuration these rules produce on top of [base]. */
     public fun toConfig(base: NotePlacementConfig): NotePlacementConfig =
@@ -53,6 +57,7 @@ public data class StrictNotePolicy(
             axisPenaltyPx = offAxisPenaltyPx,
             anchorNearPenalty = anchorNearPenalty,
             hardAnchorLines = hardAnchorLines,
+            homeLanes = homeLanes,
         )
 
     public companion object {

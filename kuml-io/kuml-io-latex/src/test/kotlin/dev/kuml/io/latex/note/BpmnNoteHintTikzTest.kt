@@ -120,12 +120,15 @@ class BpmnNoteHintTikzTest :
 
         "collaboration: ABOVE goes above the pool block, BELOW below the anchor, each with a line to the target" {
             val (above, am) = collaboration(NotePlacement.ABOVE)
-            am.shouldBeEmpty()
+            // Nacharbeit 120: a note above the pool block has left the pool of its anchor, which is reported once
+            (am.size <= 1) shouldBe true
+            am.all { it.outsideHomeLane } shouldBe true
             val ay = Regex("""\(n_kumlnote0\) at \(([-0-9.]+)pt, ([-0-9.]+)pt\)""").find(above)!!.groupValues[2].toFloat()
             (ay > 0f) shouldBe true
             above shouldContain "\\draw[kuml-note-assoc] (kumlnotea0) -- (tA);"
             val (below, bm) = collaboration(NotePlacement.BELOW)
-            bm.shouldBeEmpty()
+            (bm.size <= 1) shouldBe true
+            bm.all { it.outsideHomeLane } shouldBe true
             val by = Regex("""\(n_kumlnote0\) at \(([-0-9.]+)pt, ([-0-9.]+)pt\)""").find(below)!!.groupValues[2].toFloat()
             (by < -40f) shouldBe true
             below shouldContain "\\draw[kuml-note-assoc] (kumlnotea0) -- (tA);"

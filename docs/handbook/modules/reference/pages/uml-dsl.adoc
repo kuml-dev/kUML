@@ -433,6 +433,12 @@ part, diagrams with a note clearance (BDD, IBD, use case, state machine, activit
 labels and lanes, requirement groups keep their frame bands, and the anchor lines must be routable. In the diagram types
 without a note clearance (for example requirement and package diagrams) a position is only free when it covers no part,
 port, label, composite title, frame band, note, edge or earlier anchor line.
+In UML and ERM diagrams a hinted note also avoids the centre label of an edge: the stereotype header and name of a UML
+edge, the name of an ERM relationship. The label position is estimated at the midpoint of the edge, because notes are placed
+before the labels are planned, so the estimate can differ slightly from the drawn label. Multiplicity and role labels at the
+edge ends (UML) and cardinalities and roles (ERM) are not yet avoided, and a note without a placement hint still ignores
+labels. A label that blocks the wished side is treated like any other hard obstacle: the next free position wins, and if
+none exists the miss is reported as below.
 If no position on the wished side is free, the note is placed by the default rules and `kuml render` reports
 `KUML-NOTE-W004` (`wanted ABOVE, placed LEFT`). A note without any resolvable anchor (free-standing) has no side to relate to
 and ignores the hint without a warning. Without a hint, or with `NEAR`, the output is byte-identical to before.

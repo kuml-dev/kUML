@@ -12,6 +12,9 @@ import dev.kuml.layout.bridge.erm.ErmChenLayoutBridge
  * SysML 2 and UML notes; a hint that no free position on the requested side can satisfy falls back to the default
  * rules and is reported as `KUML-NOTE-W004`.
  *
+ * Since Nacharbeit 120 a hinted note also avoids the (estimated) name label at the centre of a relationship edge;
+ * cardinalities and roles are not yet obstacles, and notes without a hint still ignore labels.
+ *
  * Notes without a hint (and NEAR hints), notes without a resolvable anchor and every layout without a hinted note stay
  * byte-identical: [place] returns the layout it was given.
  */
@@ -100,12 +103,17 @@ public object ErmNotePlacement {
                 nodes = layout.nodes.filterKeys { it.value !in taken },
                 edges = layout.edges.filterKeys { it.value !in takenLinks },
             )
+        val labels =
+            model.relationships
+                .filter { !it.name.isNullOrBlank() }
+                .associate { it.id to listOf(it.name.orEmpty()) }
         val placed =
             NotePlacer.place(
                 layout = base,
                 notes = inputs,
                 resolver = AnchorGeometryResolver(layout = base),
-                obstacles = Sysml2NotePlacement.obstaclesOf(layout = base),
+                // Nacharbeit 120: the relationship name at the edge centre is an obstacle (cardinalities and roles are not yet).
+                obstacles = Sysml2NotePlacement.obstaclesOf(layout = base, edgeLabels = { id -> labels[id].orEmpty() }),
                 config = config,
             )
         if (placed.hintNotHonoured.isEmpty()) return placed

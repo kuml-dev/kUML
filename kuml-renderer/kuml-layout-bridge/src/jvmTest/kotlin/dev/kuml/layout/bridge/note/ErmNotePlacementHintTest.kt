@@ -5,10 +5,12 @@ package dev.kuml.layout.bridge.note
 import dev.kuml.core.model.note.KumlNote
 import dev.kuml.core.model.note.KumlNoteLink
 import dev.kuml.core.model.note.NotePlacement
+import dev.kuml.erm.model.Cardinality
 import dev.kuml.erm.model.ErmEntity
 import dev.kuml.erm.model.ErmModel
 import dev.kuml.erm.model.ErmNote
 import dev.kuml.erm.model.ErmNoteLink
+import dev.kuml.erm.model.ErmRelationship
 import dev.kuml.layout.EdgeId
 import dev.kuml.layout.EdgeRoute
 import dev.kuml.layout.LayoutEngineId
@@ -19,6 +21,7 @@ import dev.kuml.layout.Point
 import dev.kuml.layout.Rect
 import dev.kuml.layout.Size
 import dev.kuml.layout.bridge.erm.ErmChenLayoutBridge
+import dev.kuml.layout.bridge.label.Sysml2LabelSizing
 import io.kotest.core.spec.style.FunSpec
 import io.kotest.matchers.collections.shouldBeEmpty
 import io.kotest.matchers.collections.shouldHaveSize
@@ -141,5 +144,77 @@ class ErmNotePlacementHintTest :
             val chenId = ErmChenLayoutBridge.ENTITY_PREFIX + "a"
             val layout = layoutOf(anchorNode = chenId)
             run(NotePlacement.ABOVE, layout).first.layout shouldBe layout
+        }
+
+        // Nacharbeit 120: a hinted note avoids the name label at the centre of a relationship edge (vertical at x = 700).
+        val relName = "is placed by the customer"
+
+        fun withRelationship(name: String?): Pair<LayoutResult, ErmModel> {
+            val base = layoutOf()
+            val layout =
+                base.copy(
+                    edges =
+                        base.edges +
+                            (EdgeId("r1") to EdgeRoute.Direct(source = Point(x = 700f, y = 250f), target = Point(x = 700f, y = 410f))),
+                )
+            val model =
+                modelWith(NotePlacement.RIGHT).let {
+                    it.copy(
+                        relationships =
+                            listOf(
+                                ErmRelationship(
+                                    id = "r1",
+                                    name = name,
+                                    sourceEntityId = "a",
+                                    targetEntityId = "a",
+                                    sourceCardinality = Cardinality.ONE,
+                                    targetCardinality = Cardinality.ZERO_MANY,
+                                ),
+                            ),
+                    )
+                }
+            return layout to model
+        }
+
+        fun noteOf(res: NotePlacementResult) =
+            res.layout.nodes
+                .getValue(NodeId("n1"))
+                .bounds
+
+        fun labelRect(): Rect {
+            val size = Sysml2LabelSizing.sizeOf(listOf(relName))
+            return rect(x = 700f - size.width / 2f, y = 330f - size.height / 2f, w = size.width, h = size.height)
+        }
+
+        fun Rect.hits(o: Rect) = left < o.right && o.left < right && top < o.bottom && o.top < bottom
+
+        test("a hinted note avoids the relationship name label") {
+            val (layout, model) = withRelationship(relName)
+            val (res, misses) = run(NotePlacement.RIGHT, layout, model)
+            val n = noteOf(res)
+            n.hits(labelRect()) shouldBe false
+            (misses.size <= 1) shouldBe true
+            if (misses.isEmpty()) (n.left >= item.right - 0.5f) shouldBe true
+        }
+
+        test("the unlabelled position collides with the label, so the test above is meaningful") {
+            noteOf(run(NotePlacement.RIGHT).first).hits(labelRect()) shouldBe true
+        }
+
+        test("without a relationship name the hint is honoured exactly as without the relationship") {
+            val (layout, model) = withRelationship(null)
+            val (res, misses) = run(NotePlacement.RIGHT, layout, model)
+            misses.shouldBeEmpty()
+            noteOf(res) shouldBe noteOf(run(NotePlacement.RIGHT).first)
+        }
+
+        test("an unhinted note keeps the layout untouched next to a labelled relationship") {
+            val (layout, model) = withRelationship(relName)
+            run(
+                null,
+                layout,
+                model.copy(notes = listOf(ErmNote(note = KumlNote(id = "n1", body = "Note text", placement = null)))),
+            ).first.layout shouldBe
+                layout
         }
     })
