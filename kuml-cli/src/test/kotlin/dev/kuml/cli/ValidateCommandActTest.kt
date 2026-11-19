@@ -24,4 +24,20 @@ class ValidateCommandActTest :
             result.output shouldContain "ACT316"
             result.output shouldContain "\"warning\""
         }
+
+        test("validate warns about a join with two outgoing flows (ACT318), --strict keeps exit 0").config(timeout = 120.seconds) {
+            val join = File("src/test/resources/act/join-two-outgoing.kuml.kts")
+            val result = KumlCli().test(listOf("validate", join.absolutePath))
+            result.statusCode shouldBe 0
+            result.output shouldContain "ACT318"
+            KumlCli().test(listOf("validate", join.absolutePath, "--strict")).statusCode shouldBe 0
+        }
+
+        test("validate warns about an action with two outgoing flows (ACT321), --strict keeps exit 0").config(timeout = 120.seconds) {
+            val action = File("src/test/resources/act/action-two-outgoing.kuml.kts")
+            val result = KumlCli().test(listOf("validate", action.absolutePath))
+            result.statusCode shouldBe 0
+            result.output shouldContain "ACT321"
+            KumlCli().test(listOf("validate", action.absolutePath, "--strict")).statusCode shouldBe 0
+        }
     })

@@ -19,7 +19,7 @@ public enum class ActSeverity { Error, Warning }
 /**
  * A finding of the activity diagram checker (wave C2).
  *
- * @property code stable numeric code (301-317 used), see [Sysml2ActChecker].
+ * @property code stable numeric code (301-321 used), see [Sysml2ActChecker].
  * @property elementId id of the offending node, flow, region or handler.
  * @property hint how to fix it.
  */
@@ -53,9 +53,13 @@ public data class ActIssue(
  * | 315 | Warning | members of one region lie in different partitions |
  * | 316 | Warning | fork node with more than one incoming flow |
  * | 317 | Warning | accept-event / accept-time-event node with more than one outgoing flow (all of them fire, an implicit fork) |
+ * | 318 | Warning | join node with more than one outgoing flow |
+ * | 319 | Warning | decision node with more than one incoming flow |
+ * | 320 | Warning | merge node with more than one outgoing flow |
+ * | 321 | Warning | action with more than one outgoing flow (all of them fire, an implicit fork) |
  *
  * Accept-event and accept-time-event nodes without an incoming flow are valid and not reported.
- * Rules 316 and 317 count only flows between nodes of the diagram and ignore self-loops.
+ * Rules 316 to 321 count only flows between nodes of the diagram and ignore self-loops.
  * All traversals are iterative and bounded.
  */
 public object Sysml2ActChecker {
@@ -351,14 +355,16 @@ public object Sysml2ActChecker {
         actionById: Map<String, ActionDefinition>,
         issues: MutableList<ActIssue>,
     ) {
+        // Interrupting flows are alternative abort edges that do not fire together with the normal exit,
+        // so they are not counted towards the outgoing degree (ACT317, ACT318, ACT320, ACT321).
         val edges =
-            model.usages.filterIsInstance<ObjectFlowUsage>().map { it.sourceNodeId to it.targetNodeId } +
-                model.usages.filterIsInstance<ControlFlowUsage>().map { it.sourceNodeId to it.targetNodeId }
+            model.usages.filterIsInstance<ObjectFlowUsage>().map { Triple(it.sourceNodeId, it.targetNodeId, it.interrupts) } +
+                model.usages.filterIsInstance<ControlFlowUsage>().map { Triple(it.sourceNodeId, it.targetNodeId, it.interrupts) }
         val incoming = HashMap<String, Int>()
         val outgoing = HashMap<String, Int>()
-        for ((source, target) in edges) {
+        for ((source, target, interrupting) in edges) {
             if (source == target || source !in actionById || target !in actionById) continue
-            outgoing[source] = (outgoing[source] ?: 0) + 1
+            if (!interrupting) outgoing[source] = (outgoing[source] ?: 0) + 1
             incoming[target] = (incoming[target] ?: 0) + 1
         }
         for (a in actions) {
@@ -381,6 +387,42 @@ public object Sysml2ActChecker {
                         id = a.id,
                         message = "Accept node '${a.name}' has $outCount outgoing flows; all of them fire (implicit fork).",
                         hint = "Use a decisionNode for alternatives or a forkNode to make the parallelism explicit.",
+                    )
+            }
+            if (a.kind == ActivityNodeKind.Join && outCount > 1) {
+                issues +=
+                    warn(
+                        code = 318,
+                        id = a.id,
+                        message = "Join '${a.name}' has $outCount outgoing flows (expected 1).",
+                        hint = "Add a forkNode after the join to continue in parallel.",
+                    )
+            }
+            if (a.kind == ActivityNodeKind.Decision && inCount > 1) {
+                issues +=
+                    warn(
+                        code = 319,
+                        id = a.id,
+                        message = "Decision '${a.name}' has $inCount incoming flows (expected 1).",
+                        hint = "Merge the incoming branches with a mergeNode before the decision.",
+                    )
+            }
+            if (a.kind == ActivityNodeKind.Merge && outCount > 1) {
+                issues +=
+                    warn(
+                        code = 320,
+                        id = a.id,
+                        message = "Merge '${a.name}' has $outCount outgoing flows (expected 1).",
+                        hint = "Use a decisionNode to choose between alternatives, or a forkNode for parallel paths.",
+                    )
+            }
+            if (a.kind == ActivityNodeKind.Action && outCount > 1) {
+                issues +=
+                    warn(
+                        code = 321,
+                        id = a.id,
+                        message = "Action '${a.name}' has $outCount outgoing flows; all of them fire (implicit fork).",
+                        hint = "Use a forkNode for parallel flows or a decisionNode for alternatives.",
                     )
             }
         }

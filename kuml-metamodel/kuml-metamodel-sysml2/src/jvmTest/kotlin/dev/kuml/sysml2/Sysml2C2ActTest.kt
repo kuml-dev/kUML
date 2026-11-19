@@ -364,6 +364,146 @@ class Sysml2C2ActTest :
             codes(m) shouldBe emptyList()
         }
 
+        // 318-320: a control node with 2 incoming and the given number of outgoing flows (neighbours are plain actions).
+        fun degreeModel(
+            kind: String,
+            incoming: Int,
+            outgoing: Int,
+        ): Sysml2Model =
+            sysml2Model(name = "Degrees") {
+                val node =
+                    when (kind) {
+                        "join" -> joinNode(name = "N")
+                        "decision" -> decisionNode(name = "N")
+                        else -> mergeNode(name = "N")
+                    }
+                val sources = (1..incoming).map { actionDef(name = "S$it") }
+                val targets = (1..outgoing).map { actionDef(name = "T$it") }
+                sources.forEachIndexed { i, s ->
+                    if (i % 2 ==
+                        0
+                    ) {
+                        controlFlow(name = "in$i", source = s, target = node)
+                    } else {
+                        objectFlow(name = "in$i", source = s, target = node)
+                    }
+                }
+                targets.forEachIndexed { i, t ->
+                    if (i % 2 ==
+                        0
+                    ) {
+                        controlFlow(name = "out$i", source = node, target = t)
+                    } else {
+                        objectFlow(name = "out$i", source = node, target = t)
+                    }
+                }
+                actDiagram(name = "D") {
+                    include(node)
+                    sources.forEach { include(it) }
+                    targets.forEach { include(it) }
+                }
+            }
+
+        test("checker: join with two outgoing flows gets ACT318, one outgoing flow does not") {
+            val m = degreeModel("join", incoming = 2, outgoing = 2)
+            codes(m) shouldBe listOf(318)
+            codes(m, ActSeverity.Warning) shouldBe listOf(318)
+            codes(degreeModel("join", incoming = 2, outgoing = 1)) shouldBe emptyList()
+        }
+
+        test("checker: decision with two incoming flows gets ACT319, one incoming flow does not") {
+            val m = degreeModel("decision", incoming = 2, outgoing = 2)
+            codes(m) shouldBe listOf(319)
+            codes(m, ActSeverity.Warning) shouldBe listOf(319)
+            codes(degreeModel("decision", incoming = 1, outgoing = 2)) shouldBe emptyList()
+        }
+
+        test("checker: merge with two outgoing flows gets ACT320, one outgoing flow does not") {
+            val m = degreeModel("merge", incoming = 2, outgoing = 2)
+            codes(m) shouldBe listOf(320)
+            codes(m, ActSeverity.Warning) shouldBe listOf(320)
+            codes(degreeModel("merge", incoming = 2, outgoing = 1)) shouldBe emptyList()
+        }
+
+        test("checker: action with two outgoing flows gets ACT321, one outgoing flow does not") {
+            val m =
+                sysml2Model(name = "Degrees") {
+                    val a = actionDef(name = "A")
+                    val b = actionDef(name = "B")
+                    val c = actionDef(name = "C")
+                    controlFlow(name = "ab", source = a, target = b)
+                    objectFlow(name = "ac", source = a, target = c)
+                    actDiagram(name = "D") {
+                        include(a)
+                        include(b)
+                        include(c)
+                    }
+                }
+            val issues = Sysml2ActChecker.check(model = m)
+            issues.map { it.code } shouldBe listOf(321)
+            issues.single().elementId shouldBe "A"
+            issues.single().severity shouldBe ActSeverity.Warning
+            val one =
+                sysml2Model(name = "Degrees") {
+                    val a = actionDef(name = "A")
+                    val b = actionDef(name = "B")
+                    controlFlow(name = "ab", source = a, target = b)
+                    actDiagram(name = "D") {
+                        include(a)
+                        include(b)
+                    }
+                }
+            codes(one) shouldBe emptyList()
+        }
+
+        test("checker: an interrupting flow is not counted as an outgoing flow for ACT321") {
+            val m =
+                sysml2Model(name = "Degrees") {
+                    val a = actionDef(name = "A")
+                    val b = actionDef(name = "B")
+                    val out = actionDef(name = "Out")
+                    controlFlow(name = "ab", source = a, target = b)
+                    controlFlow(name = "aout", source = a, target = out, interrupts = true)
+                    actDiagram(name = "D") {
+                        include(a)
+                        include(b)
+                        include(out)
+                    }
+                }
+            codes(m).contains(321) shouldBe false
+        }
+
+        test("checker: self-loops and flows leaving the diagram are not counted for ACT318 to ACT321") {
+            val m =
+                sysml2Model(name = "Degrees") {
+                    val a = actionDef(name = "A")
+                    val b = actionDef(name = "B")
+                    val outside = actionDef(name = "Outside")
+                    val j = joinNode(name = "J")
+                    val d = decisionNode(name = "Dec")
+                    val mg = mergeNode(name = "Mg")
+                    controlFlow(name = "aa", source = a, target = a)
+                    controlFlow(name = "ab", source = a, target = b)
+                    controlFlow(name = "aOut", source = a, target = outside)
+                    controlFlow(name = "jj", source = j, target = j)
+                    controlFlow(name = "jb", source = j, target = b)
+                    controlFlow(name = "jOut", source = j, target = outside)
+                    controlFlow(name = "dd", source = d, target = d)
+                    controlFlow(name = "outD", source = outside, target = d)
+                    controlFlow(name = "mm", source = mg, target = mg)
+                    controlFlow(name = "mb", source = mg, target = b)
+                    controlFlow(name = "mOut", source = mg, target = outside)
+                    actDiagram(name = "D") {
+                        include(a)
+                        include(b)
+                        include(j)
+                        include(d)
+                        include(mg)
+                    }
+                }
+            codes(m) shouldBe emptyList()
+        }
+
         test("checker: dangling region reference is an error") {
             val m =
                 Sysml2Model(

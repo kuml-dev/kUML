@@ -6,6 +6,14 @@ All notable changes to this project are documented here. Format follows
 
 ## [Unreleased]
 
+### Nacharbeit 112: remaining activity degree rules as warnings
+
+- **Why.** "Not fixed" of Nacharbeit 70: activity models that break the usual node degrees (a join that fans out, a decision with several inputs, a merge that fans out, an action with several outputs) rendered without any hint.
+- **Change.** New activity warnings `ACT318` (join with more than one outgoing flow), `ACT319` (decision with more than one incoming flow), `ACT320` (merge with more than one outgoing flow) and `ACT321` (action with more than one outgoing flow, an implicit fork). They are warnings, so `kuml validate --strict` does not promote them, like `ACT316` and `ACT317`. Object and control flows both count; self-loops, flows leaving the diagram and interrupting flows (alternative abort edges) are ignored in the outgoing degree. No rendering, persistence or metamodel change.
+- **Verification.** `Sysml2C2ActTest` (failing and passing case per rule, severity, element id, self-loops and out-of-diagram flows) and `ValidateCommandActTest` (CLI output, exit status 0, `--strict` stays at 0).
+- **Not verified.** Intel Mac, Windows.
+- **Not fixed.** Outgoing degree of call-behavior and send-signal nodes, degree of initial and final nodes, and decisions or merges with fewer than two outgoing or incoming flows are not checked. `ACT321` covers plain actions only.
+
 ### Nacharbeit 111: Service Blueprint warns about duplicate step ids
 
 - **Why.** Duplicate step ids from JSON or OKF imports collapsed silently into one card in the blueprint geometry ("Not fixed" of Nacharbeit 80).
