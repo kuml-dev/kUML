@@ -99,7 +99,7 @@ class DesktopMcpToolsTest :
                     "kuml_desktop_get_theme",
                     "kuml_desktop_set_theme",
                 ) + DesktopMcpWorkspaceTools.TOOL_NAMES
-            f.tools.tools.size shouldBe 18
+            f.tools.tools.size shouldBe 19
             f.tools.tools.associate { it.descriptor.name to it.descriptor.annotations!! }.let { a ->
                 a["kuml_desktop_get_script"]!!.readOnlyHint shouldBe true
                 a["kuml_desktop_set_script"]!!.destructiveHint shouldBe true

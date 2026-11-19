@@ -113,12 +113,12 @@ import dev.kuml.desktop.workspace.TrustDialog
 import dev.kuml.desktop.workspace.WorkspaceChangeEffect
 import dev.kuml.desktop.workspace.WorkspaceLatexExportDialog
 import dev.kuml.desktop.workspace.WorkspaceModeChooserDialog
+import dev.kuml.desktop.workspace.WorkspaceOpener
 import dev.kuml.desktop.workspace.WorkspaceState
 import dev.kuml.desktop.workspace.WorkspaceTrust
 import dev.kuml.mcp.McpRequestHandler
 import dev.kuml.mcp.McpServerInfo
 import dev.kuml.renderer.theme.core.ThemeRegistry
-import dev.kuml.workspace.OkfWorkspace
 import dev.kuml.workspace.OkfWriteResult
 import dev.kuml.workspace.WorkspaceMode
 import dev.kuml.workspace.WorkspaceScanner
@@ -237,9 +237,8 @@ fun FrameWindowScope.MainWindow(
     var editorActions by remember { mutableStateOf<EditorActions?>(null) }
     var showMcpDialog by remember { mutableStateOf(false) }
 
-    // V3.6.4 — Knowledge Workspace viewer: pending dialogs gate opening a workspace.
-    var pendingTrustWorkspace by remember { mutableStateOf<OkfWorkspace?>(null) }
-    var pendingUnknownWorkspace by remember { mutableStateOf<OkfWorkspace?>(null) }
+    // V3.6.4 — Knowledge Workspace viewer: the pending dialogs gating the opening of a workspace
+    // live in AppState.pendingWorkspaceOpen (shared with the MCP tool kuml_desktop_workspace_open).
 
     // V3.x (FT-Desktop-New-Workspace) — "New Workspace…" scaffold dialog.
     var showNewWorkspaceDialog by remember { mutableStateOf(false) }
@@ -333,25 +332,38 @@ fun FrameWindowScope.MainWindow(
     // ahead of the trust decision is safe — it's needed to know KNOWLEDGE/ENGINEERING/
     // UNKNOWN before deciding what to show. The trust gate itself runs strictly before
     // any document is selected/rendered, i.e. before any `kuml` block is evaluated.
-    fun dispatchWorkspace(workspace: OkfWorkspace) {
-        when (workspace.mode) {
-            WorkspaceMode.KNOWLEDGE -> state.openWorkspace = OpenWorkspace.Knowledge(WorkspaceState(initialWorkspace = workspace))
-            WorkspaceMode.ENGINEERING -> {
-                val files = EngineeringFileScanner.scan(workspace.root)
-                state.openWorkspace = OpenWorkspace.Engineering(root = workspace.root, scriptFiles = files)
-            }
-            WorkspaceMode.UNKNOWN -> pendingUnknownWorkspace = workspace
+    //
+    // Shared with the MCP tool kuml_desktop_workspace_open via WorkspaceOpener: an open workspace in
+    // the UI is always a trusted one; only the trust dialog's "Trust" button grants trust.
+    fun applyDecision(decision: WorkspaceOpener.Decision) {
+        when (decision) {
+            is WorkspaceOpener.Decision.Open ->
+                scope.launch {
+                    val files =
+                        if (decision.mode == WorkspaceMode.ENGINEERING) {
+                            withContext(Dispatchers.IO) { EngineeringFileScanner.scan(decision.workspace.root) }
+                        } else {
+                            emptyList()
+                        }
+                    state.openWorkspace =
+                        WorkspaceOpener.materialize(workspace = decision.workspace, mode = decision.mode, engineeringFiles = files)
+                }
+            is WorkspaceOpener.Decision.NeedsTrust ->
+                state.pendingWorkspaceOpen =
+                    PendingWorkspaceOpen.Trust(
+                        workspace = decision.workspace,
+                        forcedMode = decision.forcedMode,
+                        requestedByMcp = false,
+                    )
+            is WorkspaceOpener.Decision.NeedsMode -> state.pendingWorkspaceOpen = PendingWorkspaceOpen.ChooseMode(decision.workspace)
         }
     }
 
     fun openWorkspaceDirectory(dir: File) {
         scope.launch {
             val workspace = withContext(Dispatchers.IO) { WorkspaceScanner.scan(root = dir) }
-            if (WorkspaceTrust.isTrusted(trustedPaths = state.trustedWorkspaces, root = dir)) {
-                dispatchWorkspace(workspace)
-            } else {
-                pendingTrustWorkspace = workspace
-            }
+            val trusted = WorkspaceTrust.isTrusted(trustedPaths = state.trustedWorkspaces, root = dir)
+            applyDecision(WorkspaceOpener.decide(workspace = workspace, trusted = trusted))
         }
     }
 
@@ -1294,35 +1306,48 @@ fun FrameWindowScope.MainWindow(
 
     // V3.6.4 — Knowledge Workspace viewer: trust gate, shown BEFORE any document
     // in the workspace is selected/rendered (i.e. before any kuml-block eval).
-    pendingTrustWorkspace?.let { workspace ->
-        TrustDialog(
-            root = workspace.root,
-            strings = strings,
-            onTrust = {
-                state.trustedWorkspaces.add(WorkspaceTrust.canonicalPath(workspace.root))
-                scope.launch(Dispatchers.IO) { store.save(state.toSettings()) }
-                pendingTrustWorkspace = null
-                dispatchWorkspace(workspace)
-            },
-            onDecline = { pendingTrustWorkspace = null },
-        )
-    }
-
-    // V3.6.4 — WorkspaceMode.UNKNOWN fallback: let the user force a mode, or cancel.
-    pendingUnknownWorkspace?.let { workspace ->
-        WorkspaceModeChooserDialog(
-            strings = strings,
-            onChooseKnowledge = {
-                pendingUnknownWorkspace = null
-                state.openWorkspace = OpenWorkspace.Knowledge(WorkspaceState(initialWorkspace = workspace))
-            },
-            onChooseEngineering = {
-                pendingUnknownWorkspace = null
-                val files = EngineeringFileScanner.scan(workspace.root)
-                state.openWorkspace = OpenWorkspace.Engineering(root = workspace.root, scriptFiles = files)
-            },
-            onCancel = { pendingUnknownWorkspace = null },
-        )
+    when (val pending = state.pendingWorkspaceOpen) {
+        is PendingWorkspaceOpen.Trust ->
+            TrustDialog(
+                root = pending.workspace.root,
+                strings = strings,
+                requestedByMcp = pending.requestedByMcp,
+                onTrust = {
+                    val proceed = {
+                        WorkspaceOpener.grantTrustFromUi(state = state, root = pending.workspace.root)
+                        scope.launch(Dispatchers.IO) { store.save(state.toSettings()) }
+                        state.pendingWorkspaceOpen = null
+                        applyDecision(
+                            WorkspaceOpener.decide(workspace = pending.workspace, trusted = true, forcedMode = pending.forcedMode),
+                        )
+                    }
+                    // An MCP-requested open must never silently discard unsaved changes made while the
+                    // dialog was pending (the menu path always confirms first); cancel keeps the dialog.
+                    if (pending.requestedByMcp) confirmUnsavedAndThen(proceed) else proceed()
+                },
+                onDecline = {
+                    if (pending.requestedByMcp) {
+                        state.mcpTrustDeclined.add(WorkspaceTrust.canonicalPath(pending.workspace.root))
+                        state.mcpTrustDeclineCount++
+                    }
+                    state.pendingWorkspaceOpen = null
+                },
+            )
+        // V3.6.4 — WorkspaceMode.UNKNOWN fallback: let the user force a mode, or cancel.
+        is PendingWorkspaceOpen.ChooseMode ->
+            WorkspaceModeChooserDialog(
+                strings = strings,
+                onChooseKnowledge = {
+                    state.pendingWorkspaceOpen = null
+                    applyDecision(WorkspaceOpener.Decision.Open(workspace = pending.workspace, mode = WorkspaceMode.KNOWLEDGE))
+                },
+                onChooseEngineering = {
+                    state.pendingWorkspaceOpen = null
+                    applyDecision(WorkspaceOpener.Decision.Open(workspace = pending.workspace, mode = WorkspaceMode.ENGINEERING))
+                },
+                onCancel = { state.pendingWorkspaceOpen = null },
+            )
+        null -> Unit
     }
 
     latexDialog?.let { session ->
@@ -1476,6 +1501,7 @@ private fun McpNoticeBar(
                 is McpNotice.WorkspaceDocumentWritten ->
                     (if (notice.created) strings.mcpNoticeWorkspaceCreated else strings.mcpNoticeWorkspaceWritten).format(notice.path)
                 is McpNotice.WorkspaceDocumentDeleted -> strings.mcpNoticeWorkspaceDeleted.format(notice.path)
+                is McpNotice.WorkspaceOpened -> strings.mcpHint.noticeWorkspaceOpened.format(notice.name)
             }
         Text(text = message, fontSize = 11.sp, modifier = Modifier.weight(1f))
         if (notice is McpNotice.ScriptReplaced && DesktopMcpTools.revisionOf(state.script) == notice.newRevision) {

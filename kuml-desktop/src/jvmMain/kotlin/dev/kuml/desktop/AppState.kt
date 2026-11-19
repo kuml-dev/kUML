@@ -17,6 +17,8 @@ import dev.kuml.desktop.workspace.WORKSPACE_EDITOR_DEFAULT_FRACTION
 import dev.kuml.desktop.workspace.WORKSPACE_EDITOR_MAX_FRACTION
 import dev.kuml.desktop.workspace.WORKSPACE_NAV_DEFAULT_FRACTION
 import dev.kuml.desktop.workspace.WORKSPACE_NAV_MAX_FRACTION
+import dev.kuml.workspace.OkfWorkspace
+import dev.kuml.workspace.WorkspaceMode
 import java.io.File
 
 /**
@@ -183,6 +185,22 @@ class AppState(
     /** Transient, non-persisted notice raised when an MCP client changed the script. */
     internal var mcpNotice by mutableStateOf<McpNotice?>(null)
 
+    /**
+     * The dialog gating the opening of a workspace (trust prompt, then mode chooser), raised by the
+     * File menu and by the MCP tool `kuml_desktop_workspace_open`. Transient, NOT part of
+     * [toSettings].
+     */
+    internal var pendingWorkspaceOpen by mutableStateOf<PendingWorkspaceOpen?>(null)
+
+    /**
+     * Session-only (not persisted): canonical roots whose MCP-requested trust prompt the user declined.
+     * An MCP client does not get to ask again for the same root during this session.
+     */
+    internal val mcpTrustDeclined: MutableSet<String> = mutableSetOf()
+
+    /** Session-only: number of declined MCP-requested trust prompts (any root); see `MAX_MCP_TRUST_DECLINES`. */
+    internal var mcpTrustDeclineCount: Int = 0
+
     // P8 — editor find bar. Deliberately transient (NOT persisted in AppSettings/toSettings()
     // below): an open search bar is not session state a user expects to see again after
     // restarting the app, unlike viewMode/showWatermark/theme/language.
@@ -338,4 +356,19 @@ classDiagram(name = "Beispiel") {
 }
             """.trimIndent()
     }
+}
+
+/** A workspace open request that waits for the user (see [AppState.pendingWorkspaceOpen]). */
+internal sealed interface PendingWorkspaceOpen {
+    /** The trust dialog; [requestedByMcp] marks it as raised by an MCP client. [forcedMode] is applied after trust. */
+    data class Trust(
+        val workspace: OkfWorkspace,
+        val forcedMode: WorkspaceMode?,
+        val requestedByMcp: Boolean,
+    ) : PendingWorkspaceOpen
+
+    /** The mode chooser for a trusted workspace whose mode could not be detected. */
+    data class ChooseMode(
+        val workspace: OkfWorkspace,
+    ) : PendingWorkspaceOpen
 }

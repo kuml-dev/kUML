@@ -292,7 +292,7 @@ When an OKF workspace is open (*File ▸ Open Workspace...*), the script tools a
 tools take over. They read and edit the Markdown documents of the workspace on disk, so an agent can
 browse, write, validate and render a knowledge workspace while you watch it in the app. Paths are
 always relative to the workspace root and use `/`. Without an open workspace they answer
-`NO_WORKSPACE_OPEN`.
+`NO_WORKSPACE_OPEN`; `kuml_desktop_workspace_open` opens one.
 
 .Workspace tools
 [cols="2,5"]
@@ -309,6 +309,7 @@ always relative to the workspace root and use `/`. Without an open workspace the
 | `kuml_desktop_workspace_render_all` | Renders every block into a temporary location and reports rendered, skipped and failed blocks; nothing is written into the workspace.
 | `kuml_desktop_workspace_open_document` | Shows a document in the editor (`edit:true` for the raw editor).
 | `kuml_desktop_workspace_export_pdf` | Exports the open workspace as PDF; see xref:tooling:workspace-pdf-export.adoc[Workspace PDF export].
+| `kuml_desktop_workspace_open` | Opens a workspace folder (absolute path; `mode` for folders whose mode cannot be detected; `replace:true` to replace another open workspace). Returns name, root, mode, trusted, counts, `opened` and `alreadyOpen`. A folder you have not trusted yet is *not* opened: the app shows its trust prompt and the tool answers `awaitingUserTrust:true`; poll `kuml_desktop_workspace_info` afterwards.
 | `kuml_desktop_workspace_reload` | Re-scans the folder; `onDirty` = `fail` (default), `keep` or `discard` decides what happens to unsaved editor changes.
 |===
 
@@ -322,7 +323,11 @@ always relative to the workspace root and use `/`. Without an open workspace the
 .Errors of the workspace tools
 `INVALID_PATH` (with a `reason` such as `PARENT_SEGMENT`, `ABSOLUTE_PATH`, `SYMLINK_ESCAPE`, `NOT_MARKDOWN`, `EXCLUDED`), `DOCUMENT_NOT_FOUND` (with a `suggestion` when a similar path exists), `DOCUMENT_TOO_LARGE`, `CONTENT_TOO_LARGE`, `REVISION_CONFLICT`, `DOCUMENT_DIRTY`, `SAVE_BLOCKED` (with the blocking `findings`), `CONFIRMATION_REQUIRED`, `WORKSPACE_NOT_TRUSTED`, `BLOCK_NOT_FOUND`, `UNKNOWN_THEME`, `BUSY`, `RENDER_TIMEOUT`, `SVG_TOO_LARGE`/`PNG_TOO_LARGE`, `TOO_MANY_BLOCKS`, `WRITE_FAILED`, `UI_BUSY` and `OPERATION_TIMEOUT` (the operation may still have been applied; check with `list_documents`).
 
+`kuml_desktop_workspace_open` adds `INVALID_PATH` reasons `EMPTY`, `TOO_LONG`, `INVALID_NAME`, `RELATIVE_PATH`, `UNC_PATH`, `DEVICE_PATH`, `NOT_FOUND`, `NOT_A_DIRECTORY`, `FILESYSTEM_ROOT` and `HOME_DIRECTORY`, plus `WORKSPACE_ALREADY_OPEN`, `WORKSPACE_MODE_UNKNOWN`, `WORKSPACE_TOO_LARGE`, `WORKSPACE_NOT_TRUSTED` (`reason:"DECLINED"`), `CONFLICT`, `IO_ERROR`, and `UI_BUSY` with `reason` `WORKSPACE_DIALOG_OPEN` or `SIMULATION_RUNNING`.
+
 .Security of workspace mode
+* An agent can never grant trust. `kuml_desktop_workspace_open` does not open an untrusted folder: the app shows the trust dialog marked as an MCP request, and only your click on *Trust* adds the folder to the trusted list and opens it. A request you decline is not repeated in this session. Everything that is open in the app is therefore trusted.
+* The only absolute path an agent may send is the `path` of `kuml_desktop_workspace_open`. It is canonicalised (symbolic links are resolved, and trust is keyed on the real target); empty, relative, UNC and device paths, NUL and control characters, the file system root and your home folder are rejected, and errors never contain the path. Opening is refused while there are unsaved changes or a dialog or simulation is active, never discards anything, and shows a notice in the status area.
 * Paths: `..`, absolute paths, UNC paths, drive letters and `~` are rejected before the file system is touched; then containment, symbolic links, hidden and excluded folders are checked again against the real file system. Only `.md` files inside the workspace root can be read, written or deleted; error messages never contain the absolute root path.
 * Writing, deleting, rendering and `evaluate:true` need a *trusted* workspace (the trust you confirm when opening it). Rendering and evaluating execute the kuml blocks of the documents, exactly like the CLI; they share the single evaluation slot, so while `render_all` runs (up to 120 s) other evaluating tools may answer `BUSY`.
 * Limits: 512 KiB per document, 4 MiB per rendered image, 500 blocks for `render_all`, path length 1024. Logs contain tool names and error codes only, never document content, tokens or absolute paths.

@@ -6,6 +6,15 @@ All notable changes to this project are documented here. Format follows
 
 ## [Unreleased]
 
+### Nacharbeit 117: desktop MCP tool kuml_desktop_workspace_open
+
+- **Why.** An agent could only work in a workspace the user had already opened by hand; without one every `kuml_desktop_workspace_*` tool answered `NO_WORKSPACE_OPEN`.
+- **Change.** New tool `kuml_desktop_workspace_open` (`path` absolute, optional `mode`, optional `replace`). The path is checked by the new `WorkspaceRootPolicy` (empty, too long, control characters, UNC, device, relative and `~` paths, missing, not a directory, file system root, home folder) and canonicalised with the same function as the trust list. New `WorkspaceOpener` is the single decision path for the File menu, New Workspace and the tool; the pending trust and mode dialogs moved from `MainWindow` state to `AppState.pendingWorkspaceOpen`. The trust dialog shows an extra line when an MCP client asked. Opening refuses with `DOCUMENT_DIRTY` for unsaved changes, `WORKSPACE_ALREADY_OPEN` unless `replace:true`, `UI_BUSY` while a dialog or simulation is active, and reports `alreadyOpen` for the open root. A status notice tells the user what was opened.
+- **Security.** The tool never grants trust and never opens an untrusted folder (the UI has no trust checks of its own: the first click on a document would otherwise evaluate untrusted kuml code). An untrusted folder only raises the user's trust dialog and answers `awaitingUserTrust:true`; a declined request is not repeated in this session. Trust is granted only by `WorkspaceOpener.grantTrustFromUi` from the dialog; a test scans the `mcp` package for it. Errors and logs never contain the path or scanner messages (`WORKSPACE_TOO_LARGE`, `IO_ERROR`).
+- **Docs.** `authoring-mcp.adoc` (tool table, errors, security), `CLAUDE.md`. Tool count is now 19.
+- **Verification.** New `DesktopMcpWorkspaceOpenTest`, `WorkspaceRootPolicyTest`, `WorkspaceOpenerTest`; existing workspace tool tests adjusted for the new tool.
+- **Not fixed.** `openWorkspaceDirectory` in the menu still lets a scan failure (more than 20,000 Markdown files) escape the coroutine; the MCP path maps it to `WORKSPACE_TOO_LARGE`.
+
 ### Nacharbeit 116: PAR443 warns about unknown attribute names in parametric bindings
 
 - **Why.** A binding endpoint `Part::attr` with a mistyped attribute name silently ended on the part box border (PAR441 only covered constraint parameters), so the typo was invisible.

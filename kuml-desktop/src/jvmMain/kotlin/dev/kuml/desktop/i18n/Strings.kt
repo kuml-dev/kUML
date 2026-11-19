@@ -614,6 +614,10 @@ data class Strings(
                                 portStable =
                                     "Der Port bleibt über Neustarts erhalten, solange er frei ist. Ist er belegt, wird ein neuer Port " +
                                         "mit neuem Token vergeben, und der Befehl muss erneut kopiert werden.",
+                                workspaceTrustRequestedByMcp =
+                                    "Ein MCP-Client (KI-Agent) hat darum gebeten, diesen Workspace zu öffnen. " +
+                                        "Vertrauen Sie ihm nur, wenn Sie damit gerechnet haben.",
+                                noticeWorkspaceOpened = "Ein MCP-Client hat den Workspace \"%s\" geöffnet.",
                             ),
                     ),
                 workspaceLayout =
@@ -1106,6 +1110,9 @@ data class Strings(
                                 portStable =
                                     "The port is kept across restarts as long as it is free. If it is taken, a new port " +
                                         "and a new token are assigned and you need to copy the command again.",
+                                workspaceTrustRequestedByMcp =
+                                    "An MCP client (AI agent) asked to open this workspace. Only trust it if you expected this.",
+                                noticeWorkspaceOpened = "An MCP client opened the workspace \"%s\".",
                             ),
                     ),
                 workspaceLayout =
@@ -1585,6 +1592,9 @@ data class PreviewViewStrings(
 data class McpHintStrings(
     val appMustRun: String,
     val portStable: String,
+    // Workspace opening requested by an MCP client (kuml_desktop_workspace_open); here because Strings is at the JVM limit.
+    val workspaceTrustRequestedByMcp: String,
+    val noticeWorkspaceOpened: String,
 )
 
 /** Texts of the About dialog and its license view (see [Strings.about]). */

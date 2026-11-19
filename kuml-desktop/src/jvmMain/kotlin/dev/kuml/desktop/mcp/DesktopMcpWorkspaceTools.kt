@@ -4,10 +4,13 @@ import dev.kuml.cli.workspace.WorkspaceBlockEvaluator
 import dev.kuml.cli.workspace.WorkspacePdfExport
 import dev.kuml.cli.workspace.WorkspaceRenderer
 import dev.kuml.desktop.AppState
+import dev.kuml.desktop.PendingWorkspaceOpen
 import dev.kuml.desktop.i18n.Strings
 import dev.kuml.desktop.workspace.DocumentRevision
+import dev.kuml.desktop.workspace.EngineeringFileScanner
 import dev.kuml.desktop.workspace.OpenWorkspace
 import dev.kuml.desktop.workspace.WorkspaceDeleteOutcome
+import dev.kuml.desktop.workspace.WorkspaceOpener
 import dev.kuml.desktop.workspace.WorkspaceState
 import dev.kuml.desktop.workspace.WorkspaceTrust
 import dev.kuml.desktop.workspace.WorkspaceWriteOutcome
@@ -23,6 +26,7 @@ import dev.kuml.workspace.OkfSeverity
 import dev.kuml.workspace.OkfValidator
 import dev.kuml.workspace.OkfWorkspace
 import dev.kuml.workspace.WorkspaceDocumentResolver
+import dev.kuml.workspace.WorkspaceMode
 import dev.kuml.workspace.WorkspaceScanner
 import dev.kuml.workspace.pdf.ExportMetadata
 import dev.kuml.workspace.pdf.ExportScope
@@ -41,7 +45,10 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.TimeoutCancellationException
 import kotlinx.coroutines.async
+import kotlinx.coroutines.currentCoroutineContext
+import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeout
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonArray
@@ -164,6 +171,8 @@ internal class DesktopMcpWorkspaceTools(
     private val renderTimeoutMs: Long = DesktopMcpTools.RENDER_TIMEOUT_MS,
     private val renderAllTimeoutMs: Long = RENDER_ALL_TIMEOUT_MS,
     private val gateWaitMs: Long = DesktopMcpTools.GATE_WAIT_MS,
+    /** Scans a (canonical) workspace root; production: [WorkspaceScanner.scan]. Injectable for the size-cap test. */
+    private val scan: (File) -> OkfWorkspace = { WorkspaceScanner.scan(root = it) },
 ) {
     private val log = LoggerFactory.getLogger("dev.kuml.desktop.mcp")
     private val evalScope = CoroutineScope(SupervisorJob() + evalDispatcher)
@@ -497,6 +506,49 @@ internal class DesktopMcpWorkspaceTools(
                 annotations = McpToolAnnotations(readOnlyHint = false, destructiveHint = true, openWorldHint = false),
                 body = ::reload,
             ),
+            tool(
+                name = OPEN_TOOL,
+                description =
+                    "Opens a workspace folder in kUML Desktop (works without an open workspace). Needs an ABSOLUTE folder " +
+                        "path; relative, UNC and device paths, the filesystem root and the home folder are rejected. NEVER " +
+                        "grants trust: for a folder the user has not trusted yet the app shows its trust prompt (marked as " +
+                        "an MCP request) and this tool answers {opened:false, trusted:false, awaitingUserTrust:true}; poll " +
+                        "kuml_desktop_workspace_info afterwards. A declined request is not repeated in this session; " +
+                        "after several declines no further prompts are raised. " +
+                        "mode (knowledge|engineering) is only for folders whose mode cannot be detected. Another open " +
+                        "workspace is only replaced with replace:true; unsaved changes are never discarded. " +
+                        "Returns the workspace_info fields plus {opened, alreadyOpen}. Errors: INVALID_PATH{reason}, " +
+                        "INVALID_ARGUMENT, WORKSPACE_ALREADY_OPEN, WORKSPACE_MODE_UNKNOWN, WORKSPACE_TOO_LARGE, " +
+                        "WORKSPACE_NOT_TRUSTED{reason:DECLINED|DECLINED_LIMIT}, DOCUMENT_DIRTY, UI_BUSY, CONFLICT, IO_ERROR.",
+                schema =
+                    schema(
+                        Prop(
+                            name = "path",
+                            type = "string",
+                            description = "Absolute path of the workspace directory.",
+                            required = true,
+                        ),
+                        Prop(
+                            name = "mode",
+                            type = "string",
+                            description = "knowledge or engineering; only used when the folder's mode cannot be detected.",
+                            enum = listOf("knowledge", "engineering"),
+                        ),
+                        Prop(
+                            name = "replace",
+                            type = "boolean",
+                            description = "Replace a different open workspace without unsaved changes (default false).",
+                        ),
+                    ),
+                annotations =
+                    McpToolAnnotations(
+                        readOnlyHint = false,
+                        destructiveHint = false,
+                        idempotentHint = true,
+                        openWorldHint = false,
+                    ),
+                body = ::open,
+            ),
         )
 
     // ── snapshot / guards ───────────────────────────────────────────────────
@@ -518,13 +570,16 @@ internal class DesktopMcpWorkspaceTools(
     }
 
     /** Reads everything needed from UI state in one UI-thread hop. Throws NO_WORKSPACE_OPEN. */
-    private fun snapshot(): Snapshot =
-        ui.onUi {
-            when (val ws = state.openWorkspace) {
+    private fun snapshot(): Snapshot = ui.onUi { snapshotOf(state.openWorkspace) }
+
+    /** Must run on the UI thread. Throws NO_WORKSPACE_OPEN for `null`. */
+    private fun snapshotOf(openWorkspace: OpenWorkspace?): Snapshot =
+        run {
+            when (val ws = openWorkspace) {
                 null ->
                     throw err(
                         code = "NO_WORKSPACE_OPEN",
-                        "hint" to "Open a workspace in kUML Desktop (File > Open Workspace...).",
+                        "hint" to "Open a workspace in kUML Desktop (File > Open Workspace...) or call $OPEN_TOOL.",
                     )
                 is OpenWorkspace.Knowledge -> {
                     val s = ws.state
@@ -564,7 +619,7 @@ internal class DesktopMcpWorkspaceTools(
                 code = "WORKSPACE_MODE_UNSUPPORTED",
                 "mode" to "engineering",
                 "hint" to "This tool needs a knowledge workspace.",
-                "supported" to listOf("kuml_desktop_workspace_info", "kuml_desktop_workspace_list_documents"),
+                "supported" to listOf("kuml_desktop_workspace_info", "kuml_desktop_workspace_list_documents", OPEN_TOOL),
             )
 
     private fun Snapshot.requireTrusted() {
@@ -624,8 +679,12 @@ internal class DesktopMcpWorkspaceTools(
 
     private fun info(
         @Suppress("UNUSED_PARAMETER") args: JsonObject,
+    ): JsonObject = infoJson(snap = snapshot())
+
+    private fun infoJson(
+        snap: Snapshot,
+        extra: JsonObjectBuilder.() -> Unit = {},
     ): JsonObject {
-        val snap = snapshot()
         val counts = LinkedHashMap<String, Int>()
         snap.documents.forEach { d -> counts.merge(d.type?.id ?: "untyped", 1, Int::plus) }
         return buildJsonObject {
@@ -638,6 +697,7 @@ internal class DesktopMcpWorkspaceTools(
             put("openDocument", snap.selectedPath?.let { JsonPrimitive(it) } ?: JsonNull)
             put("openDirty", snap.dirtyPath != null)
             put("autoRefresh", true)
+            extra()
         }
     }
 
@@ -1276,6 +1336,170 @@ internal class DesktopMcpWorkspaceTools(
         }
     }
 
+    private fun open(args: JsonObject): JsonObject {
+        val root =
+            when (val c = WorkspaceRootPolicy.check(raw = stringArg(args = args, key = "path"))) {
+                is WorkspaceRootPolicy.Checked.Ok -> c.root
+                // Reason code only: never echo the client-supplied path.
+                is WorkspaceRootPolicy.Checked.Rejected -> throw errJson(code = "INVALID_PATH") { put("reason", c.reason) }
+            }
+        val forcedMode =
+            when (optString(args = args, key = "mode")) {
+                null -> null
+                "knowledge" -> WorkspaceMode.KNOWLEDGE
+                "engineering" -> WorkspaceMode.ENGINEERING
+                else -> throw err(code = "INVALID_ARGUMENT", "argument" to "mode")
+            }
+        val replace = boolArg(args = args, key = "replace", default = false)
+        val canonical = WorkspaceTrust.canonicalPath(root)
+        return ui.onUiSuspend(totalTimeoutMs = ioTimeoutMs * 2, cancelOnTimeout = true) {
+            // a) cheap checks on the UI thread, nothing is changed yet.
+            if (state.pendingWorkspaceOpen != null) {
+                throw errJson(code = "UI_BUSY") { put("reason", "WORKSPACE_DIALOG_OPEN") }
+            }
+            if (state.simulation != null) throw errJson(code = "UI_BUSY") { put("reason", "SIMULATION_RUNNING") }
+            val current = state.openWorkspace
+            val currentRoot =
+                when (current) {
+                    is OpenWorkspace.Knowledge -> current.state.workspace.root
+                    is OpenWorkspace.Engineering -> current.root
+                    null -> null
+                }
+            if (currentRoot != null && WorkspaceTrust.canonicalPath(currentRoot) == canonical) {
+                return@onUiSuspend infoJson(snap = snapshotOf(current)) {
+                    put("opened", false)
+                    put("alreadyOpen", true)
+                }
+            }
+            if (isWorkspaceDirty(current)) {
+                throw errJson(code = "DOCUMENT_DIRTY") {
+                    put("hint", "Save or discard the unsaved changes in kUML Desktop first.")
+                }
+            }
+            if (current != null && !replace) {
+                throw errJson(code = "WORKSPACE_ALREADY_OPEN") {
+                    put("name", workspaceName(current))
+                    put("hint", "Pass replace:true to replace it.")
+                }
+            }
+            if (canonical in state.mcpTrustDeclined) {
+                throw errJson(code = "WORKSPACE_NOT_TRUSTED") {
+                    put("reason", "DECLINED")
+                    put("hint", "The user declined to trust this workspace in kUML Desktop; it is not asked again in this session.")
+                }
+            }
+
+            // b) scan off the UI thread (no script is evaluated by the scanner).
+            val workspace =
+                withContext(Dispatchers.IO) {
+                    try {
+                        scan(root)
+                    } catch (_: IllegalArgumentException) {
+                        throw err(code = "WORKSPACE_TOO_LARGE")
+                    } catch (_: Exception) {
+                        throw err(code = "IO_ERROR")
+                    }
+                }
+            // The client may already have been told OPERATION_TIMEOUT (job cancelled): never apply state then.
+            currentCoroutineContext().ensureActive()
+            // Nothing derived from the folder's contents (detected mode, "has no kUML content") may be answered
+            // before the user trusted the root: for untrusted roots both mode checks are skipped and the client
+            // only ever gets the trust prompt; they apply on the retry once the root is trusted.
+            val trusted = WorkspaceTrust.isTrusted(trustedPaths = state.trustedWorkspaces.toList(), root = root)
+            if (trusted) {
+                if (forcedMode != null && workspace.mode != WorkspaceMode.UNKNOWN && workspace.mode != forcedMode) {
+                    throw errJson(code = "INVALID_ARGUMENT") {
+                        put("argument", "mode")
+                        put("reason", "MODE_MISMATCH")
+                        put("detectedMode", workspace.mode.name.lowercase())
+                    }
+                }
+                if (workspace.mode == WorkspaceMode.UNKNOWN && forcedMode == null) {
+                    throw errJson(code = "WORKSPACE_MODE_UNKNOWN") { put("hint", "Pass mode=knowledge|engineering.") }
+                }
+            }
+            // c) trust decision. Never grants trust: an untrusted root only raises the user's dialog.
+            when (val decision = WorkspaceOpener.decide(workspace = workspace, trusted = trusted, forcedMode = forcedMode)) {
+                is WorkspaceOpener.Decision.NeedsMode ->
+                    throw errJson(code = "WORKSPACE_MODE_UNKNOWN") { put("hint", "Pass mode=knowledge|engineering.") }
+                is WorkspaceOpener.Decision.NeedsTrust -> {
+                    if (state.openWorkspace !== current || state.pendingWorkspaceOpen != null) throw err(code = "CONFLICT")
+                    // Prompt-fatigue guard: after a few declined requests the client gets no further prompts this session.
+                    if (state.mcpTrustDeclineCount >= MAX_MCP_TRUST_DECLINES) {
+                        throw errJson(code = "WORKSPACE_NOT_TRUSTED") {
+                            put("reason", "DECLINED_LIMIT")
+                            put("hint", "The user declined several trust requests in kUML Desktop; no further requests this session.")
+                        }
+                    }
+                    state.pendingWorkspaceOpen =
+                        PendingWorkspaceOpen.Trust(
+                            workspace = decision.workspace,
+                            forcedMode = decision.forcedMode,
+                            requestedByMcp = true,
+                        )
+                    buildJsonObject {
+                        put("opened", false)
+                        put("trusted", false)
+                        put("awaitingUserTrust", true)
+                        // No name / mode / documentCount: nothing read from the untrusted folder is disclosed.
+                        put(
+                            "hint",
+                            "The user was asked in kUML Desktop to trust this workspace; poll kuml_desktop_workspace_info.",
+                        )
+                    }
+                }
+                is WorkspaceOpener.Decision.Open -> {
+                    val files =
+                        if (decision.mode == WorkspaceMode.ENGINEERING) {
+                            withContext(Dispatchers.IO) {
+                                try {
+                                    EngineeringFileScanner.scan(root)
+                                } catch (_: IllegalArgumentException) {
+                                    throw err(code = "WORKSPACE_TOO_LARGE")
+                                } catch (_: Exception) {
+                                    throw err(code = "IO_ERROR")
+                                }
+                            }
+                        } else {
+                            emptyList()
+                        }
+                    currentCoroutineContext().ensureActive()
+                    // d) re-check after the suspension (the user may have acted meanwhile), then apply in one step.
+                    if (state.openWorkspace !== current || state.pendingWorkspaceOpen != null) throw err(code = "CONFLICT")
+                    if (isWorkspaceDirty(current)) {
+                        throw errJson(code = "DOCUMENT_DIRTY") {
+                            put("hint", "Save or discard the unsaved changes in kUML Desktop first.")
+                        }
+                    }
+                    val opened = WorkspaceOpener.materialize(workspace = decision.workspace, mode = decision.mode, engineeringFiles = files)
+                    state.openWorkspace = opened
+                    state.noteOpenedDir(root)
+                    val name = workspace.marker?.name ?: root.name
+                    onNotice(McpNotice.WorkspaceOpened(name = name, mode = decision.mode.name.lowercase()))
+                    infoJson(snap = snapshotOf(opened)) {
+                        put("opened", true)
+                        put("alreadyOpen", false)
+                    }
+                }
+            }
+        }
+    }
+
+    /** True when the open workspace (or, in engineering mode, the shared single-file buffer) has unsaved changes. */
+    private fun isWorkspaceDirty(ws: OpenWorkspace?): Boolean =
+        when (ws) {
+            is OpenWorkspace.Knowledge -> ws.state.isDirty || state.isDirty
+            else -> state.isDirty
+        }
+
+    private fun workspaceName(ws: OpenWorkspace): String =
+        when (ws) {
+            is OpenWorkspace.Knowledge ->
+                ws.state.workspace.marker
+                    ?.name ?: ws.state.workspace.root.name
+            is OpenWorkspace.Engineering -> ws.root.name
+        }
+
     private fun openDocument(args: JsonObject): JsonObject {
         val posix = checkedPath(stringArg(args = args, key = "path"))
         val edit = boolArg(args = args, key = "edit", default = false)
@@ -1570,6 +1794,10 @@ internal class DesktopMcpWorkspaceTools(
 
     companion object {
         const val IO_TIMEOUT_MS = 10_000L
+
+        /** After this many declined MCP trust prompts per session, further MCP trust requests are refused. */
+        const val MAX_MCP_TRUST_DECLINES = 3
+        const val OPEN_TOOL = "kuml_desktop_workspace_open"
         const val RENDER_ALL_TIMEOUT_MS = 120_000L
         const val EXPORT_PDF_TIMEOUT_MS = 900_000L
         const val MAX_EXPORT_DOCUMENTS = 500
@@ -1598,6 +1826,7 @@ internal class DesktopMcpWorkspaceTools(
                 "kuml_desktop_workspace_export_pdf",
                 "kuml_desktop_workspace_open_document",
                 "kuml_desktop_workspace_reload",
+                OPEN_TOOL,
             )
     }
 }

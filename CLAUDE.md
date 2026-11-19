@@ -720,13 +720,18 @@ laufenden App arbeitet.
   Undo-Schritt, speichert nie), `_render`, `_validate`, `_get_last_error`, `_get_theme`, `_set_theme`
   sowie die vier `KumlAuthoringTools` (seriell geschützt). Zugriffe auf `AppState` laufen auf dem
   UI-Dispatcher (Timeout ⇒ `UI_BUSY`).
-- **Workspace-Modus:** zehn `kuml_desktop_workspace_*`-Tools (`info`, `list_documents`, `get_document`,
-  `set_document`, `delete_document`, `validate`, `render_document`, `render_all`, `open_document`,
-  `reload`) in `DesktopMcpWorkspaceTools`; bei offenem Workspace antworten die Skript-Tools mit
+- **Workspace-Modus:** zwölf `kuml_desktop_workspace_*`-Tools (`info`, `list_documents`, `get_document`,
+  `set_document`, `delete_document`, `validate`, `render_document`, `render_all`, `export_pdf`,
+  `open_document`, `reload`, `open`) in `DesktopMcpWorkspaceTools`; bei offenem Workspace antworten die Skript-Tools mit
   `WORKSPACE_MODE_UNSUPPORTED`. Schreiben auf Platte über `OkfDocumentWriter` (Save-Gate wie Ctrl+S),
   Revisions-Check (`baseRevision`), nie über ungespeicherte Editor-Änderungen (`DOCUMENT_DIRTY`);
   Schreiben/Löschen/Rendern/Evaluieren nur in vertrauten Workspaces; Pfad-Vorprüfung
   `WorkspacePathPolicy` plus Resolver; Fehlertexte enthalten nie den absoluten Root-Pfad.
+  `kuml_desktop_workspace_open` (einziger absoluter Pfad, geprüft von `WorkspaceRootPolicy`,
+  kanonisiert) **vergibt nie Vertrauen**: ein nicht vertrauter Ordner wird nicht geöffnet, die App zeigt
+  den Trust-Dialog (als MCP-Anfrage markiert), Ergebnis `awaitingUserTrust:true`; Vertrauen vergibt nur
+  `WorkspaceOpener.grantTrustFromUi` aus dem Dialog (Test: `mcp/` darf es nie aufrufen). Invariante:
+  ein in der UI geöffneter Workspace ist vertraut.
 - **Lifecycle-Falle:** Der Dispatcher-Thread des `HttpServer` ist kein Daemon — `stop()` muss auf allen
   Exit-Pfaden laufen (`DisposableEffect`, `onCloseRequest` über `AppState.mcpShutdown`, Beenden-Menü),
   sonst beendet sich die JVM nicht.

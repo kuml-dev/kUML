@@ -16,6 +16,8 @@ import dev.kuml.mcp.tools.McpTool
 import dev.kuml.mcp.tools.McpToolException
 import dev.kuml.mcp.tools.McpToolRegistry
 import dev.kuml.renderer.theme.core.ThemeRegistry
+import dev.kuml.workspace.OkfWorkspace
+import dev.kuml.workspace.WorkspaceScanner
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.CoroutineScope
@@ -37,6 +39,7 @@ import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.put
 import kotlinx.serialization.json.putJsonArray
 import kotlinx.serialization.json.putJsonObject
+import java.io.File
 import java.util.concurrent.Semaphore
 import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicBoolean
@@ -62,6 +65,12 @@ internal sealed interface McpNotice {
     /** A client deleted a workspace document from disk; informational only. */
     data class WorkspaceDocumentDeleted(
         val path: String,
+    ) : McpNotice
+
+    /** A client opened a trusted workspace; informational only. [mode] is `knowledge` or `engineering`. */
+    data class WorkspaceOpened(
+        val name: String,
+        val mode: String,
     ) : McpNotice
 
     /** A client replaced the whole script; [previousScript] allows an explicit "Undo". */
@@ -100,6 +109,7 @@ internal class DesktopMcpTools(
     workspaceRender: McpWorkspaceRenderPort = DefaultWorkspaceRenderPort,
     workspaceEvaluate: McpWorkspaceEvaluatePort = DefaultWorkspaceEvaluatePort,
     workspacePdfExport: McpWorkspacePdfExportPort = DefaultWorkspacePdfExportPort,
+    workspaceScan: (File) -> OkfWorkspace = { WorkspaceScanner.scan(root = it) },
 ) {
     private val evalScope = CoroutineScope(SupervisorJob() + evalDispatcher)
     private val ui = McpUiBridge(uiDispatcher = uiDispatcher, uiTimeoutMs = uiTimeoutMs)
@@ -112,6 +122,7 @@ internal class DesktopMcpTools(
             renderPort = workspaceRender,
             evaluatePort = workspaceEvaluate,
             pdfExportPort = workspacePdfExport,
+            scan = workspaceScan,
             evalGate = evalGate,
             onNotice = onNotice,
             evalDispatcher = evalDispatcher,
@@ -389,6 +400,9 @@ internal class DesktopMcpTools(
     // ── plumbing ─────────────────────────────────────────────────────────────
 
     private fun requireNoWorkspace() {
+        // A workspace-open request waits for the user (trust / mode dialog). Mutating the single-file
+        // buffer meanwhile could be silently discarded when the user confirms, so refuse (UI_BUSY).
+        if (state.pendingWorkspaceOpen != null) throw err(code = "UI_BUSY", "reason" to "WORKSPACE_DIALOG_OPEN")
         val ws = state.openWorkspace ?: return
         throw err(
             code = "WORKSPACE_MODE_UNSUPPORTED",

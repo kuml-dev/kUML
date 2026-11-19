@@ -15,6 +15,7 @@ import dev.kuml.mcp.McpContent
 import dev.kuml.mcp.tools.McpToolException
 import dev.kuml.workspace.OkfFinding
 import dev.kuml.workspace.OkfSeverity
+import dev.kuml.workspace.OkfWorkspace
 import dev.kuml.workspace.WorkspaceScanner
 import io.kotest.assertions.throwables.shouldThrow
 import io.kotest.core.spec.style.FunSpec
@@ -64,6 +65,8 @@ class DesktopMcpWorkspaceToolsTest :
             val renderTimeoutMs: Long = 5_000,
             gateWaitMs: Long = 5_000,
             val blockRender: CountDownLatch? = null,
+            openWorkspace: Boolean = true,
+            scan: (File) -> OkfWorkspace = { WorkspaceScanner.scan(root = it) },
         ) {
             val root: File = Files.createTempDirectory("kuml-mcp-ws").toFile()
             val notices = mutableListOf<McpNotice>()
@@ -83,7 +86,7 @@ class DesktopMcpWorkspaceToolsTest :
             val ws = WorkspaceState(initialWorkspace = WorkspaceScanner.scan(root = root), ioDispatcher = Dispatchers.Unconfined)
 
             init {
-                state.openWorkspace = OpenWorkspace.Knowledge(ws)
+                if (openWorkspace) state.openWorkspace = OpenWorkspace.Knowledge(ws)
                 if (trusted) state.trustedWorkspaces.add(WorkspaceTrust.canonicalPath(root))
             }
 
@@ -99,6 +102,7 @@ class DesktopMcpWorkspaceToolsTest :
                     uiTimeoutMs = uiTimeoutMs,
                     renderTimeoutMs = renderTimeoutMs,
                     gateWaitMs = gateWaitMs,
+                    workspaceScan = scan,
                     workspaceRender =
                         McpWorkspaceRenderPort { docs, out, format, _, _, _ ->
                             renderCalls++
@@ -195,7 +199,9 @@ class DesktopMcpWorkspaceToolsTest :
             try {
                 f.state.openWorkspace = null
                 val argsFor = args("path" to "a.md", "content" to "x", "confirm" to true)
-                DesktopMcpWorkspaceTools.TOOL_NAMES.forEach { name -> f.code(name, argsFor) shouldBe "NO_WORKSPACE_OPEN" }
+                (DesktopMcpWorkspaceTools.TOOL_NAMES - DesktopMcpWorkspaceTools.OPEN_TOOL).forEach { name ->
+                    f.code(name, argsFor) shouldBe "NO_WORKSPACE_OPEN"
+                }
             } finally {
                 f.cleanup()
             }
@@ -208,7 +214,7 @@ class DesktopMcpWorkspaceToolsTest :
                 File(f.root, "m.kuml.kts").writeText("// x")
                 f.call("kuml_desktop_workspace_info")["mode"]!!.jsonPrimitive.content shouldBe "engineering"
                 f.call("kuml_desktop_workspace_list_documents")["total"]!!.jsonPrimitive.int shouldBe 1
-                val rest = DesktopMcpWorkspaceTools.TOOL_NAMES.drop(2)
+                val rest = DesktopMcpWorkspaceTools.TOOL_NAMES.drop(2) - DesktopMcpWorkspaceTools.OPEN_TOOL
                 rest.forEach { name ->
                     val e = f.error(name, args("path" to "a.md", "content" to "x", "confirm" to true))
                     e["error"]!!.jsonPrimitive.content shouldBe "WORKSPACE_MODE_UNSUPPORTED"

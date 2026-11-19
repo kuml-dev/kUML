@@ -66,10 +66,14 @@ internal class McpUiBridge(
      * Suspend variant for operations that do disk I/O or render. The start must happen within the
      * UI timeout (else `UI_BUSY`, nothing was done); once started, the whole operation is bounded by
      * [totalTimeoutMs] (else `OPERATION_TIMEOUT` with `applied:"unknown"` -- the operation keeps
-     * running and may still be applied, it is deliberately NOT cancelled half-way).
+     * running and may still be applied, it is deliberately NOT cancelled half-way) -- unless
+     * [cancelOnTimeout] is set (operations that only apply their result at the very end, after
+     * re-checking the cancellation state): then the job is cancelled so it cannot apply a result
+     * the client was already told about as `applied:"unknown"`.
      */
     fun <T> onUiSuspend(
         totalTimeoutMs: Long,
+        cancelOnTimeout: Boolean = false,
         block: suspend () -> T,
     ): T {
         checkNotEdt()
@@ -91,6 +95,7 @@ internal class McpUiBridge(
             try {
                 withTimeout(totalTimeoutMs) { job.await() }
             } catch (_: TimeoutCancellationException) {
+                if (cancelOnTimeout) job.cancel()
                 throw DesktopMcpTools.err(code = "OPERATION_TIMEOUT", "applied" to "unknown")
             }
         }
