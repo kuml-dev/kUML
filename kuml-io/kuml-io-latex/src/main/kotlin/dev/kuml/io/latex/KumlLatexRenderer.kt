@@ -14,6 +14,8 @@ import dev.kuml.c4.model.C4Relationship
 import dev.kuml.core.model.DiagramType
 import dev.kuml.core.model.KumlDiagram
 import dev.kuml.core.model.KumlElement
+import dev.kuml.core.model.note.NotePlacement
+import dev.kuml.core.model.note.isHint
 import dev.kuml.io.latex.blueprint.BlueprintLatexRenderer
 import dev.kuml.io.latex.bpmn.BpmnLatexRenderer
 import dev.kuml.io.latex.c4.C4LatexRenderer
@@ -32,8 +34,12 @@ import dev.kuml.layout.LayoutResult
 import dev.kuml.layout.NodeId
 import dev.kuml.layout.bridge.NoteLayout
 import dev.kuml.layout.bridge.note.C4NotePlacement
+import dev.kuml.layout.bridge.note.NotePlacementMissCollector
+import dev.kuml.layout.bridge.note.NoteUndrawnCollector
+import dev.kuml.layout.bridge.note.PlacementHintMiss
 import dev.kuml.layout.bridge.note.Sysml2NotePlacement
 import dev.kuml.layout.bridge.note.UmlNotePlacement
+import dev.kuml.layout.bridge.note.UndrawnNote
 import dev.kuml.layout.bridge.note.WidthLimitedNoteMeasure
 import dev.kuml.sysml2.ActDiagram
 import dev.kuml.sysml2.ActionDefinition
@@ -143,13 +149,51 @@ public object KumlLatexRenderer {
         diagram: KumlDiagram,
         layoutResult: LayoutResult,
         options: LatexRenderOptions = LatexRenderOptions.DEFAULT,
-    ): String =
-        renderKuml(
+    ): String {
+        reportUnevaluatedSeqHints(diagram = diagram, layout = layoutResult)
+        return renderKuml(
             diagram = diagram,
             // Nacharbeit 99: notes with a side hint are placed after the layout (unchanged layout when there is none).
             layoutResult = UmlNotePlacement.place(diagram = diagram, layout = layoutResult).layout,
             options = options,
         )
+    }
+
+    /**
+     * Nacharbeit 118: a UML sequence diagram has no LaTeX renderer of its own (it takes the class-diagram path), so a
+     * note of it is either not in the layout at all (the sequence layout carries no comment nodes) and is not drawn,
+     * which is reported as `KUML-NOTE-W002`, or it is in the layout and its side hint is not evaluated, which is
+     * reported as `KUML-NOTE-W004` (placed [NotePlacement.NEAR]). Touches the collectors only, never the layout or the
+     * output. The messages name ids, never the note text.
+     */
+    private fun reportUnevaluatedSeqHints(
+        diagram: KumlDiagram,
+        layout: LayoutResult,
+    ) {
+        if (diagram.type != DiagramType.SEQUENCE) return
+        val drawn =
+            layout.nodes.keys
+                .map { it.value }
+                .toSet()
+        val comments = diagram.elements.filterIsInstance<UmlComment>()
+        val links = diagram.elements.filterIsInstance<UmlCommentLink>()
+        NoteUndrawnCollector.report(
+            comments
+                .filter { it.id !in drawn }
+                .map { c ->
+                    UndrawnNote(
+                        noteId = c.id,
+                        anchorId = links.firstOrNull { it.commentId == c.id }?.annotatedElementId.orEmpty(),
+                        reason = "the LaTeX output has no sequence diagram renderer",
+                    )
+                },
+        )
+        NotePlacementMissCollector.report(
+            comments
+                .filter { it.placement.isHint() && it.id in drawn }
+                .map { PlacementHintMiss(noteId = it.id, wanted = checkNotNull(it.placement), placed = NotePlacement.NEAR) },
+        )
+    }
 
     /**
      * Shared body of the UML entry and the SysML 2 sequence diagram.

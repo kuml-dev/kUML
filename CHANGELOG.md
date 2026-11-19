@@ -6,6 +6,13 @@ All notable changes to this project are documented here. Format follows
 
 ## [Unreleased]
 
+### Nacharbeit 118: LaTeX placement hints, what is and is not evaluated
+
+- **Why.** The "Not fixed" lines of Nacharbeit 104/105 and the 0.58.0 highlight said the SysML 2 sequence LaTeX fallback cannot evaluate a placement hint. That is wrong: the fallback already places its notes through the shared placer, it was only untested. The opposite gap was silent: a note of a UML sequence diagram vanished from the LaTeX output without any message.
+- **Change.** `kuml render --format latex` of a UML sequence diagram now reports every note it does not draw as `KUML-NOTE-W002` (reason: the LaTeX output has no sequence diagram renderer; the hint is therefore not evaluated), and a hinted note that is in the layout as `KUML-NOTE-W004` (placed NEAR). The LaTeX output itself is unchanged. The handbook (UML, SysML 2, ERM, BPMN, validate) now states what the LaTeX export evaluates and what not.
+- **Verification.** New `SeqNoteHintLatexTest` (SysML 2 sequence fallback: ABOVE, LEFT and RIGHT placed outside the lifelines without a warning, an impossible hint reported with its line and without the note text, NEAR and no hint byte-identical); `NotePlacementHintLatexTest` extended for UML sequence (W004, W002, output unchanged); real `kuml render --format latex` run on a UML sequence script with a hinted note.
+- **Not fixed.** (1) UML sequence and ERM still have no LaTeX renderer: UML sequence notes are not drawn and are reported (W002), ERM fails the LaTeX export with an explicit message. (2) The BPMN process view does not avoid neighbours inside the flow; a `LEFT`/`RIGHT` column can meet the tier above for very tall notes. (3) The SysML 2 sequence LaTeX fallback draws lifeline rectangles only (no messages), so a hint is evaluated against that reduced picture. (4) The 0.58.0 release notes keep their old sentence on the SysML 2 sequence fallback; this entry corrects it.
+
 ### Documentation: SDKMAN! installation is live
 
 - **Why.** The README and the handbook still said the SDKMAN! channel was "not live yet" (vendor onboarding pending), although the candidate `kuml` has been published since 0.58.0 (default version 0.58.0).

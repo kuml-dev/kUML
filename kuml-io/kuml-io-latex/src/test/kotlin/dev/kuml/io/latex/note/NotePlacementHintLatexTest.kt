@@ -3,6 +3,7 @@
 package dev.kuml.io.latex.note
 
 import dev.kuml.blueprint.model.BlueprintModel
+import dev.kuml.core.model.DiagramType
 import dev.kuml.core.model.note.KumlNote
 import dev.kuml.core.model.note.NoteKind
 import dev.kuml.core.model.note.NotePlacement
@@ -13,6 +14,7 @@ import dev.kuml.layout.Point
 import dev.kuml.layout.Rect
 import dev.kuml.layout.Size
 import dev.kuml.layout.bridge.note.NotePlacementMissCollector
+import dev.kuml.layout.bridge.note.NoteUndrawnCollector
 import dev.kuml.sysml2.Sysml2Comment
 import dev.kuml.uml.UmlComment
 import io.kotest.core.spec.style.StringSpec
@@ -123,6 +125,43 @@ class NotePlacementHintLatexTest :
             miss.single().wanted shouldBe NotePlacement.ABOVE
             val (_, none) = NotePlacementMissCollector.collecting { render(null, blocked = true) }
             none.shouldBeEmpty()
+        }
+
+        "uml sequence: a side hint is reported as W004 (placed NEAR) and leaves the output unchanged" {
+            fun render(
+                placement: NotePlacement?,
+                drawn: Boolean = true,
+            ): String {
+                val (d, l) = NoteFixtures.uml(body = "Hinted note")
+                val diagram =
+                    d.copy(
+                        type = DiagramType.SEQUENCE,
+                        elements = d.elements.map { if (it is UmlComment) it.copy(placement = placement) else it },
+                    )
+                val layout = if (drawn) l else l.copy(nodes = l.nodes.filterKeys { it.value != "c1" })
+                return KumlLatexRenderer.toLatex(diagram = diagram, layoutResult = layout)
+            }
+            val (hinted, misses) = NotePlacementMissCollector.collecting { render(NotePlacement.ABOVE) }
+            misses shouldHaveSize 1
+            misses.single().wanted shouldBe NotePlacement.ABOVE
+            misses.single().placed shouldBe NotePlacement.NEAR
+            misses.single().message() shouldNotContain "Hinted"
+            hinted shouldBe render(null)
+            val (_, near) = NotePlacementMissCollector.collecting { render(NotePlacement.NEAR) }
+            near.shouldBeEmpty()
+            val (_, none) = NotePlacementMissCollector.collecting { render(null) }
+            none.shouldBeEmpty()
+            // a note the sequence layout does not carry is not drawn: reported as undrawn (W002), not as a hint miss
+            val (undrawnResult, undrawn) =
+                NoteUndrawnCollector.collecting {
+                    NotePlacementMissCollector.collecting { render(NotePlacement.ABOVE, drawn = false) }
+                }
+            undrawnResult.second.shouldBeEmpty()
+            undrawn shouldHaveSize 1
+            undrawn.single().noteId shouldBe "c1"
+            undrawn.single().message() shouldNotContain "Hinted"
+            val (_, drawnUndrawn) = NoteUndrawnCollector.collecting { render(NotePlacement.ABOVE) }
+            drawnUndrawn.shouldBeEmpty()
         }
 
         "sysml2: a honoured ABOVE hint reports nothing, a blocked one reaches the collector in the latex path" {

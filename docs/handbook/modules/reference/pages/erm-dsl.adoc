@@ -252,6 +252,8 @@ exists. If none exists, the default placement is used and `kuml render` reports 
 and `NEAR` never warn. In Chen notation the note is placed relative to the entity or view box. See
 xref:uml-dsl.adoc#note-placement-hint[Note placement hint].
 
+NOTE: ERM diagrams have no LaTeX output (`kuml export --format latex` fails with a clear message), so placement hints apply to SVG and PNG only.
+
 Anchoring an attribute, a relationship or an unknown id throws when the model is built. Limits: 65 536
 characters (hard), 2000 characters / 30 lines displayed (`NOTE_TRUNCATED`). `kuml validate` reports
 `ERM_NOTE_ANCHOR_UNKNOWN` and `ERM_NOTE_ANCHOR_UNSUPPORTED`. The SQL-reverse printer writes notes back
