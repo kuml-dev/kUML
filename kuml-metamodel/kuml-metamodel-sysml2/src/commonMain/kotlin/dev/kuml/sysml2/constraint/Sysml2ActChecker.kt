@@ -19,7 +19,7 @@ public enum class ActSeverity { Error, Warning }
 /**
  * A finding of the activity diagram checker (wave C2).
  *
- * @property code stable numeric code (301-321 used), see [Sysml2ActChecker].
+ * @property code stable numeric code (301-326 used), see [Sysml2ActChecker].
  * @property elementId id of the offending node, flow, region or handler.
  * @property hint how to fix it.
  */
@@ -57,9 +57,17 @@ public data class ActIssue(
  * | 319 | Warning | decision node with more than one incoming flow |
  * | 320 | Warning | merge node with more than one outgoing flow |
  * | 321 | Warning | action with more than one outgoing flow (all of them fire, an implicit fork) |
+ * | 322 | Warning | initial node with an incoming flow |
+ * | 323 | Warning | activity-final / flow-final node with an outgoing flow |
+ * | 324 | Warning | call-behavior / send-signal node with more than one outgoing flow (implicit fork) |
+ * | 325 | Warning | decision node with exactly one outgoing flow (expected at least two) |
+ * | 326 | Warning | merge node with exactly one incoming flow (expected at least two) |
  *
  * Accept-event and accept-time-event nodes without an incoming flow are valid and not reported.
- * Rules 316 to 321 count only flows between nodes of the diagram and ignore self-loops.
+ * Rules 316 to 324 count only flows between nodes of the diagram and ignore self-loops.
+ * Rules 325 and 326 also count flows to or from nodes outside the diagram (so a branch leaving the diagram is not
+ * missed), but ignore self-loops and interrupting flows; they stay silent on nodes without any branch.
+ * An initial node with several outgoing flows is not reported: UML 2.5 treats it as an implicit fork.
  * All traversals are iterative and bounded.
  */
 public object Sysml2ActChecker {
@@ -356,13 +364,19 @@ public object Sysml2ActChecker {
         issues: MutableList<ActIssue>,
     ) {
         // Interrupting flows are alternative abort edges that do not fire together with the normal exit,
-        // so they are not counted towards the outgoing degree (ACT317, ACT318, ACT320, ACT321).
+        // so they are not counted towards the outgoing degree (ACT317, ACT318, ACT320, ACT321, ACT323, ACT324).
         val edges =
             model.usages.filterIsInstance<ObjectFlowUsage>().map { Triple(it.sourceNodeId, it.targetNodeId, it.interrupts) } +
                 model.usages.filterIsInstance<ControlFlowUsage>().map { Triple(it.sourceNodeId, it.targetNodeId, it.interrupts) }
         val incoming = HashMap<String, Int>()
         val outgoing = HashMap<String, Int>()
+        val rawIncoming = HashMap<String, Int>()
+        val rawOutgoing = HashMap<String, Int>()
         for ((source, target, interrupting) in edges) {
+            if (source != target && !interrupting) {
+                if (source in actionById) rawOutgoing[source] = (rawOutgoing[source] ?: 0) + 1
+                if (target in actionById) rawIncoming[target] = (rawIncoming[target] ?: 0) + 1
+            }
             if (source == target || source !in actionById || target !in actionById) continue
             if (!interrupting) outgoing[source] = (outgoing[source] ?: 0) + 1
             incoming[target] = (incoming[target] ?: 0) + 1
@@ -425,6 +439,71 @@ public object Sysml2ActChecker {
                         hint = "Use a forkNode for parallel flows or a decisionNode for alternatives.",
                     )
             }
+            checkInitialFinalDegrees(a = a, inCount = inCount, outCount = outCount, issues = issues)
+            if ((a.kind == ActivityNodeKind.CallBehavior || a.kind == ActivityNodeKind.SendSignal) && outCount > 1) {
+                issues +=
+                    warn(
+                        code = 324,
+                        id = a.id,
+                        message = "Node '${a.name}' has $outCount outgoing flows; all of them fire (implicit fork).",
+                        hint = "Use a forkNode for parallel flows or a decisionNode for alternatives.",
+                    )
+            }
+            checkSingleBranch(a = a, rawIn = rawIncoming[a.id] ?: 0, rawOut = rawOutgoing[a.id] ?: 0, issues = issues)
+        }
+    }
+
+    private fun checkInitialFinalDegrees(
+        a: ActionDefinition,
+        inCount: Int,
+        outCount: Int,
+        issues: MutableList<ActIssue>,
+    ) {
+        if (a.kind == ActivityNodeKind.Initial && inCount >= 1) {
+            issues +=
+                warn(
+                    code = 322,
+                    id = a.id,
+                    message = "Initial node '${a.name}' has $inCount incoming flow(s); an initial node has none.",
+                    hint = "Remove the incoming flow or use a mergeNode/action as loop target instead of the initial node.",
+                )
+        }
+        val isFinal = a.kind == ActivityNodeKind.Final || a.kind == ActivityNodeKind.FlowFinal
+        if (isFinal && outCount >= 1) {
+            val label = if (a.kind == ActivityNodeKind.Final) "Activity final" else "Flow final"
+            issues +=
+                warn(
+                    code = 323,
+                    id = a.id,
+                    message = "$label node '${a.name}' has $outCount outgoing flow(s); a final node ends the flow.",
+                    hint = "Remove the outgoing flow or replace the final node by an action/mergeNode.",
+                )
+        }
+    }
+
+    private fun checkSingleBranch(
+        a: ActionDefinition,
+        rawIn: Int,
+        rawOut: Int,
+        issues: MutableList<ActIssue>,
+    ) {
+        if (a.kind == ActivityNodeKind.Decision && rawOut == 1 && rawIn >= 1) {
+            issues +=
+                warn(
+                    code = 325,
+                    id = a.id,
+                    message = "Decision '${a.name}' has only one outgoing flow (expected at least 2).",
+                    hint = "Add the missing alternative branch (e.g. [else]) or remove the decision.",
+                )
+        }
+        if (a.kind == ActivityNodeKind.Merge && rawIn == 1 && rawOut >= 1) {
+            issues +=
+                warn(
+                    code = 326,
+                    id = a.id,
+                    message = "Merge '${a.name}' has only one incoming flow (expected at least 2).",
+                    hint = "Remove the merge or add the missing alternative branch.",
+                )
         }
     }
 

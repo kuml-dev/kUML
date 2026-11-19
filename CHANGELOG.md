@@ -6,6 +6,14 @@ All notable changes to this project are documented here. Format follows
 
 ## [Unreleased]
 
+### Nacharbeit 121a: remaining activity degree rules as warnings
+
+- **Why.** "Not fixed" of Nacharbeit 112: initial and final nodes, call-behavior and send-signal nodes, and decisions or merges with a single branch were not checked.
+- **Change.** New activity warnings `ACT322` (initial node with an incoming flow), `ACT323` (activity-final or flow-final node with an outgoing flow), `ACT324` (call-behavior or send-signal node with more than one outgoing flow, an implicit fork; `ACT321` stays exclusive to plain actions), `ACT325` (decision with exactly one outgoing flow) and `ACT326` (merge with exactly one incoming flow). All are warnings, so `kuml validate --strict` does not promote them. `ACT322` to `ACT324` count flows between nodes of the diagram only and ignore self-loops and interrupting flows in the outgoing degree. `ACT325` and `ACT326` are deliberately narrow: they also count branches that leave the diagram, ignore self-loops and interrupting flows, and stay silent when the node has no branch at all (unfinished or partial diagram). Decision: initial nodes with several outgoing flows are not reported, because UML 2.5 treats them as an implicit fork. No rendering, persistence or metamodel change.
+- **Verification.** `Sysml2C2ActTest` (failing and passing case per rule, severity, interrupting flows, self-loops, branches leaving the diagram), `ValidateCommandActTest` (CLI output, exit status 0, `--strict` stays at 0) and `Sysml2ActDegreeInvariantTest` (no `ACT322` to `ACT326` finding and no activity error on any vault activity example).
+- **Not verified.** Intel Mac, Windows.
+- **Not fixed.** Initial nodes with several outgoing flows (intentional). Decisions and merges without any branch, and branches leaving the diagram for `ACT322` to `ACT324`, are not checked. Incoming degree of final nodes, and fork or join nodes with fewer than two branches, are not checked.
+
 ### Nacharbeit 120: notes avoid edge labels (UML, ERM), BPMN notes stay in their lane
 
 - **Why.** A note with a placement hint could sit on top of the centre label of an edge (UML, ERM), and a BPMN text annotation could leave its lane for a neighbouring lane or pool whenever the wished side was free there. Both were listed as "Not fixed" in Nacharbeit 99, 100 and 103.

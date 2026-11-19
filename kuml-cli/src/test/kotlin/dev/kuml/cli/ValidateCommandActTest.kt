@@ -40,4 +40,36 @@ class ValidateCommandActTest :
             result.output shouldContain "ACT321"
             KumlCli().test(listOf("validate", action.absolutePath, "--strict")).statusCode shouldBe 0
         }
+
+        test("validate reports ACT322 for initial-incoming, --strict keeps exit 0").config(timeout = 120.seconds) {
+            val file = File("src/test/resources/act/initial-incoming.kuml.kts")
+            val result = KumlCli().test(listOf("validate", file.absolutePath))
+            result.statusCode shouldBe 0
+            result.output shouldContain "ACT322"
+            KumlCli().test(listOf("validate", file.absolutePath, "--strict")).statusCode shouldBe 0
+        }
+
+        test("validate reports ACT323 for final-outgoing, --strict keeps exit 0").config(timeout = 120.seconds) {
+            val file = File("src/test/resources/act/final-outgoing.kuml.kts")
+            val result = KumlCli().test(listOf("validate", file.absolutePath))
+            result.statusCode shouldBe 0
+            result.output shouldContain "ACT323"
+            KumlCli().test(listOf("validate", file.absolutePath, "--strict")).statusCode shouldBe 0
+        }
+
+        test("validate reports ACT324 for callbehavior-two-outgoing, --strict keeps exit 0").config(timeout = 120.seconds) {
+            val file = File("src/test/resources/act/callbehavior-two-outgoing.kuml.kts")
+            val result = KumlCli().test(listOf("validate", file.absolutePath))
+            result.statusCode shouldBe 0
+            result.output shouldContain "ACT324"
+            KumlCli().test(listOf("validate", file.absolutePath, "--strict")).statusCode shouldBe 0
+        }
+
+        test("validate reports ACT325 for decision-one-outgoing, --strict keeps exit 0").config(timeout = 120.seconds) {
+            val file = File("src/test/resources/act/decision-one-outgoing.kuml.kts")
+            val result = KumlCli().test(listOf("validate", file.absolutePath))
+            result.statusCode shouldBe 0
+            result.output shouldContain "ACT325"
+            KumlCli().test(listOf("validate", file.absolutePath, "--strict")).statusCode shouldBe 0
+        }
     })

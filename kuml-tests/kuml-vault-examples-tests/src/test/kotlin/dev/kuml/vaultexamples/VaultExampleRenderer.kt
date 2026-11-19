@@ -41,6 +41,8 @@ import dev.kuml.sysml2.ReqDiagram
 import dev.kuml.sysml2.SeqDiagram
 import dev.kuml.sysml2.StmDiagram
 import dev.kuml.sysml2.UcDiagram
+import dev.kuml.sysml2.constraint.ActSeverity
+import dev.kuml.sysml2.constraint.Sysml2ActChecker
 import java.io.File
 import kotlin.script.experimental.api.ResultWithDiagnostics
 import kotlin.script.experimental.api.ScriptDiagnostic
@@ -114,6 +116,23 @@ object VaultExampleRenderer {
         val layout = sysml2Layout(engine = engine, model = extracted.model, diagram = diagram)
         val plan = KumlSvgRenderer.parLabelPlan(model = extracted.model, diagram = diagram, layoutResult = layout)
         return Sysml2LayoutBridge.parLabelWarnings(plan).map { it.code }
+    }
+
+    /**
+     * Activity checker findings (code, severity) of an activity script (Nacharbeit 121a): every activity diagram of the
+     * extracted SysML 2 model is checked; empty for other diagrams and for scripts that fail to evaluate.
+     */
+    fun actCheckerFindings(script: String): List<Pair<Int, ActSeverity>> {
+        ensureInit()
+        val success = KumlScriptHost.eval(code = script) as? ResultWithDiagnostics.Success ?: return emptyList()
+        val extracted =
+            DiagramExtractor.extractAny(
+                returnValue = success.value.returnValue,
+                input = File("inline.kuml.kts"),
+            ) as? ExtractedDiagram.Sysml2
+                ?: return emptyList()
+        val diagram = extracted.diagram as? ActDiagram ?: return emptyList()
+        return Sysml2ActChecker.check(model = extracted.model, diagram = diagram).map { it.code to it.severity }
     }
 
     fun render(

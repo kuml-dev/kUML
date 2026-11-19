@@ -504,6 +504,124 @@ class Sysml2C2ActTest :
             codes(m) shouldBe emptyList()
         }
 
+        // Only the flow-degree codes (ACT316-ACT326); other warnings (311, 312 ...) are irrelevant for these cases.
+        fun degreeCodes(model: Sysml2Model) = codes(model).filter { it in 316..326 }
+
+        // Nacharbeit 121a: a node of the given kind with n incoming and m outgoing flows (interrupting optional).
+        fun nodeModel(
+            kind: String,
+            incoming: Int,
+            outgoing: Int,
+            interruptingOut: Int = 0,
+            outsideOut: Int = 0,
+            outsideIn: Int = 0,
+        ): Sysml2Model =
+            sysml2Model(name = "Degrees") {
+                val node =
+                    when (kind) {
+                        "initial" -> initialNode(name = "N")
+                        "final" -> finalNode(name = "N")
+                        "flowFinal" -> flowFinalNode(name = "N")
+                        "call" -> callBehavior(name = "N", activityId = "Other")
+                        "send" -> sendSignal(name = "N", signal = "S")
+                        "decision" -> decisionNode(name = "N")
+                        else -> mergeNode(name = "N")
+                    }
+                val sources = (1..incoming).map { actionDef(name = "S$it") }
+                val targets = (1..outgoing + interruptingOut).map { actionDef(name = "T$it") }
+                val outside = actionDef(name = "Outside")
+                sources.forEachIndexed { i, s -> controlFlow(name = "in$i", source = s, target = node) }
+                targets.forEachIndexed { i, t ->
+                    controlFlow(name = "out$i", source = node, target = t, interrupts = i >= outgoing)
+                }
+                repeat(outsideOut) { controlFlow(name = "xo$it", source = node, target = outside) }
+                repeat(outsideIn) { controlFlow(name = "xi$it", source = outside, target = node) }
+                actDiagram(name = "D") {
+                    include(node)
+                    sources.forEach { include(it) }
+                    targets.forEach { include(it) }
+                }
+            }
+
+        test("checker: initial node with an incoming flow gets ACT322, without does not") {
+            val issues = Sysml2ActChecker.check(model = nodeModel("initial", incoming = 1, outgoing = 1))
+            issues.map { it.code } shouldBe listOf(322)
+            issues.single().elementId shouldBe "N"
+            issues.single().severity shouldBe ActSeverity.Warning
+            codes(nodeModel("initial", incoming = 0, outgoing = 1)) shouldBe emptyList()
+        }
+
+        test("checker: initial node with two outgoing flows is not reported (implicit fork per UML 2.5)") {
+            codes(nodeModel("initial", incoming = 0, outgoing = 2)) shouldBe emptyList()
+        }
+
+        test("checker: final and flow-final nodes with an outgoing flow get ACT323") {
+            for (kind in listOf("final", "flowFinal")) {
+                val m = nodeModel(kind, incoming = 1, outgoing = 1)
+                codes(m) shouldBe listOf(323)
+                codes(m, ActSeverity.Warning) shouldBe listOf(323)
+                codes(nodeModel(kind, incoming = 1, outgoing = 0)) shouldBe emptyList()
+                degreeCodes(nodeModel(kind, incoming = 1, outgoing = 0, interruptingOut = 1)) shouldBe emptyList()
+            }
+        }
+
+        test("checker: call-behavior and send-signal with two outgoing flows get ACT324 and not ACT321") {
+            for (kind in listOf("call", "send")) {
+                degreeCodes(nodeModel(kind, incoming = 1, outgoing = 2)) shouldBe listOf(324)
+                degreeCodes(nodeModel(kind, incoming = 1, outgoing = 1)) shouldBe emptyList()
+                degreeCodes(nodeModel(kind, incoming = 1, outgoing = 1, interruptingOut = 1)) shouldBe emptyList()
+            }
+        }
+
+        test("checker: decision with one outgoing flow gets ACT325, with two does not") {
+            val m = nodeModel("decision", incoming = 1, outgoing = 1)
+            codes(m) shouldBe listOf(325)
+            codes(m, ActSeverity.Warning) shouldBe listOf(325)
+            codes(nodeModel("decision", incoming = 1, outgoing = 2)) shouldBe emptyList()
+            codes(nodeModel("decision", incoming = 1, outgoing = 0)) shouldBe emptyList()
+        }
+
+        test("checker: merge with one incoming flow gets ACT326, with two does not") {
+            val m = nodeModel("merge", incoming = 1, outgoing = 1)
+            codes(m) shouldBe listOf(326)
+            codes(m, ActSeverity.Warning) shouldBe listOf(326)
+            codes(nodeModel("merge", incoming = 2, outgoing = 1)) shouldBe emptyList()
+            codes(nodeModel("merge", incoming = 0, outgoing = 1)) shouldBe emptyList()
+        }
+
+        test("checker: ACT325 and ACT326 count branches leaving the diagram, ACT322 to ACT326 ignore self-loops") {
+            codes(nodeModel("decision", incoming = 1, outgoing = 1, outsideOut = 1)) shouldBe emptyList()
+            codes(nodeModel("merge", incoming = 1, outgoing = 1, outsideIn = 1)) shouldBe emptyList()
+            val m =
+                sysml2Model(name = "Loops") {
+                    val i = initialNode(name = "I")
+                    val f = finalNode(name = "F")
+                    val a = actionDef(name = "A")
+                    controlFlow(name = "ii", source = i, target = i)
+                    controlFlow(name = "ff", source = f, target = f)
+                    controlFlow(name = "ia", source = i, target = a)
+                    controlFlow(name = "af", source = a, target = f)
+                    actDiagram(name = "D") {
+                        include(i)
+                        include(f)
+                        include(a)
+                    }
+                }
+            codes(m) shouldBe emptyList()
+        }
+
+        test("checker: the new degree rules are warnings only") {
+            for ((kind, i, o) in listOf(
+                Triple("initial", 1, 1),
+                Triple("final", 1, 1),
+                Triple("call", 1, 2),
+                Triple("decision", 1, 1),
+                Triple("merge", 1, 1),
+            )) {
+                codes(nodeModel(kind, incoming = i, outgoing = o), ActSeverity.Error) shouldBe emptyList()
+            }
+        }
+
         test("checker: dangling region reference is an error") {
             val m =
                 Sysml2Model(
