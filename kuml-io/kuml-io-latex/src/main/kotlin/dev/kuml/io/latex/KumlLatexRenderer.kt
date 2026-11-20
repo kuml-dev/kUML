@@ -1086,6 +1086,10 @@ public object KumlLatexRenderer {
         // `babel` provides `\guillemotleft` / `\guillemotright` reliably in
         // every modern engine; fontenc T1 enables proper hyphenation + guillemets.
         appendLine("\\usepackage[T1]{fontenc}")
+        // `lmodern` supplies Type 1 outlines for every T1 series and size. Without it, T1 falls back to the EC
+        // bitmap fonts, and a TeX Live without cm-super (the apt set on CI) then runs mktexpk/Metafont, which
+        // fails at odd sizes ("Font ecsx0800 at 525 not found" for \sffamily\scriptsize\bfseries).
+        appendLine("\\usepackage{lmodern}")
         appendLine("\\usepackage[english]{babel}")
         appendTikzLibraryLines(extraLibraries)
         appendLine("\\begin{document}")
@@ -1113,7 +1117,17 @@ public object KumlLatexRenderer {
             appendLine("\\makeatletter")
             for (pkg in PREAMBLE_PACKAGES) {
                 val opt = pkg.options?.let { "[$it]" } ?: ""
-                appendLine("\\@ifpackageloaded{${pkg.name}}{}{\\usepackage$opt{${pkg.name}}}")
+                if (pkg.name == "lmodern") {
+                    // lmodern resets \rmdefault/\sfdefault/\ttdefault, so it must never override a font the host
+                    // document chose (libertine, palatino, ...): load it only while all three are still the CM defaults.
+                    appendLine("\\def\\kumlcmr{cmr}\\def\\kumlcmss{cmss}\\def\\kumlcmtt{cmtt}")
+                    appendLine(
+                        "\\ifx\\rmdefault\\kumlcmr\\ifx\\sfdefault\\kumlcmss\\ifx\\ttdefault\\kumlcmtt" +
+                            "\\usepackage{lmodern}\\fi\\fi\\fi",
+                    )
+                } else {
+                    appendLine("\\@ifpackageloaded{${pkg.name}}{}{\\usepackage$opt{${pkg.name}}}")
+                }
             }
             appendLine("\\makeatother")
             appendTikzLibraryLines(LatexFamily.entries.filter { it in families }.flatMap { it.extraTikzLibraries })
@@ -1133,6 +1147,7 @@ public object KumlLatexRenderer {
             PreamblePackage(name = "tikz", options = null),
             PreamblePackage(name = "inputenc", options = "utf8"),
             PreamblePackage(name = "fontenc", options = "T1"),
+            PreamblePackage(name = "lmodern", options = null),
             PreamblePackage(name = "babel", options = "english"),
         )
 

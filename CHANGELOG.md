@@ -6,6 +6,14 @@ All notable changes to this project are documented here. Format follows
 
 ## [Unreleased]
 
+### Nacharbeit 123b: LaTeX standalone preamble loads lmodern (CI pdflatex failure)
+
+- **Why.** The `LaTeX PDF build` CI job failed for the ERM fixture with `Font ecsx0800 at 525 not found`. The standalone preamble loaded `fontenc[T1]` but not `lmodern`. T1 then selects the EC bitmap fonts, and a TeX Live without `cm-super` (the apt set of the CI job) falls back to `mktexpk`/Metafont, which fails at odd sizes. The ERM renderer sets `\sffamily\scriptsize\bfseries`, which hits exactly that case. Other families triggered the same fallback silently (it succeeded there, but generated bitmap fonts).
+- **Change.** `\usepackage{lmodern}` directly after `\usepackage[T1]{fontenc}` in the standalone preamble and in `kuml-preamble.tex` of the folder export. In the shared preamble it is loaded only while `\rmdefault`, `\sfdefault` and `\ttdefault` are still the Computer Modern defaults, so a host document that chose its own font (libertine, palatino, ...) keeps it. Five standalone goldens changed by that one line. The pdflatex tests (`LatexStandaloneAllFamiliesTest`, `LatexFolderPdfBuildTest`) now also fail when the log contains `mktexpk`. Visible effect: Latin Modern sans instead of Computer Modern sans, near-identical.
+- **Tests.** `SharedPreambleTest` and `ErmLatexRendererTest` assert `lmodern` after `fontenc` without TeX.
+- **Verification.** Docker `ubuntu:24.04`, the CI package list with `--no-install-recommends` (no `cm-super`), TeX Live 2023. Before: `erm-martin` exit 1 (9 `mktexpk` lines), the folder export exit 1 (6); `blueprint` 12, `bpmn-collaboration` 12, `sysml2-act` 6, `c4-context`, `sysml2-bdd`, `sysml2-req` 3 each (exit 0, bitmap fonts generated); the other eight families 0. Minimal file: `\sffamily\scriptsize\bfseries` alone fails (exit 1). After: all 16 family documents and the folder export exit 0, PDF present, 0 `mktexpk` lines.
+- **Not verified.** A real GitHub CI run (until pushed); MiKTeX/Windows; TeX distributions other than TeX Live 2023 and MacTeX; the folder export was checked with the 16 test fixtures only.
+
 ### Nacharbeit 123: ERM LaTeX/TikZ export (Martin notation)
 
 - **Added.** `kuml render --format latex` (and the folder, workspace and Desktop LaTeX exports) draws ERM diagrams in Martin notation: entity boxes with PK/FK/unique markers, types and defaults, double border for weak entities, view boxes, crow's-foot glyphs (one, zero-or-one, one-or-many, zero-or-many), dashed non-identifying relationships, relationship names and roles, and notes with their anchor lines. Boxes and routes come from the same layout as the SVG output; notes with a side hint go through `ErmNotePlacement` like in SVG. New `LatexFamily.ERM`, `KumlLatexRenderer.toLatex(ErmModel, ErmDiagram, LayoutResult, ...)` and `KumlLatexRenderer.ermUnsupportedNotationMessage`.

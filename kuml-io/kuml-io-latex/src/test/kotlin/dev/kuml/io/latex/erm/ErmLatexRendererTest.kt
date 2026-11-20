@@ -13,6 +13,7 @@ import dev.kuml.layout.Point
 import io.kotest.assertions.throwables.shouldThrow
 import io.kotest.core.spec.style.StringSpec
 import io.kotest.matchers.floats.plusOrMinus
+import io.kotest.matchers.ints.shouldBeGreaterThan
 import io.kotest.matchers.shouldBe
 import io.kotest.matchers.shouldNotBe
 import io.kotest.matchers.string.shouldContain
@@ -26,6 +27,16 @@ private fun count(
 
 class ErmLatexRendererTest :
     StringSpec({
+        // Nacharbeit 123b: the ERM renderer sets \sffamily\scriptsize\bfseries. In T1 without lmodern that is an EC
+        // bitmap-only series and size; a TeX Live without cm-super (the apt set on CI) then fails with
+        // "Font ecsx0800 at 525 not found". The standalone preamble must load lmodern after fontenc.
+        "standalone preamble loads lmodern after fontenc so bold small sans has Type 1 outlines" {
+            val tex = ErmLatexFixtures.render(options = LatexRenderOptions(standalone = true))
+            tex shouldContain "\\usepackage{lmodern}"
+            tex.indexOf("\\usepackage{lmodern}") shouldBeGreaterThan tex.indexOf("\\usepackage[T1]{fontenc}")
+            tex shouldContain "\\sffamily\\scriptsize\\bfseries"
+        }
+
         "snippet has a picture, the entity boxes and no document skeleton" {
             val tex = ErmLatexFixtures.render()
             tex shouldContain "\\begin{tikzpicture}"

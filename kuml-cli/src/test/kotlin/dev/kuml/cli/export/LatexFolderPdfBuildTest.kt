@@ -50,6 +50,7 @@ class LatexFolderPdfBuildTest :
                     }
                     check(process.exitValue() == 0) { "pdflatex failed:\n${log.takeLast(3000)}" }
                     File(out, "main.pdf").isFile shouldBe true
+                    log shouldNotContain "mktexpk"
                     log shouldNotContain "Undefined control sequence"
                     log shouldNotContain "write18 enabled"
                     log shouldContain "Output written on main.pdf"

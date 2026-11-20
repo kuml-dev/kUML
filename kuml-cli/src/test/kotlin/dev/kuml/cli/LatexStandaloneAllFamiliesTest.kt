@@ -101,6 +101,8 @@ class LatexStandaloneAllFamiliesTest :
                         check(finished) { "pdflatex timed out for $family" }
                         check(proc.exitValue() == 0) { "pdflatex failed for $family:\n${log.takeLast(2000)}" }
                         check(Files.exists(dir.resolve("$family.pdf"))) { "no PDF produced for $family" }
+                        // A bitmap font fallback (Metafont) means a missing Type 1 font; it fails on TeX Live without cm-super.
+                        check(!log.contains("mktexpk")) { "pdflatex generated bitmap fonts (mktexpk) for $family:\n${log.takeLast(2000)}" }
                         // Optional: keep the PDFs for a visual check (KUML_LATEX_KEEP_DIR=/some/dir).
                         System.getenv("KUML_LATEX_KEEP_DIR")?.takeIf { it.isNotBlank() }?.let { keep ->
                             Files.createDirectories(Path.of(keep))

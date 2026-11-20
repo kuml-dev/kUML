@@ -2,11 +2,15 @@ package dev.kuml.io.latex
 
 import dev.kuml.core.model.note.NoteKind
 import dev.kuml.io.latex.note.NoteFixtures
+import dev.kuml.io.latex.note.Pdflatex
 import io.kotest.assertions.throwables.shouldThrow
 import io.kotest.core.spec.style.StringSpec
+import io.kotest.matchers.ints.shouldBeGreaterThan
 import io.kotest.matchers.shouldBe
 import io.kotest.matchers.string.shouldContain
 import io.kotest.matchers.string.shouldNotContain
+import java.nio.file.Files
+import java.util.concurrent.TimeUnit
 
 private fun libraryLines(tex: String): List<String> = tex.lines().filter { it.startsWith("\\usetikzlibrary") }
 
@@ -44,6 +48,41 @@ class SharedPreambleTest :
             tex shouldContain KumlLatexRenderer.tikzStyleBlock("")
             tex shouldContain "\\@ifpackageloaded{babel}{}{\\usepackage[english]{babel}}"
             tex shouldContain "\\@ifpackageloaded{tikz}{}{\\usepackage{tikz}}"
+            // lmodern is guarded by the font defaults, not by ifpackageloaded, so it cannot override a host font
+            tex shouldContain "\\ifx\\rmdefault\\kumlcmr"
+            tex shouldContain "\\usepackage{lmodern}\\fi\\fi\\fi"
+            tex.indexOf("{lmodern}") shouldBeGreaterThan tex.indexOf("{fontenc}")
+        }
+
+        // The preamble is \input into host documents: it must not reset a font the host already chose.
+        "shared preamble keeps a host document font default and sets lmodern only on the CM defaults".config(enabled = Pdflatex.enabled) {
+            fun rmAfterPreamble(hostFont: String): String {
+                val dir = Files.createTempDirectory("kuml-preamble-font-").toFile()
+                try {
+                    java.io.File(dir, "kuml-preamble.tex").writeText(KumlLatexRenderer.sharedPreamble(setOf(LatexFamily.UML)))
+                    java.io.File(dir, "host.tex").writeText(
+                        "\\documentclass{article}\n$hostFont\n\\input{kuml-preamble}\n" +
+                            "\\begin{document}\\typeout{RM=\\rmdefault=END}\\end{document}\n",
+                    )
+                    val process =
+                        ProcessBuilder(
+                            Pdflatex.requireExecutable().path,
+                            "-no-shell-escape",
+                            "-interaction=nonstopmode",
+                            "-halt-on-error",
+                            "host.tex",
+                        ).directory(dir).redirectErrorStream(true).start()
+                    process.outputStream.close()
+                    val output = process.inputStream.bufferedReader().readText()
+                    check(process.waitFor(60, TimeUnit.SECONDS)) { "pdflatex timed out" }
+                    check(process.exitValue() == 0) { "pdflatex failed:\n${output.takeLast(2000)}" }
+                    return output.substringAfter("RM=").substringBefore("=END")
+                } finally {
+                    dir.deleteRecursively()
+                }
+            }
+            rmAfterPreamble("\\renewcommand{\\rmdefault}{ppl}") shouldBe "ppl"
+            rmAfterPreamble("") shouldBe "lmr"
         }
 
         "library lines match the standalone output of each family" {
