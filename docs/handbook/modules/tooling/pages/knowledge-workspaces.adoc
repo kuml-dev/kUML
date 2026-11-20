@@ -295,6 +295,12 @@ validator reports it once as the info finding `OKF-I-001`
 `type:` entry, carries the canonical id (field `canonicalId` in `kuml workspace validate -o json`), and its
 suggestion names the replacement.
 
+In the Desktop Knowledge Workspace, the `OKF-I-001` finding of the open document has a button "Change to <id>"
+(German: "In <id> ändern"). It replaces the alias in the editor buffer only; nothing is written to disk, and you
+save with Ctrl+S as usual. In edit mode it is one undoable step (Ctrl+Z); in read mode there is no Ctrl+Z, so go
+back by not saving or by reloading from disk. If the type is no longer an alias, a notice appears and nothing
+changes. Batch normalisation stays with `kuml workspace validate --fix-aliases`.
+
 kUML never rewrites a file during validation, rendering or listing unless explicitly asked.
 `kuml workspace validate <dir> --fix-aliases` rewrites only the alias value of the `type:` line in `.md`
 documents that have an `OKF-I-001` finding. It preserves every other byte (including CRLF line endings), writes
@@ -437,7 +443,7 @@ blocks a save in the desktop editor either (see "The save gate"): only a missing
 | Code | Severity | Meaning | Blocks a Desktop save?
 
 | `OKF-E-001` | ERROR | Frontmatter missing or has no `type:` field. | Yes
-| `OKF-I-001` | INFO | `type:` is an alias of a canonical id; the reported line is the `type:` line. | No
+| `OKF-I-001` | INFO | `type:` is an alias of a canonical id; the reported line is the `type:` line. The Desktop offers a one-click "Change to <id>" on the open buffer. | No
 | `OKF-W-002` | WARNING (or ERROR under `--strict-vocabulary`) | Unrecognised `type:` value; the reported line is the `type:` line. | No
 | `OKF-E-003` | ERROR | A diagram type has no ```kuml block. | No
 | `OKF-W-004` | WARNING | A document has more than one ```kuml block ("one file = one diagram"). | No

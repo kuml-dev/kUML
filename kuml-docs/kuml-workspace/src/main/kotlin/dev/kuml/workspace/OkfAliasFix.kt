@@ -4,7 +4,8 @@ package dev.kuml.workspace
  * Byte-preserving rewrite of an OKF alias `type:` value to its canonical id (Nacharbeit 114).
  *
  * This is a pure building block. It is wired into [OkfAliasRewriter] and the CLI (`kuml workspace validate
- * --fix-aliases`); the Desktop and the language server do not use it yet.
+ * --fix-aliases`); the Desktop uses it for the buffer-level one-click action
+ * (Nacharbeit 122b); the language-server code action is still open.
  * It works on the raw text (no line-ending normalisation, no re-serialisation), so spacing, comments,
  * quotes and `\r\n` line endings survive; only the alias characters change.
  */

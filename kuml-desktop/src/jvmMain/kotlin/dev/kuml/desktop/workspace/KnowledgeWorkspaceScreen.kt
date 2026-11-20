@@ -5,6 +5,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.snapshotFlow
@@ -70,6 +71,8 @@ fun KnowledgeWorkspaceScreen(
     onExportImage: ((ImageFormat) -> Unit)? = null,
 ) {
     val scope = rememberCoroutineScope()
+    // Local copy of the editor handle (null while not editing); feeds the undoable alias action.
+    val editorActions = remember { mutableStateOf<EditorActions?>(null) }
     val linkHandler =
         remember(state) {
             DefaultWorkspaceLinkHandler(
@@ -188,7 +191,14 @@ fun KnowledgeWorkspaceScreen(
                         )
                     }
                 },
-                onEditorReady = onEditorReady,
+                onEditorReady = {
+                    editorActions.value = it
+                    onEditorReady(it)
+                },
+                aliasNoticeVisible = state.aliasNoticeVisible,
+                onNormaliseAlias = {
+                    state.normaliseAliasType(if (state.editing) editorActions.value?.replaceAllUndoable else null)
+                },
                 onExportPdf = { state.selected?.let { onExportPdf(it.relativePath) } },
                 modifier = Modifier.fillMaxSize(),
             )

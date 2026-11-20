@@ -105,6 +105,8 @@ fun DocumentEditorPane(
     diskConflict: Boolean = false,
     onResolveDiskConflict: (keepMine: Boolean) -> Unit = {},
     onExportPdf: (() -> Unit)? = null,
+    aliasNoticeVisible: Boolean = false,
+    onNormaliseAlias: () -> Unit = {},
 ) {
     if (doc == null || buffer == null) return
 
@@ -136,7 +138,13 @@ fun DocumentEditorPane(
         if (diskConflict) {
             DiskConflictBanner(strings = strings, onResolve = onResolveDiskConflict)
         }
-        ValidationBanner(findings = findings, blockingFindings = blockingFindings)
+        ValidationBanner(
+            findings = findings,
+            blockingFindings = blockingFindings,
+            strings = strings,
+            aliasNoticeVisible = aliasNoticeVisible,
+            onNormaliseAlias = onNormaliseAlias,
+        )
         HorizontalDivider()
 
         if (editing) {
@@ -394,8 +402,11 @@ private fun DiskConflictBanner(
 private fun ValidationBanner(
     findings: List<OkfFinding>,
     blockingFindings: List<OkfFinding>,
+    strings: Strings,
+    aliasNoticeVisible: Boolean,
+    onNormaliseAlias: () -> Unit,
 ) {
-    if (findings.isEmpty()) return
+    if (findings.isEmpty() && !aliasNoticeVisible) return
     val warnings = findings.filter { it !in blockingFindings }
 
     Column(modifier = Modifier.fillMaxWidth()) {
@@ -404,6 +415,8 @@ private fun ValidationBanner(
                 findings = blockingFindings,
                 background = MaterialTheme.colorScheme.errorContainer,
                 foreground = MaterialTheme.colorScheme.onErrorContainer,
+                strings = strings,
+                onNormaliseAlias = onNormaliseAlias,
             )
         }
         if (warnings.isNotEmpty()) {
@@ -411,6 +424,21 @@ private fun ValidationBanner(
                 findings = warnings,
                 background = Color(0xFFFFF3CD),
                 foreground = Color(0xFF7A5900),
+                strings = strings,
+                onNormaliseAlias = onNormaliseAlias,
+            )
+        }
+        if (aliasNoticeVisible) {
+            Text(
+                text = strings.workspaceAliasNoLongerAlias,
+                color = Color(0xFF7A5900),
+                fontSize = 11.sp,
+                modifier =
+                    Modifier
+                        .fillMaxWidth()
+                        .background(Color(0xFFFFF3CD))
+                        .padding(horizontal = 10.dp, vertical = 4.dp)
+                        .testTag("kuml-doc-alias-notice"),
             )
         }
     }
@@ -421,6 +449,8 @@ private fun FindingList(
     findings: List<OkfFinding>,
     background: Color,
     foreground: Color,
+    strings: Strings,
+    onNormaliseAlias: () -> Unit,
 ) {
     Column(modifier = Modifier.fillMaxWidth().background(background).padding(horizontal = 10.dp, vertical = 4.dp)) {
         findings.forEach { finding ->
@@ -431,11 +461,28 @@ private fun FindingList(
                     append(finding.message)
                     finding.suggestion?.let { append(" ($it)") }
                 }
-            Text(
-                text = text,
-                color = foreground,
-                fontSize = 11.sp,
-            )
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Text(
+                    text = text,
+                    color = foreground,
+                    fontSize = 11.sp,
+                    modifier = Modifier.weight(1f),
+                )
+                val canonicalId = finding.canonicalId
+                if (finding.code == "OKF-I-001" && canonicalId != null) {
+                    TextButton(
+                        onClick = onNormaliseAlias,
+                        modifier = Modifier.testTag("kuml-doc-normalize-alias"),
+                    ) {
+                        IconLabel(
+                            action = ButtonAction.CHANGE_TO_CANONICAL,
+                            text = strings.workspaceAliasChangeTo.format(canonicalId),
+                            compact = true,
+                            fontSize = 11.sp,
+                        )
+                    }
+                }
+            }
         }
     }
 }

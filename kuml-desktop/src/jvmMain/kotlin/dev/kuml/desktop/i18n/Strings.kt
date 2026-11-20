@@ -291,6 +291,10 @@ data class Strings(
     val pdfLayoutSummary: String get() = pdfExport.pdfLayoutSummary
     val pdfDisabledOrientationAuto: String get() = pdfExport.pdfDisabledOrientationAuto
     val previewExport: PreviewExportStrings get() = pdfExport.previewExport
+
+    // The Strings constructor is at the JVM parameter limit, so the OKF alias texts live in the nested group.
+    val workspaceAliasChangeTo: String get() = pdfExport.previewExport.aliasChangeTo
+    val workspaceAliasNoLongerAlias: String get() = pdfExport.previewExport.aliasNoLongerAlias
     val latexExport: LatexExportStrings get() = pdfExport.latexExport
     val workspaceLatexExport: WorkspaceLatexExportStrings get() = pdfExport.workspaceLatex
     val aiDialog: AiDialogStrings get() = simulator.aiDialog
@@ -657,6 +661,8 @@ data class Strings(
                                 noDocumentOpen = "Kein Dokument geöffnet",
                                 saveFailed = "Das Diagramm konnte nicht gespeichert werden: %s",
                                 unsavedHint = "Ungespeicherte Änderungen sind im PDF nicht enthalten. Speichern Sie das Dokument vorher.",
+                                aliasChangeTo = "In %s ändern",
+                                aliasNoLongerAlias = "Der Typ ist kein Alias mehr. Es wurde nichts geändert.",
                             ),
                         latexExport =
                             LatexExportStrings(
@@ -1152,6 +1158,8 @@ data class Strings(
                                 noDocumentOpen = "No document open",
                                 saveFailed = "The diagram could not be saved: %s",
                                 unsavedHint = "Unsaved changes are not included in the PDF. Save the document first.",
+                                aliasChangeTo = "Change to %s",
+                                aliasNoLongerAlias = "The type is no longer an alias. Nothing was changed.",
                             ),
                         latexExport =
                             LatexExportStrings(
@@ -1558,6 +1566,9 @@ data class PreviewExportStrings(
     // Format with the failure reason: exactly one %s.
     val saveFailed: String,
     val unsavedHint: String,
+    // Format with the canonical type id: exactly one %s.
+    val aliasChangeTo: String,
+    val aliasNoLongerAlias: String,
 )
 
 /** Texts of the fixed status area in the PDF export dialog (see [Strings.pdfStatus]). */

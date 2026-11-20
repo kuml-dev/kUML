@@ -6,6 +6,13 @@ All notable changes to this project are documented here. Format follows
 
 ## [Unreleased]
 
+### Nacharbeit 122b: Desktop one-click alias change
+
+- **Added.** The `OKF-I-001` finding of the open document in the Desktop Knowledge Workspace has a "Change to <canonical id>" button. It applies `OkfAliasFix` to the editor buffer only (no disk write), marks the buffer dirty, and is one undoable step in edit mode. If the type is no longer an alias, a notice is shown and nothing changes.
+- **Closes for the Desktop.** The 122a item "No Desktop action ...".
+- **Still open.** The language-server code action.
+- **Not verified.** The window was not clicked through (kuml-desktop MCP server unreachable, no GUI automation). Real Ctrl+Z against a live editor is not verified either; the undo wiring reuses the existing `replaceAllUndoable`. In edit mode the text coming back through the editor may differ in line endings, as for every other edit.
+
 ### Nacharbeit 122a: OKF alias repair in the CLI, real type line in findings
 
 - **Why.** The "Not fixed" items of Nacharbeit 114: alias `type:` ids could not be repaired by a command, and `OKF-I-001` always reported line 1.

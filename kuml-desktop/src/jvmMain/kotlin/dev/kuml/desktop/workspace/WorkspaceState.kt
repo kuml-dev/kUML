@@ -158,6 +158,13 @@ class WorkspaceState(
     var diskConflict: Boolean by mutableStateOf(false)
         private set
 
+    /**
+     * `true` after the one-click alias action found nothing to change (the type is no longer an
+     * alias). The UI resolves the localized text; reset by the next edit or selection.
+     */
+    var aliasNoticeVisible: Boolean by mutableStateOf(false)
+        private set
+
     /** Documents sorted by relativePath (matches [dev.kuml.workspace.WorkspaceScanner]'s order). */
     var documents: List<OkfDocument> by mutableStateOf(initialWorkspace.documents.sortedBy { it.relativePath })
         private set
@@ -279,6 +286,7 @@ class WorkspaceState(
         buffer = null
         savedBuffer = null
         diskConflict = false
+        aliasNoticeVisible = false
 
         val text = withContext(ioDispatcher) { runCatching { resolved.file.readText(Charsets.UTF_8) }.getOrDefault("") }
         if (token != selectionToken) return // superseded by a newer selection
@@ -336,6 +344,7 @@ class WorkspaceState(
     private fun clearSelection() {
         selectionToken++
         diskConflict = false
+        aliasNoticeVisible = false
         selected = null
         buffer = null
         savedBuffer = null
@@ -353,6 +362,25 @@ class WorkspaceState(
     /** Replaces [buffer] wholesale (the [dev.kuml.desktop.editor.SyntaxTextEditor]'s `onTextChange`). */
     fun updateBuffer(text: String) {
         buffer = text
+        aliasNoticeVisible = false
+    }
+
+    /**
+     * Applies the alias fix (OKF-I-001) to the CURRENT buffer, never to disk (Nacharbeit 122b).
+     * [applyUndoable] is non-null only in edit mode, where it replaces the editor text as a single
+     * undoable edit; the buffer is then set explicitly too (idempotent). When the type is no longer
+     * an alias, nothing changes and [aliasNoticeVisible] is raised.
+     */
+    fun normaliseAliasType(applyUndoable: ((String) -> Unit)? = null) {
+        val current = buffer ?: return
+        val updated = normaliseAliasTypeInBuffer(current)
+        if (updated == null) {
+            aliasNoticeVisible = true
+            return
+        }
+        applyUndoable?.invoke(updated)
+        buffer = updated
+        aliasNoticeVisible = false
     }
 
     /**

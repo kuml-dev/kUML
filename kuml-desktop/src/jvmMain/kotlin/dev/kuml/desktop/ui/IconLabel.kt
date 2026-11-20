@@ -51,6 +51,7 @@ enum class ButtonAction {
     DELETE,
     SEND,
     ADD,
+    CHANGE_TO_CANONICAL,
 }
 
 /** The symbol for [action]. */
@@ -74,7 +75,7 @@ fun buttonIcon(action: ButtonAction): ImageVector =
         ButtonAction.MANAGE_PROVIDERS -> KumlIcons.Settings
         ButtonAction.NEW_SESSION -> KumlIcons.ChatNew
         ButtonAction.INSPECT -> KumlIcons.Search
-        ButtonAction.EDIT -> KumlIcons.Edit
+        ButtonAction.EDIT, ButtonAction.CHANGE_TO_CANONICAL -> KumlIcons.Edit
         ButtonAction.DELETE -> KumlIcons.Delete
         ButtonAction.SEND -> KumlIcons.Send
         ButtonAction.ADD -> KumlIcons.Add
