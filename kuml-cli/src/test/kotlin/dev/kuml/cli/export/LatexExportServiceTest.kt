@@ -66,13 +66,24 @@ class LatexExportServiceTest :
             result.shouldBeInstanceOf<LatexExportResult.Failure>().message shouldContain "Script evaluation failed"
         }
 
-        test("an ERM diagram is a failure, not a half file") {
+        test("a Martin ERM diagram exports (Nacharbeit 123)") {
+            val ok =
+                LatexExportService
+                    .export(script = script("latex/erm-martin.kuml.kts"), themeName = "kuml", standalone = true)
+                    .shouldBeInstanceOf<LatexExportResult.Success>()
+            ok.tex shouldStartWith "\\documentclass[border=10pt]{standalone}"
+            ok.tex shouldContain "Customer"
+        }
+
+        test("an ERM diagram in another notation is a failure that names the notation, not a half file") {
             val erm =
-                Files.walk(File("src/test/resources/erm").toPath()).use { s ->
-                    s.filter { it.toString().endsWith(".kuml.kts") }.findFirst()
+                Files.walk(File("src/test/resources/latex-folder").toPath()).use { s ->
+                    s.filter { it.fileName.toString() == "erm.kuml.kts" }.findFirst()
                 }
             val result = LatexExportService.export(script = erm.get().toFile().readText(), themeName = "kuml", standalone = true)
-            result.shouldBeInstanceOf<LatexExportResult.Failure>().message shouldContain "ERM"
+            val message = result.shouldBeInstanceOf<LatexExportResult.Failure>().message
+            message shouldContain "BACHMAN"
+            message shouldContain "supported: MARTIN"
         }
 
         test("a SysML 2 package diagram (or a script shape that does not evaluate) is a failure") {
@@ -126,7 +137,15 @@ class LatexExportServiceTest :
                     themeName = null,
                     sharedPreamble = true,
                 )
-            erm.shouldBeInstanceOf<LatexFileExportResult.Skipped>().reason shouldContain "ERM"
+            erm.shouldBeInstanceOf<LatexFileExportResult.Skipped>().reason shouldContain
+                "ERM notation BACHMAN is not supported in LaTeX yet"
+            val martin =
+                LatexExportService.exportFile(
+                    input = File("src/test/resources/latex/erm-martin.kuml.kts"),
+                    themeName = null,
+                    sharedPreamble = true,
+                )
+            martin.shouldBeInstanceOf<LatexFileExportResult.Rendered>().family shouldBe dev.kuml.io.latex.LatexFamily.ERM
             val choreo =
                 LatexExportService.exportFile(
                     input = File("src/test/resources/latex-folder/bpmn-choreography.kuml.kts"),

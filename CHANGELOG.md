@@ -6,6 +6,14 @@ All notable changes to this project are documented here. Format follows
 
 ## [Unreleased]
 
+### Nacharbeit 123: ERM LaTeX/TikZ export (Martin notation)
+
+- **Added.** `kuml render --format latex` (and the folder, workspace and Desktop LaTeX exports) draws ERM diagrams in Martin notation: entity boxes with PK/FK/unique markers, types and defaults, double border for weak entities, view boxes, crow's-foot glyphs (one, zero-or-one, one-or-many, zero-or-many), dashed non-identifying relationships, relationship names and roles, and notes with their anchor lines. Boxes and routes come from the same layout as the SVG output; notes with a side hint go through `ErmNotePlacement` like in SVG. New `LatexFamily.ERM`, `KumlLatexRenderer.toLatex(ErmModel, ErmDiagram, LayoutResult, ...)` and `KumlLatexRenderer.ermUnsupportedNotationMessage`.
+- **Changed.** The refusal "ERM LaTeX export is not yet supported" is replaced by a notation check on the effective notation (the `--notation` override included): Bachman, Chen and IDEF1X fail with `ERM notation <NAME> is not supported in LaTeX yet (supported: MARTIN)` before any layout work; folder and workspace exports `SKIP` them. The Desktop LaTeX button is enabled for Martin ERM diagrams.
+- **Tests.** Structural renderer tests (markers, escaping, glyph positions per end, weak border, dashed lines, notes and hints, variants, determinism, shared preamble), CLI pipeline and `LatexExportService` tests, and a pdflatex compile test for an ERM fixture (`LatexStandaloneAllFamiliesTest`, floor in `scripts/ci/check_latex_tests.py` raised to 16).
+- **Not fixed.** Bachman, Chen and IDEF1X LaTeX output; the web playground (`WebRenderPipeline`) still answers "ERM LaTeX export is not yet supported" for `latex`; self-referencing relationships use the raw layout route (no `SelfLoopRouter`), and edge labels have no collision planning; kuml.dev and README mentions of LaTeX families were not updated in this wave.
+- **Not verified.** lualatex/xelatex; pdflatex on Windows and Linux (checked on macOS MacTeX only, unless CI confirms); themes other than plain (LaTeX uses no theme); schemas with 20 or more entities.
+
 ### Nacharbeit 122b: Desktop one-click alias change
 
 - **Added.** The `OKF-I-001` finding of the open document in the Desktop Knowledge Workspace has a "Change to <canonical id>" button. It applies `OkfAliasFix` to the editor buffer only (no disk write), marks the buffer dirty, and is one undoable step in edit mode. If the type is no longer an alias, a notice is shown and nothing changes.

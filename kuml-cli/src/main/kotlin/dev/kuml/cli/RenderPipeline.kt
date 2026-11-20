@@ -501,6 +501,7 @@ internal object RenderPipeline {
                         notationOverride = notation,
                         layoutEngineOverride = layoutEngineOverride,
                         watermark = watermark,
+                        latex = latex,
                     )
             }
         }
@@ -1974,9 +1975,19 @@ internal object RenderPipeline {
         notationOverride: String? = null,
         layoutEngineOverride: String? = null,
         watermark: Boolean = false,
+        latex: LatexRenderOptions = LatexRenderOptions(),
     ) {
         val model = extracted.model
         val diagram = extracted.diagram
+
+        // Nacharbeit 123: LaTeX supports Martin only; refuse before any layout work, using the effective notation
+        // (the --notation override wins over the diagram's own).
+        if (format == "latex") {
+            val effective = notationOverride?.let { ErmNotation.valueOf(it.uppercase()) } ?: diagram.notation
+            if (effective != ErmNotation.MARTIN) {
+                throw ScriptEvaluationException(message = KumlLatexRenderer.ermUnsupportedNotationMessage(effective))
+            }
+        }
 
         val plan =
             ErmRenderPlan.of(
@@ -2034,11 +2045,20 @@ internal object RenderPipeline {
                 val pngBytes = KumlPngRenderer.toPng(svg = svg, options = PngRenderOptions(widthPx = width))
                 writeBinary(out = output, bytes = pngBytes)
             }
-            "latex" -> throw ScriptEvaluationException(
-                message = "ERM LaTeX export is not yet supported (planned for a post-V3.4 wave).",
-            )
+            "latex" ->
+                writeText(
+                    out = output,
+                    text =
+                        KumlLatexRenderer.toLatex(
+                            model = model,
+                            diagram = diagram,
+                            layoutResult = layout,
+                            notation = notation,
+                            options = latex,
+                        ),
+                )
             else -> throw ScriptEvaluationException(
-                message = "Unsupported format for ERM: $format (supported: svg, png)",
+                message = "Unsupported format for ERM: $format (supported: svg, png, latex)",
             )
         }
     }

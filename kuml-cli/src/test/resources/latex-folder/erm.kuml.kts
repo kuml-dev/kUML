@@ -1,10 +1,16 @@
-// broken-fk.kuml.kts — V3.4.1 CLI smoke fixture: FK targets a non-existent entity.
-// Deliberately broken to exercise `kuml validate`'s ERM violation reporting.
+// erm.kuml.kts — latex-folder fixture: an ERM in Bachman notation. The LaTeX export supports Martin only (Nacharbeit 123),
+// so this one is the "ERM family without LaTeX output" case of the folder and workspace export tests.
 
-ermModel("Broken") {
-    entity("Order") {
-        id()
-        foreignKey(name = "customer_id", references = "entity-does-not-exist")
-    }
-    diagram(name = "Overview")
+ermModel("Shop") {
+    val customer =
+        entity("Customer") {
+            id()
+        }
+    val order =
+        entity("Order") {
+            id()
+            foreignKey(name = "customer_id", references = customer)
+        }
+    relationship(from = customer, to = order, name = "places")
+    diagram(name = "Overview", notation = ErmNotation.BACHMAN)
 }

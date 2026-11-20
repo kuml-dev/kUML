@@ -562,25 +562,57 @@ class RenderPipelineTest :
             outputDir.toFile().delete()
         }
 
-        test("RenderPipeline ERM LaTeX export is rejected with a structured error") {
-            val fixture = File("src/test/resources/erm/valid-ecommerce.kuml.kts")
+        fun ermLatex(
+            fixture: File,
+            standalone: Boolean = true,
+            notation: String? = null,
+        ): String {
             val outputDir = Files.createTempDirectory("kuml-erm-latex-test")
-            val outputFile = outputDir.resolve("valid-ecommerce.tex")
+            try {
+                val outputFile = outputDir.resolve("erm.tex")
+                RenderPipeline.run(
+                    input = fixture,
+                    output = outputFile,
+                    format = "latex",
+                    width = 1024,
+                    themeName = "kuml",
+                    notation = notation,
+                    latexStandalone = standalone,
+                )
+                return outputFile.toFile().readText()
+            } finally {
+                outputDir.toFile().deleteRecursively()
+            }
+        }
 
-            val ex =
-                runCatching {
-                    RenderPipeline.run(
-                        input = fixture,
-                        output = outputFile,
-                        format = "latex",
-                        width = 1024,
-                        themeName = "kuml",
-                    )
-                }.exceptionOrNull()
-
+        fun ermLatexError(
+            fixture: File,
+            notation: String? = null,
+        ): ScriptEvaluationException {
+            val ex = runCatching { ermLatex(fixture = fixture, notation = notation) }.exceptionOrNull()
             ex shouldNotBe null
-            (ex is ScriptEvaluationException) shouldBe true
+            return ex as ScriptEvaluationException
+        }
 
-            outputDir.toFile().delete()
+        test("RenderPipeline ERM LaTeX export writes a Martin diagram (Nacharbeit 123)") {
+            val tex = ermLatex(fixture = File("src/test/resources/erm/valid-ecommerce.kuml.kts"))
+            tex shouldStartWith "\\documentclass[border=10pt]{standalone}"
+            tex shouldContain "\\begin{tikzpicture}"
+            tex shouldContain "Customer"
+        }
+
+        test("RenderPipeline ERM LaTeX export of a Bachman diagram is refused with the documented message") {
+            val ex = ermLatexError(fixture = File("src/test/resources/latex-folder/erm.kuml.kts"))
+            ex.message shouldContain "ERM notation BACHMAN is not supported in LaTeX yet (supported: MARTIN)"
+        }
+
+        test("RenderPipeline ERM LaTeX --notation martin override makes a Bachman diagram exportable") {
+            val tex = ermLatex(fixture = File("src/test/resources/latex-folder/erm.kuml.kts"), notation = "martin")
+            tex shouldContain "\\begin{tikzpicture}"
+        }
+
+        test("RenderPipeline ERM LaTeX --notation chen on a Martin diagram is refused") {
+            val ex = ermLatexError(fixture = File("src/test/resources/erm/valid-ecommerce.kuml.kts"), notation = "chen")
+            ex.message shouldContain "ERM notation CHEN is not supported in LaTeX yet"
         }
     })

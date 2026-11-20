@@ -112,7 +112,7 @@ editor, MCP server and the AI assistant sit on top.
 | SVG to PNG via Apache Batik.
 
 | `kuml-io-latex`
-| LaTeX/TikZ export for UML, SysML 2, C4, BPMN and Service Blueprint (the CLI exposes UML, SysML 2, C4 and Service Blueprint).
+| LaTeX/TikZ export for UML, SysML 2, C4, BPMN, Service Blueprint and ERM in Martin notation (the CLI exposes UML, SysML 2, C4, Service Blueprint and ERM Martin).
 
 | `kuml-render-smil`, `kuml-io-anim`
 | Pure-SMIL animated SVG from execution traces, and export of animations to APNG, WebP or MP4 (the JVM distribution only; WebP and MP4 need external `img2webp` or `ffmpeg`).

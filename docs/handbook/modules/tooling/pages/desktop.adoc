@@ -89,7 +89,7 @@ simulation, its state markers and its frozen base render never reach the file.
 * *Only the first diagram is exported.* If the script contains several diagrams, the dialog says so and names the diagram
   that is exported. One file per diagram is not offered yet.
 * The button and the menu item are disabled, with the reason in the tooltip, when nothing is rendered or the script does not
-  compile, when the diagram has no LaTeX output (package diagrams, ER diagrams, BPMN choreography and conversation
+  compile, when the diagram has no LaTeX output (package diagrams, ER diagrams in a notation other than Martin, BPMN choreography and conversation
   diagrams), and in a knowledge workspace, whose documents are Markdown rather than scripts. In an engineering workspace
   the export works for the open `.kuml.kts` script.
 * The theme is passed through but LaTeX output does not use one.

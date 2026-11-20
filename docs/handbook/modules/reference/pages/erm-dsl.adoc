@@ -254,12 +254,30 @@ xref:uml-dsl.adoc#note-placement-hint[Note placement hint].
 A hinted note also avoids the (estimated) name label at the centre of a relationship edge in Martin, Bachman and IDEF1X notation;
 cardinalities and role labels are not yet avoided, and a note without a hint still ignores labels.
 
-NOTE: ERM diagrams have no LaTeX output (`kuml export --format latex` fails with a clear message), so placement hints apply to SVG and PNG only.
+NOTE: LaTeX output exists for the Martin notation only (see <<erm-latex-export,LaTeX export>>); there, placement hints are evaluated as in SVG and PNG. In the other notations placement hints apply to SVG and PNG only.
 
 Anchoring an attribute, a relationship or an unknown id throws when the model is built. Limits: 65 536
 characters (hard), 2000 characters / 30 lines displayed (`NOTE_TRUNCATED`). `kuml validate` reports
 `ERM_NOTE_ANCHOR_UNKNOWN` and `ERM_NOTE_ANCHOR_UNSUPPORTED`. The SQL-reverse printer writes notes back
 as `note(...)` calls; the UML→ERM transformation never creates notes.
+
+[[erm-latex-export]]
+== LaTeX export
+
+`kuml render model.kuml.kts --format latex` (add `--latex-standalone` for a complete document; `kuml export` and the
+workspace and desktop LaTeX exports use the same path) draws an ERM diagram as TikZ. Only the *Martin* notation is
+supported: entity boxes with PK, FK and unique markers, crow's-foot cardinality glyphs, dashed lines for non-identifying
+relationships, a double border for weak entities, view boxes and notes. Boxes and routes come from the same layout as the
+SVG output. Notes with a placement hint are placed as in SVG and report `KUML-NOTE-W004` when the hint cannot be honoured.
+
+Bachman, Chen and IDEF1X have no LaTeX output yet: `kuml render --format latex` stops with
+`ERM notation <NAME> is not supported in LaTeX yet (supported: MARTIN)`, and a folder or workspace export reports the
+script as `SKIP`. The check uses the effective notation, so `--notation martin` makes a Bachman diagram exportable and
+`--notation chen` makes a Martin diagram fail.
+
+Limits: relationship names and role labels sit at fixed positions (the middle of the route, a fixed distance from the
+end) without the collision planning of the SVG output; self-referencing relationships use the layout's raw route; fonts
+differ from the SVG, so text width is not identical. Compiled and checked with pdflatex on macOS only.
 
 == Full example
 

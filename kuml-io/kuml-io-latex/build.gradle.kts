@@ -15,6 +15,7 @@ dependencies {
     api(project(":kuml-metamodel:kuml-metamodel-c4")) // C4 LaTeX renderer
     api(project(":kuml-metamodel:kuml-metamodel-bpmn")) // V3.1.8 — BPMN LaTeX/TikZ renderer
     api(project(":kuml-metamodel:kuml-metamodel-blueprint")) // V3.1.26 — Blueprint LaTeX/TikZ renderer
+    api(project(":kuml-metamodel:kuml-metamodel-erm")) // Nacharbeit 123 – ERM LaTeX renderer
     implementation(project(":kuml-core:kuml-core-model"))
     implementation(project(":kuml-renderer:kuml-layout-bridge")) // note placement + symbols shared with the SVG renderer
 

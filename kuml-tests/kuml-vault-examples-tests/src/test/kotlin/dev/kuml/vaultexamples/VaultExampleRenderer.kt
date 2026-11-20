@@ -521,7 +521,14 @@ object VaultExampleRenderer {
                             layoutResult = layout,
                             theme = theme,
                         )
-                    RenderResult(svg = svg, latex = null, error = null)
+                    // Nacharbeit 123: LaTeX only for Martin; other notations have no LaTeX output (latex stays null, not an error).
+                    val latex =
+                        if (extracted.diagram.notation == ErmNotation.MARTIN) {
+                            KumlLatexRenderer.toLatex(model = extracted.model, diagram = extracted.diagram, layoutResult = layout)
+                        } else {
+                            null
+                        }
+                    RenderResult(svg = svg, latex = latex, error = null)
                 }
             }
         } catch (e: Exception) {

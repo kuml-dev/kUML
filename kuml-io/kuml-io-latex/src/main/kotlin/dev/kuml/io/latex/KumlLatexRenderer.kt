@@ -16,9 +16,13 @@ import dev.kuml.core.model.KumlDiagram
 import dev.kuml.core.model.KumlElement
 import dev.kuml.core.model.note.NotePlacement
 import dev.kuml.core.model.note.isHint
+import dev.kuml.erm.model.ErmDiagram
+import dev.kuml.erm.model.ErmModel
+import dev.kuml.erm.model.ErmNotation
 import dev.kuml.io.latex.blueprint.BlueprintLatexRenderer
 import dev.kuml.io.latex.bpmn.BpmnLatexRenderer
 import dev.kuml.io.latex.c4.C4LatexRenderer
+import dev.kuml.io.latex.erm.ErmLatexRenderer
 import dev.kuml.io.latex.note.NoteTikz
 import dev.kuml.io.latex.note.NoteTikzAnchor
 import dev.kuml.io.latex.note.NoteTikzSpec
@@ -34,6 +38,7 @@ import dev.kuml.layout.LayoutResult
 import dev.kuml.layout.NodeId
 import dev.kuml.layout.bridge.NoteLayout
 import dev.kuml.layout.bridge.note.C4NotePlacement
+import dev.kuml.layout.bridge.note.ErmNotePlacement
 import dev.kuml.layout.bridge.note.NotePlacementMissCollector
 import dev.kuml.layout.bridge.note.NoteUndrawnCollector
 import dev.kuml.layout.bridge.note.PlacementHintMiss
@@ -118,6 +123,37 @@ import dev.kuml.uml.navigability
 public object KumlLatexRenderer {
     /** Message of the refusal for package diagrams (wave 2I-a): the LaTeX renderer does not draw frames, tabs or view cards yet. */
     public const val PACKAGE_DIAGRAM_UNSUPPORTED: String = "Package diagrams are not supported by the LaTeX renderer yet (wave 2I-a)"
+
+    /** Message of the refusal for ERM notations other than Martin (Nacharbeit 123); the CLI, the desktop and the export service share it. */
+    public fun ermUnsupportedNotationMessage(notation: ErmNotation): String =
+        "ERM notation $notation is not supported in LaTeX yet (supported: MARTIN)"
+
+    /**
+     * Renders an ERM diagram in Martin (crow's-foot) notation as TikZ (Nacharbeit 123). Uses the layout of the SVG pipeline
+     * (`ErmRenderPlan`); notes with a side hint are placed first, exactly as the SVG renderer does.
+     *
+     * @throws UnsupportedOperationException for any [notation] other than [ErmNotation.MARTIN]
+     *   (message: [ermUnsupportedNotationMessage]); Bachman shares the Martin layout but has other glyphs, Chen and
+     *   IDEF1X use other layout graphs.
+     */
+    public fun toLatex(
+        model: ErmModel,
+        diagram: ErmDiagram,
+        layoutResult: LayoutResult,
+        notation: ErmNotation = diagram.notation,
+        options: LatexRenderOptions = LatexRenderOptions.DEFAULT,
+    ): String {
+        if (notation != ErmNotation.MARTIN) throw UnsupportedOperationException(ermUnsupportedNotationMessage(notation))
+        val placed = ErmNotePlacement.place(model = model, layout = layoutResult).layout
+        return buildString {
+            if (options.standalone) appendStandalonePreamble(extraLibraries = LatexFamily.ERM.extraTikzLibraries)
+            appendPictureOpen(options.scale)
+            appendPictureStyles(options)
+            ErmLatexRenderer.renderBody(model = model, diagram = diagram, layout = placed, options = options, out = this)
+            appendPictureClose()
+            if (options.standalone) appendStandaloneCoda()
+        }
+    }
 
     /**
      * Package diagrams (wave 2I-a) have no TikZ rendering yet. This always throws [UnsupportedOperationException] with

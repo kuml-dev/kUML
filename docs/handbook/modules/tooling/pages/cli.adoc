@@ -34,7 +34,7 @@ Options:
 
 * `-o`, `--output <path>` — output file
 * `-f`, `--format svg|png|latex|tex|apng|webp|mp4` — default `svg`. `latex` / `tex` emit TikZ output
-  for UML, SysML 2 (not package diagrams), C4, BPMN process and collaboration diagrams, and Service Blueprint; ERM,
+  for UML, SysML 2 (not package diagrams), C4, BPMN process and collaboration diagrams, Service Blueprint and ERM in Martin notation; other ERM notations,
   BPMN choreography and conversation diagrams cannot be rendered as LaTeX from the CLI. `apng`, `webp` and `mp4` export an animation
   (see `--animated`); `webp` and `mp4` need `img2webp` or `ffmpeg` on the `PATH`.
 * `--theme <name>` — theme name (`kuml`, `plain`, `elegant`, `playful`); the default is `kuml`.
@@ -49,8 +49,9 @@ Options:
   the playback speed.
 * `--latex-standalone` — emit a complete compilable LaTeX document instead of a bare `tikzpicture`
   snippet (only with `--format latex`). It applies to every diagram family that has a LaTeX output: UML, C4,
-  SysML 2 (not the package diagram), BPMN process and collaboration diagrams, and Blueprint. Earlier versions
-  honoured it for UML and Blueprint only. ERM, BPMN choreography and conversation diagrams have no LaTeX output.
+  SysML 2 (not the package diagram), BPMN process and collaboration diagrams, Blueprint and ERM in Martin notation. Earlier versions
+  honoured it for UML and Blueprint only. ERM in Bachman, Chen or IDEF1X notation (including via `--notation`), BPMN choreography and
+  conversation diagrams have no LaTeX output.
 * `--notation martin|bachman|chen|idef1x` — ERM notation override (ERM diagrams only).
 * `--watermark` — opt-in visible "Powered by kUML" label in the bottom-right corner; the
   canvas grows downward so it structurally cannot overlap diagram content (added in v0.38.0).
@@ -455,7 +456,7 @@ document has not loaded it yet, so your own `babel` options stay in force.
 
 * File names are sanitised (`[A-Za-z0-9._-]`) and made unique case-insensitively; a rename is
   reported as `NOTE`. `main` and `kuml-preamble` are reserved at the top level.
-* `SKIP` — the diagram family has no LaTeX output (ERM, SysML 2 package, BPMN choreography and
+* `SKIP` — the diagram family has no LaTeX output (ERM in a notation other than Martin, SysML 2 package, BPMN choreography and
   conversation), or the script is a symbolic link. `ERROR` — the script failed. `WARN` — the figure is
   written but left out of `main.tex` because it references a TikZ node that is not defined (for example a BPMN
   message flow to an element id that does not exist). Only the first diagram of a script is exported (`NOTE`).

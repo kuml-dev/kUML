@@ -134,6 +134,7 @@ class LatexStandaloneAllFamiliesTest :
                 "bpmn-process",
                 "bpmn-collaboration",
                 "blueprint",
+                "erm-martin",
             )
     }
 }

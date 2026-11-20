@@ -27,7 +27,8 @@ internal fun latexModeOf(standalone: Boolean): LatexMode = if (standalone) Latex
 
 /**
  * Whether the CLI's LaTeX path can draw [extracted]: UML, C4, SysML 2 (not the package diagram), BPMN process and
- * collaboration diagrams, and Blueprint. ERM and the remaining BPMN kinds are refused by the pipeline.
+ * collaboration diagrams, Blueprint and ERM in Martin notation (Nacharbeit 123). The other ERM notations and the
+ * remaining BPMN kinds are refused by the pipeline.
  */
 internal fun isLatexCapable(extracted: ExtractedDiagram): Boolean =
     when (extracted) {
@@ -36,7 +37,7 @@ internal fun isLatexCapable(extracted: ExtractedDiagram): Boolean =
         is ExtractedDiagram.Sysml2 -> extracted.diagram !is dev.kuml.sysml2.Sysml2PackageDiagram
         is ExtractedDiagram.Bpmn -> extracted.diagram is ProcessDiagram || extracted.diagram is CollaborationDiagram
         is ExtractedDiagram.Blueprint -> true
-        is ExtractedDiagram.Erm -> false
+        is ExtractedDiagram.Erm -> LatexExportService.unsupportedReason(extracted) == null
     }
 
 /** Why the LaTeX export is unavailable, or `null` when it is available. One cause per answer, in this order. */

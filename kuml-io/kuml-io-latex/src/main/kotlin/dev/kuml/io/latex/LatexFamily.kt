@@ -9,4 +9,7 @@ public enum class LatexFamily(
     C4(emptyList()),
     BPMN(listOf("shapes.geometric")),
     BLUEPRINT(listOf("shapes.geometric", "plotmarks")),
+
+    /** ERM (Martin notation): crow's-foot glyphs are plain lines and circles, no library beyond the base set. */
+    ERM(emptyList()),
 }

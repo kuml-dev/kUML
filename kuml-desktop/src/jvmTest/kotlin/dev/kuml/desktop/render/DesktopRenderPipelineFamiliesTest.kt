@@ -65,13 +65,13 @@ class DesktopRenderPipelineFamiliesTest :
             }
         }
 
-        test("an ERM script renders to an SVG that names its entities and is neither simulatable nor LaTeX-capable") {
+        test("an ERM script renders to an SVG that names its entities and is not simulatable but LaTeX-capable (Martin)") {
             val result = DesktopRenderPipeline.render(script = sample("erm-martin-ecommerce"), themeName = "kuml")
             val svg = result.shouldBeInstanceOf<DesktopRenderResult.Svg>()
             svg.svg shouldContain "<svg"
             svg.svg shouldContain "Customer"
             svg.simulatable shouldBe false
-            svg.latexCapable shouldBe false
+            svg.latexCapable shouldBe true
         }
 
         test("the two SysML 2 flavours that use the wider canvas padding differ from the default padding") {

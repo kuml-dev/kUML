@@ -20,7 +20,7 @@ class SharedPreambleTest :
         val base = "\\usetikzlibrary{arrows.meta, calc, positioning}"
 
         "library lines per single family" {
-            for (f in listOf(LatexFamily.UML, LatexFamily.SYSML2, LatexFamily.C4)) {
+            for (f in listOf(LatexFamily.UML, LatexFamily.SYSML2, LatexFamily.C4, LatexFamily.ERM)) {
                 libraryLines(KumlLatexRenderer.sharedPreamble(setOf(f))) shouldBe listOf(base)
             }
             libraryLines(KumlLatexRenderer.sharedPreamble(setOf(LatexFamily.BPMN))) shouldBe
@@ -82,6 +82,13 @@ class SharedPreambleTest :
                     "bpmn" to (NoteFixtures.renderBpmnProcess() to NoteFixtures.renderBpmnProcess(shared = true)),
                     "bpmn-collab" to
                         (NoteFixtures.renderBpmnCollaboration() to NoteFixtures.renderBpmnCollaboration(shared = true)),
+                    "erm" to
+                        (
+                            dev.kuml.io.latex.erm.ErmLatexFixtures
+                                .render() to
+                                dev.kuml.io.latex.erm.ErmLatexFixtures
+                                    .render(options = LatexRenderOptions(sharedPreamble = true))
+                        ),
                     "journey" to (NoteFixtures.renderBlueprint() to NoteFixtures.renderBlueprint(shared = true)),
                     "full" to (NoteFixtures.renderBlueprint(full = true) to NoteFixtures.renderBlueprint(full = true, shared = true)),
                 )
