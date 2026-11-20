@@ -42,6 +42,8 @@ class BlueprintDuplicateIdsTest :
             val m = DuplicateStepId(id = "a", count = 2).message()
             m shouldContain "a"
             m shouldContain "2 occurrences"
+            m shouldContain "each step is drawn, references to a bind to the first"
+            m shouldNotContain "only one step"
             m shouldNotContain "Step"
         }
         "a step id shared with a phase is not flagged" {

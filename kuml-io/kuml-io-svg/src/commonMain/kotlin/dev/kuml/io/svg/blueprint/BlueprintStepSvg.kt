@@ -74,6 +74,7 @@ internal fun SvgBuilder.renderStepCard(
     actor: Actor? = null,
     accent: String = "#b0b8c4",
     touchpoints: List<FooterTouchpoint> = emptyList(),
+    domId: String = step.id,
 ) {
     val inset = BlueprintGridConstants.CARD_TEXT_INSET
     val textWidth = w - 2 * inset
@@ -84,7 +85,7 @@ internal fun SvgBuilder.renderStepCard(
     val footerBottomInset = BlueprintGridConstants.CARD_FOOTER_BOTTOM_INSET
     val footerTop = y + h - footerBottomInset - footerHeight
     val firstLineCy = footerTop + BlueprintGridConstants.CARD_FOOTER_HEIGHT / 2.0
-    tag(name = "g", attrs = mapOf("id" to step.id)) {
+    tag(name = "g", attrs = mapOf("id" to domId)) {
         rawXml(
             """<rect x="${f(x)}" y="${f(y)}" width="${f(w)}" height="${f(h)}" rx="6" """ +
                 """fill="#fff" stroke="$accent" stroke-width="1.5"/>""",

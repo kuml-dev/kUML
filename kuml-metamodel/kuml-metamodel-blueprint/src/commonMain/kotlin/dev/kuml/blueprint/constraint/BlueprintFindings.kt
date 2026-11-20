@@ -32,7 +32,7 @@ public data class DuplicateStepId(
     val count: Int,
 ) {
     /** Names the id and the count, never a note body or a step name. */
-    public fun message(): String = "duplicate step id: $id ($count occurrences); only one step is drawn"
+    public fun message(): String = "duplicate step id: $id ($count occurrences); each step is drawn, references to $id bind to the first"
 }
 
 /**

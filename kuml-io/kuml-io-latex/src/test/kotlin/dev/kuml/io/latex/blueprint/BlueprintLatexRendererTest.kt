@@ -2,12 +2,19 @@ package dev.kuml.io.latex.blueprint
 
 import dev.kuml.blueprint.dsl.blueprint
 import dev.kuml.blueprint.model.ActorRole
+import dev.kuml.blueprint.model.BlueprintDiagramFull
 import dev.kuml.blueprint.model.BlueprintLine
+import dev.kuml.blueprint.model.BlueprintModel
 import dev.kuml.blueprint.model.ChannelKind
+import dev.kuml.blueprint.model.JourneyStep
+import dev.kuml.blueprint.model.Phase
 import dev.kuml.blueprint.model.Sentiment
+import dev.kuml.core.model.note.KumlNote
+import dev.kuml.core.model.note.KumlNoteLink
 import dev.kuml.io.latex.KumlLatexRenderer
 import dev.kuml.io.latex.LatexRenderOptions
 import io.kotest.core.spec.style.StringSpec
+import io.kotest.matchers.shouldBe
 import io.kotest.matchers.string.shouldContain
 import io.kotest.matchers.string.shouldNotContain
 
@@ -105,5 +112,24 @@ class BlueprintLatexRendererTest :
         "empty model renders empty string" {
             val empty = blueprint(name = "Empty") {}
             KumlLatexRenderer.toLatex(model = empty) shouldContain ""
+        }
+
+        "duplicate step ids (even data-class-equal steps) are drawn as separate nodes with unique names, notes bind to the first" {
+            val same = JourneyStep(id = "s1", name = "Same", phaseRef = "p")
+            val m =
+                BlueprintModel(
+                    name = "Dup",
+                    phases = listOf(Phase(id = "p", name = "P", order = 0)),
+                    steps = listOf(same, same),
+                    notes = listOf(KumlNote(id = "n1", body = "Body")),
+                    noteLinks = listOf(KumlNoteLink(id = "l1", noteId = "n1", targetId = "s1")),
+                    diagrams = listOf(BlueprintDiagramFull(name = "B")),
+                )
+            val tex = KumlLatexRenderer.toLatex(model = m, options = LatexRenderOptions(standalone = false))
+            tex.lines().count { it.contains("\\node[kuml-bp-step]") } shouldBe 2
+            tex shouldContain "(kumlbpstep0)"
+            tex shouldContain "(kumlbpstep1)"
+            tex shouldContain "kumlbpstep0.south east"
+            tex shouldNotContain "kumlbpstep1.south east"
         }
     })

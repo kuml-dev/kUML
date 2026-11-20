@@ -88,35 +88,59 @@ internal class BlueprintGeometry(
     /** Bottom Y of the last layer band — where the touchpoint legend (if any) starts. */
     val gridBottom = gridTop + layers.sumOf { bandHeight(it) }
 
-    /** Placed step cards (stacked per cell), by step id. */
-    private val cardRects: Map<String, CardRect> = placeCards()
+    /** Placed step cards per (phase id, layer) cell, top to bottom; every step of the model gets its own card. */
+    private val cellCards: Map<Pair<String, BlueprintLayer>, List<CardRect>> = placeCards()
 
-    /** Rectangle of [stepId]'s card, `null` when its phase or layer is not shown. */
-    fun cardRect(stepId: String): CardRect? = cardRects[stepId]
+    /** All cards in phase, layer, stack order. */
+    private val allCards: List<CardRect> = cellCards.values.flatten()
+
+    /**
+     * Card a step id resolves to. Duplicate ids (`KUML-BP-W001`) are all drawn, but references
+     * bind to the first step with that id in model order; when that step's phase or layer is
+     * hidden the id stays unbound (never falls through to a later duplicate).
+     */
+    private val firstCardById: Map<String, CardRect> = buildFirstCardById()
+
+    /** Rectangle of the first step with [stepId], `null` when its phase or layer is not shown. */
+    fun cardRect(stepId: String): CardRect? = firstCardById[stepId]
 
     /** Cards of one cell, top to bottom. */
     fun cardsIn(
         phaseId: String,
         layer: BlueprintLayer,
-    ): List<CardRect> = model.stepsIn(phaseId = phaseId, layer = layer).mapNotNull { cardRects[it.id] }
+    ): List<CardRect> = cellCards[phaseId to layer].orEmpty()
 
-    private fun placeCards(): Map<String, CardRect> {
+    private fun buildFirstCardById(): Map<String, CardRect> {
+        val firstIndexById = LinkedHashMap<String, Int>()
+        model.steps.forEachIndexed { i, step -> if (step.id !in firstIndexById) firstIndexById[step.id] = i }
+        val cardByIndex = allCards.associateBy { it.stepIndex }
         val out = LinkedHashMap<String, CardRect>()
+        for ((id, idx) in firstIndexById) cardByIndex[idx]?.let { out[id] = it }
+        return out
+    }
+
+    private fun placeCards(): Map<Pair<String, BlueprintLayer>, List<CardRect>> {
+        val out = LinkedHashMap<Pair<String, BlueprintLayer>, List<CardRect>>()
         phases.forEachIndexed { i, phase ->
             for (layer in layers) {
                 val (cellX, cellY) = cellOrigin(phaseIndex = i, layer = layer)
                 val stacked =
                     BlueprintGridConstants.stackedCards(model = model, phaseId = phase.id, layer = layer, layerHeight = bandHeight(layer))
-                for (c in stacked) {
-                    out[c.step.id] =
+                // Same predicate and order as BlueprintModel.stepsIn, but with the positional index (never identity/equality).
+                val indexed = model.steps.withIndex().filter { it.value.phaseRef == phase.id && it.value.layer == layer }
+                require(indexed.size == stacked.size) { "card stack of cell (${phase.id}, $layer) does not match its steps" }
+                if (stacked.isEmpty()) continue
+                out[phase.id to layer] =
+                    stacked.mapIndexed { k, c ->
                         CardRect(
                             step = c.step,
+                            stepIndex = indexed[k].index,
                             x = cellX + CARD_MARGIN_SIDE,
                             y = cellY + c.yOffset,
                             w = columnWidth - 2 * CARD_MARGIN_SIDE,
                             h = c.height,
                         )
-                }
+                    }
             }
         }
         return out
@@ -165,7 +189,8 @@ internal class BlueprintGeometry(
 
     private fun placeNotes(): List<PlacedBlueprintNote> {
         if (model.notes.isEmpty()) return emptyList()
-        val stepById = model.steps.associateBy { it.id }
+        val stepById = LinkedHashMap<String, dev.kuml.blueprint.model.JourneyStep>()
+        for (st in model.steps) if (st.id !in stepById) stepById[st.id] = st
         val out = ArrayList<PlacedBlueprintNote>()
         var bottom = gridTop
         // Anchored notes first (top to bottom by the first anchor), then the free-standing ones.
@@ -184,7 +209,7 @@ internal class BlueprintGeometry(
         val claimedTracks = ArrayList<Double>()
         val gapUse = HashMap<Double, Int>()
         val obstacles = horizontalObstacles()
-        val blocks = cardRects.values.map { BlueprintNoteRouter.Box(left = it.x, top = it.y, right = it.x + it.w, bottom = it.y + it.h) }
+        val blocks = allCards.map { BlueprintNoteRouter.Box(left = it.x, top = it.y, right = it.x + it.w, bottom = it.y + it.h) }
         for (n in order) {
             val size =
                 dev.kuml.layout.bridge.NoteLayout
@@ -196,7 +221,7 @@ internal class BlueprintGeometry(
             val first = steps.firstOrNull()?.let { cellOf(it) }
             // Nacharbeit 101: a side hint places the note against the first anchor card (the note column stays right of the lanes).
             val hint = n.placement.takeIf { it.isHint() && first != null }
-            val anchorCard = if (hint != null) cardRects[steps.first().id] else null
+            val anchorCard = if (hint != null) cardRect(steps.first().id) else null
             val default = if (first != null) first.second + bandHeight(steps.first().layer) / 2 - h / 2 else bottom
             var y = maxOf(default, bottom)
             if (hint != null && anchorCard != null) {
@@ -222,9 +247,9 @@ internal class BlueprintGeometry(
                 links.map { link ->
                     val step = stepById.getValue(link.targetId)
                     val (_, cellY) = cellOf(step) ?: error("filtered above")
-                    val card = cardRects.getValue(step.id)
+                    val card = requireNotNull(cardRect(step.id)) { "card of ${step.id} not placed" }
                     val siblings = cardsIn(phaseId = step.phaseRef, layer = step.layer)
-                    val idx = siblings.indexOfFirst { it.step.id == step.id }
+                    val idx = siblings.indexOfFirst { it.stepIndex == card.stepIndex }
                     BlueprintNoteRouter.Target(
                         linkId = link.id,
                         laneTop = cellY,
@@ -296,7 +321,7 @@ internal class BlueprintGeometry(
                     clearance = SEPARATOR_CAPTION_CLEARANCE_PX,
                 )
         }
-        for (card in cardRects.values) {
+        for (card in allCards) {
             out += BlueprintNoteRouter.HLine(y = card.y, xFrom = card.x, xTo = card.x + card.w)
             out += BlueprintNoteRouter.HLine(y = card.y + card.h, xFrom = card.x, xTo = card.x + card.w)
         }
@@ -319,6 +344,8 @@ internal class BlueprintGeometry(
 /** A step card placed in the grid: [x]/[y] top-left, [w]/[h] size. */
 internal class CardRect(
     val step: dev.kuml.blueprint.model.JourneyStep,
+    /** Position of [step] in [BlueprintModel.steps]; unique even for duplicate or data-class-equal steps. */
+    val stepIndex: Int,
     val x: Double,
     val y: Double,
     val w: Double,

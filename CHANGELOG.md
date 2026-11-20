@@ -30,6 +30,13 @@ All notable changes to this project are documented here. Format follows
   - Files that are not valid UTF-8 are skipped.
   - The findings printed with `--fix-aliases` show the state before the fix.
 
+### Nacharbeit 122c: duplicate Service Blueprint step ids drawn as separate cards
+
+- **Why.** Duplicate step ids (only possible through JSON or OKF imports, `KUML-BP-W001`) used to be keyed by id inside the grid geometry, so the second card replaced the first one's entry: one card was lost, the other could end up in the wrong cell, and the warning said "only one step is drawn".
+- **Change.** Every step gets its own card, keyed by cell and position instead of by id. References (connections, note anchors) bind to the first step with that id in model order; if that step's phase or layer is hidden the reference is not drawn and never falls through to a later duplicate. The 2nd and later cards get the SVG element id `<id>.dup<n>`, the first card keeps `<id>` (no byte change for valid models). LaTeX node names use the positional step index instead of `indexOf`, so data-class-equal steps no longer collide. The `KUML-BP-W001` text now reads "each step is drawn, references to <id> bind to the first"; code, severity and once-per-id reporting are unchanged.
+- **Verification.** New `BlueprintDuplicateStepCardsTest` (same-cell and cross-cell duplicates, connection and note binding, element ids, hidden first occurrence) and LaTeX cases for equal steps; sample `blueprint-duplicate-step-ids`.
+- **Not fixed.** No visual duplicate marker (a separate wave if wanted). The binding is not view-dependent. `KUML-BP-W001` stays a warning and model ids are untouched. A real step id that equals a generated `<id>.dup<n>` would still produce a duplicate DOM id (deterministic, accepted). Quoted old W001 text elsewhere (kuml.dev) is not checked in this repo.
+
 ### Nacharbeit 121d: cross-kind id collisions in Service Blueprints
 
 - **Why.** The "Not fixed" line of Nacharbeit 111: ids shared between a step and a phase or actor were not checked, although anchors, notes and imports resolve by id.

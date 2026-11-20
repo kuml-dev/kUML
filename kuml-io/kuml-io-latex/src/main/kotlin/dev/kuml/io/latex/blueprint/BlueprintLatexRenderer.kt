@@ -153,6 +153,9 @@ internal object BlueprintLatexRenderer {
         // Names of the drawn steps (only given when notes exist, so the output without notes is unchanged).
         val stepNames = mutableMapOf<String, String>()
         val stepRoutes = mutableMapOf<String, StepRoute>()
+        // Duplicate ids (KUML-BP-W001): every step is drawn; references bind to the first step in model order.
+        val firstIndexById = mutableMapOf<String, Int>()
+        model.steps.forEachIndexed { i, st -> if (st.id !in firstIndexById) firstIndexById[st.id] = i }
 
         return buildString {
             appendLine("""\begin{tikzpicture}[>=stealth]""")
@@ -197,33 +200,38 @@ internal object BlueprintLatexRenderer {
             // ── step cells ──
             layers.forEachIndexed { li, layer ->
                 phases.forEachIndexed { pi, phase ->
-                    val steps = model.stepsIn(phaseId = phase.id, layer = layer)
-                    steps.forEachIndexed { si, step ->
+                    // Same filter and order as model.stepsIn, but with the positional index (never indexOf/equality).
+                    val indexedSteps = model.steps.withIndex().filter { it.value.phaseRef == phase.id && it.value.layer == layer }
+                    val steps = indexedSteps.map { it.value }
+                    indexedSteps.forEachIndexed { si, (stepIdx, step) ->
                         // stack multiple steps slightly within the band
                         val yOff = if (steps.size > 1) (si - (steps.size - 1) / 2.0) * 0.4 else 0.0
                         val actor = step.actorRef?.let { ref -> model.actors.firstOrNull { it.id == ref } }
                         val roleSuffix = actor?.let { """\\\\{\footnotesize[${escapeLatex(it.role.name)}]}""" } ?: ""
                         val nameOpt =
                             if (hasNotes) {
-                                val name = "kumlbpstep${model.steps.indexOf(step)}"
-                                stepNames[step.id] = name
+                                val name = "kumlbpstep$stepIdx"
+                                val isFirst = firstIndexById[step.id] == stepIdx
+                                if (isFirst) stepNames[step.id] = name
                                 // Routes run in the free strip just below this band (below the separator line and
                                 // its label, above the boxes of the next band), never inside a box or on a line.
                                 val nextStack =
                                     layers.getOrNull(li + 1)?.let { next ->
                                         phases.maxOf { model.stepsIn(phaseId = it.id, layer = next).size }
                                     } ?: 1
-                                stepRoutes[step.id] =
-                                    StepRoute(
-                                        band = li,
-                                        southAboveBandBottom = (ROW_H - STEP_H) / 2.0 + yOff,
-                                        gap = max((ROW_H - STEP_H) / 2.0 - STEP_STACK_PITCH * (nextStack - 1) / 2.0, MIN_ROUTE_GAP),
-                                        // A box under a later (higher, drawn on top) box of its cell shows only the
-                                        // strip of one pitch at its bottom: anchor in the middle of that strip.
-                                        endLift = if (si < steps.size - 1) STEP_STACK_PITCH / 2.0 else null,
-                                        lastColumn = pi == phases.size - 1,
-                                        centerY = bandCenterY(li) + yOff,
-                                    )
+                                if (isFirst) {
+                                    stepRoutes[step.id] =
+                                        StepRoute(
+                                            band = li,
+                                            southAboveBandBottom = (ROW_H - STEP_H) / 2.0 + yOff,
+                                            gap = max((ROW_H - STEP_H) / 2.0 - STEP_STACK_PITCH * (nextStack - 1) / 2.0, MIN_ROUTE_GAP),
+                                            // A box under a later (higher, drawn on top) box of its cell shows only the
+                                            // strip of one pitch at its bottom: anchor in the middle of that strip.
+                                            endLift = if (si < steps.size - 1) STEP_STACK_PITCH / 2.0 else null,
+                                            lastColumn = pi == phases.size - 1,
+                                            centerY = bandCenterY(li) + yOff,
+                                        )
+                                }
                                 " ($name)"
                             } else {
                                 ""

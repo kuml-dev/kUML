@@ -173,6 +173,16 @@ internal fun renderBlueprintJourney(
 
         // 4. step cards per cell: several cards of one cell are stacked top to bottom (declaration order);
         //    each card carries its own footer (actor + touchpoint badges).
+        // Duplicate step ids (KUML-BP-W001): every step is drawn; the 2nd+ occurrence (model order) gets the DOM id `<id>.dup<n>`.
+        val occurrence = IntArray(model.steps.size)
+        run {
+            val seen = HashMap<String, Int>()
+            model.steps.forEachIndexed { i, st ->
+                val n = (seen[st.id] ?: 0) + 1
+                seen[st.id] = n
+                occurrence[i] = n
+            }
+        }
         geo.layers.forEach { layer ->
             geo.phases.forEach { phase ->
                 geo.cardsIn(phaseId = phase.id, layer = layer).forEach { card ->
@@ -194,6 +204,7 @@ internal fun renderBlueprintJourney(
                         actor = actor,
                         accent = layerAccent(layer),
                         touchpoints = footerTouchpoints,
+                        domId = if (occurrence[card.stepIndex] == 1) step.id else "${step.id}.dup${occurrence[card.stepIndex]}",
                     )
                 }
             }
@@ -289,7 +300,7 @@ private fun layerAccent(layer: BlueprintLayer): String =
         BlueprintLayer.SUPPORT_PROCESSES -> "#8a4fbf"
     }
 
-private fun cardCenterOf(
+internal fun cardCenterOf(
     model: BlueprintModel,
     geo: BlueprintGeometry,
     elementId: String,

@@ -36,6 +36,7 @@ class BlueprintDuplicateStepIdCliTest :
             f.single().severity shouldBe Severity.WARNING
             f.single().message shouldContain "s1"
             f.single().message shouldContain "3 occurrences"
+            f.single().message shouldContain "each step is drawn, references to s1 bind to the first"
             f.single().message shouldNotContain "SECRET-NAME"
         }
 
