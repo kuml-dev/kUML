@@ -49,7 +49,11 @@ class SharedPreambleTest :
             tex shouldContain "\\@ifpackageloaded{babel}{}{\\usepackage[english]{babel}}"
             tex shouldContain "\\@ifpackageloaded{tikz}{}{\\usepackage{tikz}}"
             // lmodern is guarded by the font defaults, not by ifpackageloaded, so it cannot override a host font
-            tex shouldContain "\\ifx\\rmdefault\\kumlcmr"
+            // \rmdefault & co. are \long macros in some TeX Live releases (2023), so they are compared as \edef-expanded
+            // text; a direct \ifx against a plain \def never matches there and lmodern would silently not be loaded.
+            tex shouldContain "\\edef\\kumlrm{\\rmdefault}"
+            tex shouldContain "\\ifx\\kumlrm\\kumlcmr"
+            tex shouldNotContain "\\ifx\\rmdefault"
             tex shouldContain "\\usepackage{lmodern}\\fi\\fi\\fi"
             tex.indexOf("{lmodern}") shouldBeGreaterThan tex.indexOf("{fontenc}")
         }

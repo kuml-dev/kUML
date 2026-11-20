@@ -1120,9 +1120,12 @@ public object KumlLatexRenderer {
                 if (pkg.name == "lmodern") {
                     // lmodern resets \rmdefault/\sfdefault/\ttdefault, so it must never override a font the host
                     // document chose (libertine, palatino, ...): load it only while all three are still the CM defaults.
+                    // The defaults are compared as \edef-expanded text: \rmdefault & co. are \long macros, so a direct
+                    // \ifx against a plain \def never matches and lmodern would silently never be loaded.
                     appendLine("\\def\\kumlcmr{cmr}\\def\\kumlcmss{cmss}\\def\\kumlcmtt{cmtt}")
+                    appendLine("\\edef\\kumlrm{\\rmdefault}\\edef\\kumlsf{\\sfdefault}\\edef\\kumltt{\\ttdefault}")
                     appendLine(
-                        "\\ifx\\rmdefault\\kumlcmr\\ifx\\sfdefault\\kumlcmss\\ifx\\ttdefault\\kumlcmtt" +
+                        "\\ifx\\kumlrm\\kumlcmr\\ifx\\kumlsf\\kumlcmss\\ifx\\kumltt\\kumlcmtt" +
                             "\\usepackage{lmodern}\\fi\\fi\\fi",
                     )
                 } else {

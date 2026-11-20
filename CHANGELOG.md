@@ -6,6 +6,14 @@ All notable changes to this project are documented here. Format follows
 
 ## [Unreleased]
 
+### Nacharbeit 123c: folder-export preamble really loads lmodern on TeX Live 2023
+
+- **Why.** After Nacharbeit 123b the standalone documents compiled on the CI runner, but `LatexFolderPdfBuildTest` still failed with `Font ecsx0800 at 525 not found`. The 123b entry claimed the folder export was verified in Docker; that was wrong for the folder export (the real `kuml workspace export --format latex` output was not what had been compiled).
+- **Cause.** The shared preamble `kuml-preamble.tex` loaded `lmodern` only when `\ifx\rmdefault\kumlcmr` held. `\rmdefault`, `\sfdefault` and `\ttdefault` are `\long` macros in TeX Live 2023 (ubuntu-24.04), so `\ifx` against a plain `\def` was false, `lmodern` was never loaded and T1 fell back to the EC bitmap fonts. On the developer Mac (MacTeX 2026) the comparison happens to hold, which is why local runs were green.
+- **Change.** The three defaults are compared as `\edef`-expanded text (`\edef\kumlrm{\rmdefault}` and so on). The behaviour for a host document with its own font (libertine, palatino) is unchanged: `lmodern` is still skipped there.
+- **Verification.** Reproduced in Docker (`ubuntu:24.04`, the CI package list without recommends, TeX Live 2023) with the real folder export of `kuml-cli/src/test/resources/latex`: before, exit 1 with 21 `mktexpk` lines; after, exit 0, no `mktexpk`, `main.pdf` with 13 pages. `SharedPreambleTest` asserts the `\edef` form without TeX.
+- **Not verified.** A real GitHub CI run (until pushed); MiKTeX/Windows.
+
 ### Nacharbeit 123b: LaTeX standalone preamble loads lmodern (CI pdflatex failure)
 
 - **Why.** The `LaTeX PDF build` CI job failed for the ERM fixture with `Font ecsx0800 at 525 not found`. The standalone preamble loaded `fontenc[T1]` but not `lmodern`. T1 then selects the EC bitmap fonts, and a TeX Live without `cm-super` (the apt set of the CI job) falls back to `mktexpk`/Metafont, which fails at odd sizes. The ERM renderer sets `\sffamily\scriptsize\bfseries`, which hits exactly that case. Other families triggered the same fallback silently (it succeeded there, but generated bitmap fonts).
