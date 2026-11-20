@@ -6,6 +6,23 @@ All notable changes to this project are documented here. Format follows
 
 ## [Unreleased]
 
+### Nacharbeit 122a: OKF alias repair in the CLI, real type line in findings
+
+- **Why.** The "Not fixed" items of Nacharbeit 114: alias `type:` ids could not be repaired by a command, and `OKF-I-001` always reported line 1.
+- **Change.**
+  - `kuml workspace validate <dir> --fix-aliases [--dry-run]` rewrites alias `type:` values (`OKF-I-001`) to their canonical ids in `.md` documents. Only the alias bytes change (CRLF, BOM, quotes and the body are preserved), the write is atomic and keeps POSIX permissions, symbolic links, paths outside the root, non-UTF-8 files and files changed on disk meanwhile are skipped. `--dry-run` lists the changes without writing; `-o json` adds a `fixes` array. Exit codes: 5 on validation errors (fixes applied first), 4 if a file was skipped, else 0. Plain `validate` never writes.
+  - `OKF-I-001` and `OKF-W-002` now report the real `type:` line (new `OkfDocument.typeLine`, additive). The validator is shared, so the Desktop banner and the Desktop MCP tool show the real line too.
+  - New `OkfAliasRewriter` in `kuml-workspace`; the atomic write is now shared (`AtomicFileWrite`) with the Desktop save without changing its behaviour.
+- **Verification.** `OkfDocumentParserTest`, `OkfValidatorTest`, `OkfAliasRewriterTest` (byte preservation, symlink escapes, concurrent change, dry run, permissions), `WorkspaceFixAliasesCommandTest`, `WorkspaceOkfLineTest`; `OkfDocumentWriterTest` guards the refactor.
+- **Not verified.** Windows, Intel Mac.
+- **Not fixed.**
+  - No Desktop action and no language-server code action yet.
+  - `OKF-E-003` still uses line 1, because a missing block has no certain line.
+  - The race between the last re-check and the rename is narrowed but not closed (no file locks).
+  - An atomic replace breaks hard links and keeps only POSIX permissions (not owner, ACLs or extended attributes).
+  - Files that are not valid UTF-8 are skipped.
+  - The findings printed with `--fix-aliases` show the state before the fix.
+
 ### Nacharbeit 121d: cross-kind id collisions in Service Blueprints
 
 - **Why.** The "Not fixed" line of Nacharbeit 111: ids shared between a step and a phase or actor were not checked, although anchors, notes and imports resolve by id.

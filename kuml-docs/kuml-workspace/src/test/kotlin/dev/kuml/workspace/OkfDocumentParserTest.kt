@@ -95,4 +95,25 @@ class OkfDocumentParserTest :
             links.map { it.target } shouldBe listOf("./a.md", "./b.md")
             links.map { it.line } shouldBe listOf(3, 4)
         }
+
+        fun typeLineOf(text: String): Int? = OkfDocumentParser.parse(root = File("/r"), file = File("/r/a.md"), text = text).typeLine
+
+        test("typeLine is the line of the type entry") {
+            typeLineOf("---\ntype: Concept\n---\nbody") shouldBe 2
+            typeLineOf("---\ntitle: T\n\ntype: Concept\n---\nbody") shouldBe 4
+        }
+
+        test("typeLine handles CRLF documents") {
+            typeLineOf("---\r\ntitle: T\r\ntype: Concept\r\n---\r\nbody") shouldBe 3
+        }
+
+        test("typeLine is the last type entry when duplicated") {
+            typeLineOf("---\ntype: A\ntype: B\n---\nbody") shouldBe 3
+        }
+
+        test("typeLine is null without frontmatter, with unclosed frontmatter and for an empty type") {
+            typeLineOf("no frontmatter") shouldBe null
+            typeLineOf("---\ntype: Concept\nbody never closed") shouldBe null
+            typeLineOf("---\ntype: \"\"\n---\nbody") shouldBe null
+        }
     })

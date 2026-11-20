@@ -13,7 +13,7 @@ The canonical entry point is the `kuml workspace` subcommand group:
 ----
 kuml workspace init [--name <name>] [--mode knowledge|engineering]   # scaffold a new workspace (see below)
 kuml workspace info <dir>                     # mode + document inventory
-kuml workspace validate <dir> [--document <path>]... [--evaluate [--strict]]   # OKF conformance checks
+kuml workspace validate <dir> [--document <path>]... [--evaluate [--strict]] [--fix-aliases [--dry-run]]   # OKF conformance checks
 kuml workspace render <dir> [--document <path>]... [-o <dir>] [--strict]       # render every ```kuml block to SVG/PNG
 kuml workspace convert <src> --to okf|kts     # convert between OKF notes and .kuml.kts scripts
 kuml workspace export <dir> --format pdf      # handbook / per-document / diagram folio (see Workspace PDF export)
@@ -291,12 +291,21 @@ Some types also accept a short alias in the `type:` field. An alias is resolved 
 document is *read*: it counts as the canonical type, so a diagram under an alias is rendered
 and validated like any other, and `strictVocabulary` does not turn it into an error. The
 validator reports it once as the info finding `OKF-I-001`
-(`type 'Sysml2Bdd' is an alias; canonical id is 'Sysml2BlockDefinition'`). kUML does not rewrite
-the file during validation, rendering or listing. The finding carries the canonical id (field
-`canonicalId` in `kuml workspace validate --format json`), and its suggestion names the replacement.
-To migrate, change the value of `type:` in the frontmatter to the canonical id by hand. The internal
-helper `dev.kuml.workspace.OkfAliasFix` performs the same edit and preserves every other byte, but it is
-not yet exposed as a command or editor action. Editors list and write only the canonical ids.
+(`type 'Sysml2Bdd' is an alias; canonical id is 'Sysml2BlockDefinition'`). The finding reports the line of the
+`type:` entry, carries the canonical id (field `canonicalId` in `kuml workspace validate -o json`), and its
+suggestion names the replacement.
+
+kUML never rewrites a file during validation, rendering or listing unless explicitly asked.
+`kuml workspace validate <dir> --fix-aliases` rewrites only the alias value of the `type:` line in `.md`
+documents that have an `OKF-I-001` finding. It preserves every other byte (including CRLF line endings), writes
+atomically, skips symbolic links and anything outside the workspace root, and skips a file that changed on disk
+while it was being rewritten (and files that are not valid UTF-8). `--dry-run` lists the files that would change
+without writing anything. `--fix-aliases` can be combined with `--document`; then only the selected documents are
+touched. The findings printed in the same run describe the state before the rewrite; run `validate` again to see
+the result. Exit codes: validation errors keep exit code 5 (the fixes are applied first), otherwise exit code 4 if
+at least one file was skipped (also in a dry run), otherwise 0. `-o json` adds a `fixes` array with one entry per
+document (`status`: `rewritten`, `would-rewrite`, `unchanged` or `skipped`). The Desktop and the language server
+do not offer this action yet. Editors list and write only the canonical ids.
 Matching is case-sensitive.
 
 [cols="2,2"]
@@ -428,7 +437,8 @@ blocks a save in the desktop editor either (see "The save gate"): only a missing
 | Code | Severity | Meaning | Blocks a Desktop save?
 
 | `OKF-E-001` | ERROR | Frontmatter missing or has no `type:` field. | Yes
-| `OKF-W-002` | WARNING (or ERROR under `--strict-vocabulary`) | Unrecognised `type:` value. | No
+| `OKF-I-001` | INFO | `type:` is an alias of a canonical id; the reported line is the `type:` line. | No
+| `OKF-W-002` | WARNING (or ERROR under `--strict-vocabulary`) | Unrecognised `type:` value; the reported line is the `type:` line. | No
 | `OKF-E-003` | ERROR | A diagram type has no ```kuml block. | No
 | `OKF-W-004` | WARNING | A document has more than one ```kuml block ("one file = one diagram"). | No
 | `OKF-E-005` | ERROR (WARNING when written through the editor or the MCP write path, and with `deferLinks` on the MCP `kuml_desktop_workspace_validate` tool) | A relative Markdown link to a `.md` target that does not exist. The write path downgrades it because the target may be created right afterwards. `kuml workspace validate` always reports it as ERROR. | No

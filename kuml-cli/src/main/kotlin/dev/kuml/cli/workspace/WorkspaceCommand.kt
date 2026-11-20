@@ -13,6 +13,9 @@ import com.github.ajalt.clikt.parameters.types.choice
 import com.github.ajalt.clikt.parameters.types.file
 import com.github.ajalt.clikt.parameters.types.int
 import dev.kuml.cli.ExitCodes
+import dev.kuml.workspace.OkfAliasRewriteResult
+import dev.kuml.workspace.OkfAliasRewriter
+import dev.kuml.workspace.OkfAliasSkipReason
 import dev.kuml.workspace.OkfDocument
 import dev.kuml.workspace.OkfFinding
 import dev.kuml.workspace.OkfSeverity
@@ -180,9 +183,28 @@ internal class WorkspaceValidateCommand : CliktCommand(name = "validate") {
         help = "With --evaluate: treat OKF-W-008 (several diagrams in one block) as an ERROR. Has no effect without --evaluate",
     ).flag(default = false)
 
-    override fun help(context: Context): String = "Validate OKF conformance of a knowledge workspace (ADR-0011)."
+    private val fixAliases by option(
+        "--fix-aliases",
+        help =
+            "Rewrite alias 'type:' ids (OKF-I-001) to their canonical ids in the workspace's .md files. " +
+                "Without this flag validate never writes.",
+    ).flag(default = false)
+
+    private val dryRun by option(
+        "--dry-run",
+        help = "With --fix-aliases: list the files that would change, write nothing",
+    ).flag(default = false)
+
+    override fun help(context: Context): String =
+        "Validate OKF conformance of a knowledge workspace (ADR-0011). With --fix-aliases, also rewrites alias " +
+            "'type:' ids to canonical ids (exit 5 on validation errors, else 4 if a file was skipped, else 0); " +
+            "the printed findings describe the state before the rewrite."
 
     override fun run() {
+        if (dryRun && !fixAliases) {
+            echo("Error: --dry-run requires --fix-aliases", err = true)
+            throw ProgramResult(ExitCodes.USAGE)
+        }
         val root = WorkspaceScanner.canonicalRoot(dir)
         val scoped = documents.isNotEmpty()
         val docs: List<OkfDocument>
@@ -203,6 +225,20 @@ internal class WorkspaceValidateCommand : CliktCommand(name = "validate") {
         val errorCount = findings.count { it.severity == OkfSeverity.ERROR }
         val label = if (scoped) docs.joinToString(", ") { it.relativePath.replace('\\', '/') } else root.name
 
+        // The findings above describe the state BEFORE the rewrite.
+        val fixResults: List<OkfAliasRewriteResult>? =
+            if (fixAliases) {
+                val aliasFiles = findings.filter { it.code == "OKF-I-001" }.map { it.file }.toSet()
+                OkfAliasRewriter.rewrite(
+                    root = root,
+                    targets = docs.filter { it.relativePath in aliasFiles },
+                    knownDocuments = docs.map { it.file },
+                    dryRun = dryRun,
+                )
+            } else {
+                null
+            }
+
         when (outputFormat) {
             "json" ->
                 echo(
@@ -212,6 +248,8 @@ internal class WorkspaceValidateCommand : CliktCommand(name = "validate") {
                             findings = findings.map { it.toJson() },
                             scope = if (scoped) "document" else "workspace",
                             documents = if (scoped) docs.map { it.relativePath.replace('\\', '/') } else null,
+                            fixes = fixResults?.map { it.toJson() },
+                            dryRun = if (fixAliases) dryRun else null,
                         ),
                     ),
                 )
@@ -234,12 +272,83 @@ internal class WorkspaceValidateCommand : CliktCommand(name = "validate") {
                         err = true,
                     )
                 }
+                if (fixResults != null) printFixResults(results = fixResults)
             }
         }
 
         if (errorCount > 0) throw ProgramResult(ExitCodes.VALIDATION_VIOLATIONS)
+        if (fixResults?.any { it is OkfAliasRewriteResult.Skipped } == true) throw ProgramResult(ExitCodes.IO_ERROR)
+    }
+
+    private fun printFixResults(results: List<OkfAliasRewriteResult>) {
+        if (results.isEmpty()) {
+            echo("\nNo alias type ids to rewrite.")
+            return
+        }
+        echo("")
+        var changed = 0
+        var skipped = 0
+        for (r in results) {
+            val path = r.relativePath.replace('\\', '/').sanitiseForTerminal()
+            when (r) {
+                is OkfAliasRewriteResult.Rewritten -> {
+                    changed++
+                    echo("  fixed      $path: ${r.alias} -> ${r.canonical}")
+                }
+                is OkfAliasRewriteResult.WouldRewrite -> {
+                    changed++
+                    echo("  would fix  $path: ${r.alias} -> ${r.canonical}")
+                }
+                is OkfAliasRewriteResult.Unchanged -> echo("  unchanged  $path: no alias any more")
+                is OkfAliasRewriteResult.Skipped -> {
+                    skipped++
+                    echo("  skipped    $path: ${r.reason.plainEnglish()}", err = true)
+                }
+            }
+        }
+        if (dryRun) {
+            echo("Dry run: would rewrite $changed file(s), skipped $skipped; nothing written.")
+        } else {
+            echo("Rewrote $changed file(s), skipped $skipped.")
+        }
     }
 }
+
+// File names are user-controlled: never echo control characters (terminal escape sequences) back.
+private fun String.sanitiseForTerminal(): String = map { if (it.isISOControl()) '?' else it }.joinToString("")
+
+private fun OkfAliasSkipReason.plainEnglish(): String =
+    when (this) {
+        OkfAliasSkipReason.OUTSIDE_ROOT -> "outside the workspace root"
+        OkfAliasSkipReason.SYMLINK -> "is a symbolic link"
+        OkfAliasSkipReason.NOT_A_REGULAR_FILE -> "is not a regular file"
+        OkfAliasSkipReason.UNKNOWN_DOCUMENT -> "not a known workspace document"
+        OkfAliasSkipReason.NOT_MARKDOWN -> "is not a .md file"
+        OkfAliasSkipReason.TOO_LARGE -> "file is too large"
+        OkfAliasSkipReason.NOT_UTF8 -> "not valid UTF-8"
+        OkfAliasSkipReason.CHANGED_ON_DISK -> "changed on disk while being rewritten"
+        OkfAliasSkipReason.IO_ERROR -> "could not be rewritten (I/O error)"
+    }
+
+@Serializable
+private data class OkfAliasFixJson(
+    val file: String,
+    val status: String,
+    val alias: String? = null,
+    val canonical: String? = null,
+    val reason: String? = null,
+)
+
+private fun OkfAliasRewriteResult.toJson(): OkfAliasFixJson =
+    when (this) {
+        is OkfAliasRewriteResult.Rewritten ->
+            OkfAliasFixJson(file = relativePath, status = "rewritten", alias = alias, canonical = canonical)
+        is OkfAliasRewriteResult.WouldRewrite ->
+            OkfAliasFixJson(file = relativePath, status = "would-rewrite", alias = alias, canonical = canonical)
+        is OkfAliasRewriteResult.Unchanged -> OkfAliasFixJson(file = relativePath, status = "unchanged")
+        is OkfAliasRewriteResult.Skipped ->
+            OkfAliasFixJson(file = relativePath, status = "skipped", reason = reason.name.lowercase().replace('_', '-'))
+    }
 
 @Serializable
 private data class WorkspaceValidateJson(
@@ -250,6 +359,9 @@ private data class WorkspaceValidateJson(
     val scope: String,
     // Only present for --document runs (null default => omitted otherwise).
     val documents: List<String>? = null,
+    // Only present with --fix-aliases (null default => omitted otherwise).
+    val fixes: List<OkfAliasFixJson>? = null,
+    val dryRun: Boolean? = null,
 )
 
 // Internal (not private): reused by WorkspaceConvertCommand.kt's JSON report shape.

@@ -2,9 +2,7 @@ package dev.kuml.workspace
 
 import java.io.File
 import java.nio.charset.StandardCharsets
-import java.nio.file.AtomicMoveNotSupportedException
 import java.nio.file.Files
-import java.nio.file.StandardCopyOption
 
 /** The outcome of [OkfDocumentWriter.save]. */
 public sealed interface OkfWriteResult {
@@ -225,43 +223,6 @@ public object OkfDocumentWriter {
         target: File,
         content: String,
     ) {
-        val dir = target.parentFile ?: throw IllegalStateException("Target has no parent directory: $target")
-        val tmp = Files.createTempFile(dir.toPath(), ".${target.name}.", ".tmp")
-        try {
-            copyPosixPermissionsIfSupported(source = target, tmp = tmp.toFile())
-            Files.writeString(tmp, content, StandardCharsets.UTF_8)
-            try {
-                Files.move(tmp, target.toPath(), StandardCopyOption.ATOMIC_MOVE, StandardCopyOption.REPLACE_EXISTING)
-            } catch (_: AtomicMoveNotSupportedException) {
-                Files.move(tmp, target.toPath(), StandardCopyOption.REPLACE_EXISTING)
-            }
-        } finally {
-            Files.deleteIfExists(tmp)
-        }
-    }
-
-    /**
-     * `Files.createTempFile` always creates a POSIX-`600` file; a pre-existing `644`
-     * document would otherwise silently lose its group/other read permission on every
-     * save. Skipped entirely on a filesystem without POSIX attribute support (e.g.
-     * Windows) — `Files.setPosixFilePermissions` would throw `UnsupportedOperationException`
-     * there.
-     */
-    private fun copyPosixPermissionsIfSupported(
-        source: File,
-        tmp: File,
-    ) {
-        if (!source.exists()) return
-        val supportsPosix =
-            tmp
-                .toPath()
-                .fileSystem
-                .supportedFileAttributeViews()
-                .contains("posix")
-        if (!supportsPosix) return
-        runCatching {
-            val perms = Files.getPosixFilePermissions(source.toPath())
-            Files.setPosixFilePermissions(tmp.toPath(), perms)
-        }
+        AtomicFileWrite.replace(target = target) { Files.writeString(it, content, StandardCharsets.UTF_8) }
     }
 }

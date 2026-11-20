@@ -21,6 +21,8 @@ public data class MarkdownLink(
  * @property rawType The raw `type:` string as written in the frontmatter, unresolved.
  * @property kumlBlocks All ` ```kuml ` fenced code blocks in the document, in source order.
  * @property links All Markdown links (`[text](target)`) found in the document body.
+ * @property typeLine 1-based line of the effective `type:` entry in the frontmatter (the last non-empty one,
+ *  as the parser reads it), or `null`.
  */
 public data class OkfDocument(
     public val file: File,
@@ -30,6 +32,8 @@ public data class OkfDocument(
     public val rawType: String?,
     public val kumlBlocks: List<KumlCodeBlock>,
     public val links: List<MarkdownLink>,
+    /** 1-based line of the effective `type:` entry in the frontmatter (the last non-empty one, as the parser reads it), or `null`. */
+    public val typeLine: Int? = null,
 )
 
 /** The declared or inferred mode of an [OkfWorkspace] (ADR-0011). */

@@ -49,6 +49,7 @@ public object OkfDocumentParser {
             rawType = rawType,
             kumlBlocks = kumlBlocks,
             links = links,
+            typeLine = OkfAliasFix.typeLineNumber(markdown = text),
         )
     }
 

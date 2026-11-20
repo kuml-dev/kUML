@@ -219,4 +219,35 @@ class OkfValidatorTest :
 
             root.deleteRecursively()
         }
+
+        fun validateOne(
+            text: String,
+            strict: Boolean = false,
+        ): List<OkfFinding> {
+            val root = Files.createTempDirectory("kuml-okf-line").toFile()
+            try {
+                File(root, "d.md").writeText(text)
+                return OkfValidator.validate(ws = WorkspaceScanner.scan(root = root), strictVocabulary = strict)
+            } finally {
+                root.deleteRecursively()
+            }
+        }
+
+        test("OKF-I-001 reports the type line, also for CRLF, and points to --fix-aliases") {
+            for (nl in listOf("\n", "\r\n")) {
+                val f = validateOne("---${nl}title: T${nl}${nl}type: Sysml2Bdd$nl---${nl}body$nl").single { it.code == "OKF-I-001" }
+                f.line shouldBe 4
+                (f.suggestion ?: "").contains("--fix-aliases") shouldBe true
+                (f.suggestion ?: "").contains("never rewritten") shouldBe false
+            }
+        }
+
+        test("OKF-W-002 reports the type line") {
+            validateOne("---\ntitle: T\ntype: Totally-Custom\n---\nbody").single { it.code == "OKF-W-002" }.line shouldBe 3
+        }
+
+        test("OKF-E-001 and OKF-E-003 stay on line 1") {
+            validateOne("no frontmatter").single { it.code == "OKF-E-001" }.line shouldBe 1
+            validateOne("---\ntitle: T\ntype: UmlClassDiagram\n---\nbody").single { it.code == "OKF-E-003" }.line shouldBe 1
+        }
     })

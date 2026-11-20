@@ -3,6 +3,7 @@ package dev.kuml.cli.workspace
 import com.github.ajalt.clikt.testing.test
 import dev.kuml.cli.KumlCli
 import io.kotest.core.spec.style.FunSpec
+import io.kotest.matchers.shouldBe
 import io.kotest.matchers.string.shouldContain
 import java.io.File
 import java.nio.file.Files
@@ -46,6 +47,23 @@ class WorkspaceOkfLineTest :
                 result.output shouldContain "(block line 4)"
             } finally {
                 root.deleteRecursively()
+            }
+        }
+
+        for (nl in listOf("\n", "\r\n")) {
+            test("OKF-I-001 and OKF-W-002 report the type line (4), newline ${nl.length}") {
+                val root = Files.createTempDirectory("kuml-okf-typeline").toFile()
+                try {
+                    File(root, "alias.md").writeText("---${nl}title: T${nl}${nl}type: Sysml2Bdd$nl---${nl}body$nl")
+                    File(root, "custom.md").writeText("---${nl}title: T${nl}${nl}type: Totally-Custom$nl---${nl}body$nl")
+                    val text = KumlCli().test(listOf("workspace", "validate", root.absolutePath))
+                    text.output shouldContain "alias.md:4:"
+                    text.output shouldContain "custom.md:4:"
+                    val json = KumlCli().test(listOf("workspace", "validate", root.absolutePath, "-o", "json"))
+                    Regex("\"line\": 4").findAll(json.stdout).count() shouldBe 2
+                } finally {
+                    root.deleteRecursively()
+                }
             }
         }
     })
