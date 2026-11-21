@@ -1,13 +1,11 @@
 package dev.kuml.cli.export
 
-import dev.kuml.bpmn.model.ChoreographyDiagram
-import dev.kuml.bpmn.model.ConversationDiagram
 import dev.kuml.cli.RenderPipeline
 import dev.kuml.core.script.ExtractedDiagram
 import dev.kuml.core.script.ScriptEvaluationException
 import dev.kuml.io.latex.KumlLatexRenderer
+import dev.kuml.io.latex.LatexExportSupport
 import dev.kuml.io.latex.LatexFamily
-import dev.kuml.sysml2.Sysml2PackageDiagram
 import java.io.File
 import java.io.IOException
 import java.nio.file.FileSystems
@@ -156,20 +154,10 @@ public object LatexExportService {
     /** `null` when [extracted] has LaTeX output, otherwise the reason it has none. */
     public fun unsupportedReason(extracted: ExtractedDiagram): String? =
         when (extracted) {
-            is ExtractedDiagram.Erm ->
-                // Nacharbeit 123: Martin, Bachman and IDEF1X have LaTeX output (Nacharbeit 126), Chen has none. This sees the diagram's own notation, not
-                // a `--notation` override; the render pipeline checks the effective one.
-                extracted.diagram.notation
-                    .takeIf { !KumlLatexRenderer.ermLatexSupports(it) }
-                    ?.let(KumlLatexRenderer::ermUnsupportedNotationMessage)
-            is ExtractedDiagram.Sysml2 ->
-                if (extracted.diagram is Sysml2PackageDiagram) KumlLatexRenderer.PACKAGE_DIAGRAM_UNSUPPORTED else null
-            is ExtractedDiagram.Bpmn ->
-                when (extracted.diagram) {
-                    is ChoreographyDiagram -> "BPMN choreography diagrams have no LaTeX output yet"
-                    is ConversationDiagram -> "BPMN conversation diagrams have no LaTeX output yet"
-                    else -> null
-                }
+            // Nacharbeit 123/126: sees the diagram's own notation, not a `--notation` override; the render pipeline checks the effective one.
+            is ExtractedDiagram.Erm -> LatexExportSupport.ermReason(extracted.diagram.notation)
+            is ExtractedDiagram.Sysml2 -> LatexExportSupport.sysml2Reason(extracted.diagram)
+            is ExtractedDiagram.Bpmn -> LatexExportSupport.bpmnReason(extracted.diagram)
             is ExtractedDiagram.Uml, is ExtractedDiagram.C4, is ExtractedDiagram.Blueprint -> null
         }
 

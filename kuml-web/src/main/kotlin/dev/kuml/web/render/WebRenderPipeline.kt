@@ -17,6 +17,7 @@ import dev.kuml.erm.constraint.ErmConstraintChecker
 import dev.kuml.erm.constraint.ViolationSeverity
 import dev.kuml.erm.model.ErmNotation
 import dev.kuml.io.latex.KumlLatexRenderer
+import dev.kuml.io.latex.LatexExportSupport
 import dev.kuml.io.latex.LatexRenderOptions
 import dev.kuml.io.png.KumlPngRenderer
 import dev.kuml.io.png.PngRenderOptions
@@ -71,6 +72,10 @@ internal sealed class WebRenderResult {
         // targets outside UML class diagrams yet).
         val nodes: List<NodeBox> = emptyList(),
         val grid: GridGeometry? = null,
+        // Nacharbeit 128 — whether the same diagram has LaTeX output; set centrally in render() so the UI can
+        // disable the LaTeX download up front. `null` = not determined (callers outside render()).
+        val latexSupported: Boolean? = null,
+        val latexUnsupportedReason: String? = null,
     ) : WebRenderResult()
 
     data class Png(
@@ -149,65 +154,75 @@ internal object WebRenderPipeline {
                     )
 
             val durationMs = System.currentTimeMillis() - startMs
-            when (extracted) {
-                is ExtractedDiagram.Uml ->
-                    renderUml(
-                        extracted = extracted,
-                        format = format,
-                        theme = theme,
-                        layoutOverride = layoutOverride,
-                        widthPx = widthPx,
-                        durationMs = durationMs,
-                        standaloneTex = standaloneTex,
-                        watermark = watermark,
-                    )
-                is ExtractedDiagram.C4 ->
-                    renderC4(
-                        extracted = extracted,
-                        format = format,
-                        theme = theme,
-                        widthPx = widthPx,
-                        durationMs = durationMs,
-                        standaloneTex = standaloneTex,
-                        watermark = watermark,
-                    )
-                is ExtractedDiagram.Sysml2 ->
-                    renderSysml2(
-                        extracted = extracted,
-                        format = format,
-                        theme = theme,
-                        widthPx = widthPx,
-                        durationMs = durationMs,
-                        standaloneTex = standaloneTex,
-                        watermark = watermark,
-                    )
-                is ExtractedDiagram.Bpmn ->
-                    renderBpmn(
-                        extracted = extracted,
-                        format = format,
-                        theme = theme,
-                        widthPx = widthPx,
-                        durationMs = durationMs,
-                        watermark = watermark,
-                    )
-                // Blueprint intentionally excludes `watermark` — see renderBlueprint's doc comment.
-                is ExtractedDiagram.Blueprint ->
-                    renderBlueprint(
-                        extracted = extracted,
-                        format = format,
-                        widthPx = widthPx,
-                        durationMs = durationMs,
-                    )
-                is ExtractedDiagram.Erm ->
-                    renderErm(
-                        extracted = extracted,
-                        format = format,
-                        theme = theme,
-                        widthPx = widthPx,
-                        durationMs = durationMs,
-                        notationOverride = notation,
-                        watermark = watermark,
-                    )
+            val result =
+                when (extracted) {
+                    is ExtractedDiagram.Uml ->
+                        renderUml(
+                            extracted = extracted,
+                            format = format,
+                            theme = theme,
+                            layoutOverride = layoutOverride,
+                            widthPx = widthPx,
+                            durationMs = durationMs,
+                            standaloneTex = standaloneTex,
+                            watermark = watermark,
+                        )
+                    is ExtractedDiagram.C4 ->
+                        renderC4(
+                            extracted = extracted,
+                            format = format,
+                            theme = theme,
+                            widthPx = widthPx,
+                            durationMs = durationMs,
+                            standaloneTex = standaloneTex,
+                            watermark = watermark,
+                        )
+                    is ExtractedDiagram.Sysml2 ->
+                        renderSysml2(
+                            extracted = extracted,
+                            format = format,
+                            theme = theme,
+                            widthPx = widthPx,
+                            durationMs = durationMs,
+                            standaloneTex = standaloneTex,
+                            watermark = watermark,
+                        )
+                    is ExtractedDiagram.Bpmn ->
+                        renderBpmn(
+                            extracted = extracted,
+                            format = format,
+                            theme = theme,
+                            widthPx = widthPx,
+                            durationMs = durationMs,
+                            standaloneTex = standaloneTex,
+                            watermark = watermark,
+                        )
+                    // Blueprint intentionally excludes `watermark` — see renderBlueprint's doc comment.
+                    is ExtractedDiagram.Blueprint ->
+                        renderBlueprint(
+                            extracted = extracted,
+                            format = format,
+                            widthPx = widthPx,
+                            durationMs = durationMs,
+                            standaloneTex = standaloneTex,
+                        )
+                    is ExtractedDiagram.Erm ->
+                        renderErm(
+                            extracted = extracted,
+                            format = format,
+                            theme = theme,
+                            widthPx = widthPx,
+                            durationMs = durationMs,
+                            notationOverride = notation,
+                            watermark = watermark,
+                            standaloneTex = standaloneTex,
+                        )
+                }
+            if (result is WebRenderResult.Svg) {
+                val reason = latexUnsupportedReason(extracted = extracted, notationOverride = notation)
+                result.copy(latexSupported = reason == null, latexUnsupportedReason = reason)
+            } else {
+                result
             }
         } catch (e: ScriptEvaluationException) {
             WebRenderResult.Error(e.message ?: "Script error")
@@ -215,6 +230,28 @@ internal object WebRenderPipeline {
             WebRenderResult.Error(e.message ?: "Unexpected error")
         }
     }
+
+    /**
+     * `null` when [extracted] has LaTeX output, otherwise the reason it has none (Nacharbeit 128). The rules and
+     * texts come from [LatexExportSupport], the same source the CLI uses. ERM uses the effective notation (the
+     * request override wins over the diagram's own); an invalid override is reported by renderErm itself.
+     */
+    private fun latexUnsupportedReason(
+        extracted: ExtractedDiagram,
+        notationOverride: String?,
+    ): String? =
+        when (extracted) {
+            is ExtractedDiagram.Erm ->
+                LatexExportSupport.ermReason(
+                    notation =
+                        notationOverride
+                            ?.let { runCatching { ErmNotation.valueOf(it.uppercase()) }.getOrNull() }
+                            ?: extracted.diagram.notation,
+                )
+            is ExtractedDiagram.Sysml2 -> LatexExportSupport.sysml2Reason(extracted.diagram)
+            is ExtractedDiagram.Bpmn -> LatexExportSupport.bpmnReason(extracted.diagram)
+            is ExtractedDiagram.Uml, is ExtractedDiagram.C4, is ExtractedDiagram.Blueprint -> null
+        }
 
     private fun renderUml(
         extracted: ExtractedDiagram.Uml,
@@ -970,8 +1007,8 @@ internal object WebRenderPipeline {
     /**
      * BPMN render branch for the web render pipeline (V3.1.6).
      *
-     * Supports SVG and PNG output for both [ProcessDiagram] and [CollaborationDiagram].
-     * Returns a generic unsupported-format error for other format values.
+     * Supports SVG, PNG and LaTeX output for [ProcessDiagram] and [CollaborationDiagram]; LaTeX is refused for
+     * choreography and conversation diagrams. Returns a generic unsupported-format error for other format values.
      */
     private fun renderBpmn(
         extracted: ExtractedDiagram.Bpmn,
@@ -980,9 +1017,24 @@ internal object WebRenderPipeline {
         widthPx: Int,
         durationMs: Long,
         watermark: Boolean = false,
+        standaloneTex: Boolean = false,
     ): WebRenderResult {
         val model = extracted.model
         val bpmnDiagram = extracted.diagram
+        // Nacharbeit 128: LaTeX needs no layout (like the CLI); choreography and conversation diagrams have no LaTeX output.
+        if (format == "latex") {
+            val options = LatexRenderOptions(standalone = standaloneTex)
+            val tex =
+                when (bpmnDiagram) {
+                    is ProcessDiagram -> KumlLatexRenderer.toLatex(model = model, diagram = bpmnDiagram, options = options)
+                    is CollaborationDiagram -> KumlLatexRenderer.toLatex(model = model, diagram = bpmnDiagram, options = options)
+                    else ->
+                        return WebRenderResult.Error(
+                            LatexExportSupport.bpmnReason(bpmnDiagram) ?: "BPMN diagram has no LaTeX output",
+                        )
+                }
+            return WebRenderResult.Latex(tex = tex, durationMs = durationMs)
+        }
         val bpmnEngine =
             LayoutEngineRegistry.get("elk.layered")
                 ?: return WebRenderResult.Error("ELK layout engine not available for BPMN rendering")
@@ -1026,7 +1078,7 @@ internal object WebRenderPipeline {
                             )
                         WebRenderResult.Png(pngBytes = pngBytes, durationMs = durationMs)
                     }
-                    else -> WebRenderResult.Error("Unsupported format for BPMN: $format (svg, png supported)")
+                    else -> WebRenderResult.Error("Unsupported format for BPMN: $format (supported: svg, png, latex)")
                 }
             }
             is CollaborationDiagram -> {
@@ -1057,7 +1109,7 @@ internal object WebRenderPipeline {
                             durationMs = durationMs,
                         )
                     }
-                    else -> WebRenderResult.Error("Unsupported format for BPMN: $format (svg, png supported)")
+                    else -> WebRenderResult.Error("Unsupported format for BPMN: $format (supported: svg, png, latex)")
                 }
             }
             is ChoreographyDiagram -> {
@@ -1083,7 +1135,7 @@ internal object WebRenderPipeline {
                             durationMs = durationMs,
                         )
                     }
-                    else -> WebRenderResult.Error("Unsupported format for BPMN: $format (svg, png supported)")
+                    else -> WebRenderResult.Error("Unsupported format for BPMN: $format (supported: svg, png, latex)")
                 }
             }
             is ConversationDiagram -> {
@@ -1114,7 +1166,7 @@ internal object WebRenderPipeline {
                             durationMs = durationMs,
                         )
                     }
-                    else -> WebRenderResult.Error("Unsupported format for BPMN: $format (svg, png supported)")
+                    else -> WebRenderResult.Error("Unsupported format for BPMN: $format (supported: svg, png, latex)")
                 }
             }
         }
@@ -1129,11 +1181,23 @@ internal object WebRenderPipeline {
         format: String,
         widthPx: Int,
         durationMs: Long,
+        standaloneTex: Boolean = false,
     ): WebRenderResult {
         val model = extracted.model
         val diagram = extracted.diagram
         return when (format) {
             "svg" -> WebRenderResult.Svg(svg = KumlSvgRenderer.toSvg(model = model, diagram = diagram), durationMs = durationMs)
+            // Nacharbeit 128: layout-free, no theme and no watermark, exactly like the CLI.
+            "latex" ->
+                WebRenderResult.Latex(
+                    tex =
+                        KumlLatexRenderer.toLatex(
+                            model = model,
+                            diagram = diagram,
+                            options = LatexRenderOptions(standalone = standaloneTex),
+                        ),
+                    durationMs = durationMs,
+                )
             "png" -> {
                 val svg = KumlSvgRenderer.toSvg(model = model, diagram = diagram)
                 WebRenderResult.Png(
@@ -1141,7 +1205,7 @@ internal object WebRenderPipeline {
                     durationMs = durationMs,
                 )
             }
-            else -> WebRenderResult.Error("Unsupported format for Blueprint: $format (svg, png supported)")
+            else -> WebRenderResult.Error("Unsupported format for Blueprint: $format (supported: svg, png, latex)")
         }
     }
 
@@ -1171,6 +1235,7 @@ internal object WebRenderPipeline {
         durationMs: Long,
         notationOverride: String? = null,
         watermark: Boolean = false,
+        standaloneTex: Boolean = false,
     ): WebRenderResult {
         val model = extracted.model
         val diagram = extracted.diagram
@@ -1190,6 +1255,11 @@ internal object WebRenderPipeline {
                     "Unknown ERM notation: '$notationOverride'. Use martin, bachman, chen, or idef1x.",
                 )
             }
+
+        // Nacharbeit 128: refuse unsupported notations (Chen) before any layout work, using the effective notation.
+        if (format == "latex") {
+            LatexExportSupport.ermReason(notation)?.let { return WebRenderResult.Error(it) }
+        }
 
         // V3.4.x — shared spacing constant (see ErmLayoutBridge.WIDENED_SPACING_HINTS's
         // KDoc); keeps the kuml.dev playground's rendering in sync with the CLI's.
@@ -1242,10 +1312,18 @@ internal object WebRenderPipeline {
                 )
             }
             "latex" ->
-                WebRenderResult.Error(
-                    "ERM LaTeX export is not yet supported (planned for a post-V3.4 wave).",
+                WebRenderResult.Latex(
+                    tex =
+                        KumlLatexRenderer.toLatex(
+                            model = model,
+                            diagram = diagram,
+                            layoutResult = layout,
+                            notation = notation,
+                            options = LatexRenderOptions(standalone = standaloneTex),
+                        ),
+                    durationMs = durationMs,
                 )
-            else -> WebRenderResult.Error("Unsupported format for ERM: $format (svg, png supported)")
+            else -> WebRenderResult.Error("Unsupported format for ERM: $format (supported: svg, png, latex)")
         }
     }
 

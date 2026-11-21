@@ -201,9 +201,14 @@ class WebRenderPipelineTest :
             result.message shouldContain "notation"
         }
 
-        test("ERM latex format returns WebRenderResult.Error") {
+        test("ERM latex format returns TikZ for the default notation (Nacharbeit 128)") {
             val result = WebRenderPipeline.render(script = ermScript, format = "latex", themeName = null, layoutOverride = null)
-            result.shouldBeInstanceOf<WebRenderResult.Error>()
-            result.message.shouldNotBeEmpty()
+            result.shouldBeInstanceOf<WebRenderResult.Latex>().tex shouldContain "tikzpicture"
+        }
+
+        test("ERM latex format with the Chen notation returns WebRenderResult.Error") {
+            val result =
+                WebRenderPipeline.render(script = ermScript, format = "latex", themeName = null, layoutOverride = null, notation = "chen")
+            result.shouldBeInstanceOf<WebRenderResult.Error>().message shouldContain "CHEN"
         }
     })

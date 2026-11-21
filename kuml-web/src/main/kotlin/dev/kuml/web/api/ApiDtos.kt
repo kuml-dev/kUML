@@ -29,6 +29,9 @@ data class RenderResponse(
     // empty/null for png/latex/error responses (backward-compatible defaults).
     val nodes: List<NodeBox> = emptyList(),
     val grid: GridGeometry? = null,
+    // Nacharbeit 128 — only set on SVG responses: whether the same diagram has LaTeX output, and why not.
+    val latexSupported: Boolean? = null,
+    val latexUnsupportedReason: String? = null,
 )
 
 /**

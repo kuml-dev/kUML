@@ -89,6 +89,17 @@ header h1 {
   white-space: nowrap;
 }
 
+/* Nacharbeit 128 — muted reason why the LaTeX download is unavailable for this diagram (not an error). */
+.hint {
+  color: var(--text-muted);
+  font-size: 12px;
+  white-space: nowrap;
+}
+
+.hint.hidden {
+  display: none;
+}
+
 /* ── Main Layout ──────────────────────────────────────────────── */
 
 body {

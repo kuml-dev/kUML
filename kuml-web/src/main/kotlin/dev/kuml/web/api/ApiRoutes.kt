@@ -66,6 +66,8 @@ internal fun Application.configureApiRoutes(version: String = "0.6.0") {
                                 durationMs = result.durationMs,
                                 nodes = result.nodes,
                                 grid = result.grid,
+                                latexSupported = result.latexSupported,
+                                latexUnsupportedReason = result.latexUnsupportedReason,
                             )
                         is WebRenderResult.Png ->
                             RenderResponse(

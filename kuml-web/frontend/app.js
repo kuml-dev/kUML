@@ -18,6 +18,8 @@ const layoutSelect = document.getElementById('layout-select');
 const downloadSvgBtn = document.getElementById('download-svg');
 const downloadPngBtn = document.getElementById('download-png');
 const downloadLatexBtn = document.getElementById('download-latex');
+const standaloneToggleEl = document.getElementById('standalone-tex');
+const latexHintEl = document.getElementById('latex-hint');
 
 // ── State ─────────────────────────────────────────────────────────────────────
 let lastSvg = null;
@@ -51,6 +53,17 @@ function scheduleRender() {
   debounceTimer = setTimeout(renderSvg, 300);
 }
 
+// Nacharbeit 128 — LaTeX availability follows the diagram: the server reports (latexSupported / latexUnsupportedReason)
+// whether the rendered diagram has LaTeX output. An unsupported family disables the button and shows the reason as a
+// quiet hint; a response without the fields keeps the old behaviour (button active, a refusal shows in the error banner).
+function setLatexAvailability(available, reason) {
+  downloadLatexBtn.disabled = !available;
+  standaloneToggleEl.disabled = !available;
+  downloadLatexBtn.title = !available && reason ? reason : '';
+  latexHintEl.textContent = !available && reason ? `LaTeX not available: ${reason}` : '';
+  latexHintEl.classList.toggle('hidden', available || !reason);
+}
+
 async function renderSvg() {
   const script = editorView.state.doc.toString().trim();
   if (!script) {
@@ -59,7 +72,7 @@ async function renderSvg() {
     errorBannerEl.classList.add('hidden');
     lastSvg = null;
     lastLatex = null;
-    downloadLatexBtn.disabled = true;
+    setLatexAvailability(false, null);
     renderTimeEl.textContent = '';
     currentNodes = [];
     currentGrid = null;
@@ -85,7 +98,7 @@ async function renderSvg() {
       errorBannerEl.textContent = '';
       errorBannerEl.classList.add('hidden');
       renderTimeEl.textContent = `Rendered in ${data.durationMs}ms`;
-      downloadLatexBtn.disabled = false;
+      setLatexAvailability(data.latexSupported !== false, data.latexUnsupportedReason);
       currentNodes = data.nodes || [];
       currentGrid = data.grid || null;
       dragController?.setDraggable(currentGrid !== null);
@@ -93,7 +106,7 @@ async function renderSvg() {
     } else {
       showError(data.error || 'Unknown error');
       renderTimeEl.textContent = '';
-      downloadLatexBtn.disabled = true;
+      setLatexAvailability(false, null);
       currentNodes = [];
       currentGrid = null;
       dragController?.setDraggable(false);
@@ -226,7 +239,7 @@ downloadLatexBtn.addEventListener('click', async () => {
 
   const theme = themeSelect.value || null;
   const layout = layoutSelect.value || 'auto';
-  const standaloneTex = document.getElementById('standalone-tex').checked;
+  const standaloneTex = standaloneToggleEl.checked;
 
   try {
     const res = await fetch('/api/render', {
@@ -237,7 +250,7 @@ downloadLatexBtn.addEventListener('click', async () => {
     const data = await res.json();
     if (data.ok && data.latex) {
       lastLatex = data.latex;
-      const blob = new Blob([lastLatex], { type: 'application/x-tex' });
+      const blob = new Blob([lastLatex], { type: 'text/x-tex;charset=utf-8' });
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url; a.download = 'diagram.tex';
