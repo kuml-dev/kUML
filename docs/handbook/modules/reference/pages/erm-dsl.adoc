@@ -252,7 +252,8 @@ exists. If none exists, the default placement is used and `kuml render` reports 
 and `NEAR` never warn. In Chen notation the note is placed relative to the entity or view box. See
 xref:uml-dsl.adoc#note-placement-hint[Note placement hint].
 A hinted note also avoids the (estimated) name label at the centre of a relationship edge in Martin, Bachman and IDEF1X notation;
-cardinalities and role labels are not yet avoided, and a note without a hint still ignores labels.
+it also avoids the role labels and the cardinality glyphs at the relationship ends (Martin, Bachman, IDEF1X). Chen notation,
+the IDEF1X cardinality letters and the LaTeX output do not avoid end labels yet, and a note without a hint still ignores labels.
 
 NOTE: LaTeX output exists for the Martin notation only (see <<erm-latex-export,LaTeX export>>); there, placement hints are evaluated as in SVG and PNG. In the other notations placement hints apply to SVG and PNG only.
 

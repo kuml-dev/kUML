@@ -171,7 +171,14 @@ public object KumlSvgRenderer {
         // Nacharbeit 99: notes with a side hint (ABOVE/BELOW/LEFT/RIGHT) are placed after the layout, like C4 and SysML 2 notes.
         // Without such a note the layout is returned unchanged.
         @Suppress("NAME_SHADOWING")
-        val layoutResult = UmlNotePlacement.place(diagram = diagram, layout = layoutResult).layout
+        val layoutResult =
+            UmlNotePlacement
+                .place(
+                    diagram = diagram,
+                    layout = layoutResult,
+                    // Nacharbeit 124: multiplicity and role labels at the association ends are obstacles for hinted notes.
+                    endLabelRects = umlEndLabelRects(diagram = diagram, theme = theme),
+                ).layout
         // STATE diagrams have their own renderer-direct path (vertex/transition dispatch)
         if (diagram.type == DiagramType.STATE) {
             return renderUmlStateDiagram(diagram = diagram, rawLayoutResult = layoutResult, theme = theme, options = options)
@@ -4925,6 +4932,14 @@ public object KumlSvgRenderer {
                     layout = layoutResult,
                     resolveTarget =
                         if (notation == ErmNotation.CHEN) ErmNotePlacement.chenTarget(layout = layoutResult) else { id -> id },
+                    // Nacharbeit 124: roles and cardinality glyphs at the relationship ends are obstacles for hinted notes
+                    // (Martin, Bachman, IDEF1X; Chen draws cardinalities at the middle node and has no end labels).
+                    endLabelRects =
+                        if (notation == ErmNotation.CHEN) {
+                            { _ -> emptyMap() }
+                        } else {
+                            { l -> ermEndLabelRects(layoutResult = l, relationshipsById = model.relationships.associateBy { it.id }) }
+                        },
                 ).layout
         return when (notation) {
             ErmNotation.MARTIN ->
@@ -5066,6 +5081,59 @@ public object KumlSvgRenderer {
             }
         return dev.kuml.io.svg.erm.ErmEdgeLabelPlan
             .compute(routes = routes, nodes = nodes, labels = labels)
+    }
+
+    /**
+     * The planned multiplicity and role label rectangles of a UML [diagram] by edge id, layout coordinates (Nacharbeit 124),
+     * as a callback for [UmlNotePlacement.place]: same plan and same coordinates (no padding) the placer measures against.
+     */
+    internal fun umlEndLabelRects(
+        diagram: KumlDiagram,
+        theme: KumlTheme,
+    ): (LayoutResult) -> Map<String, List<dev.kuml.layout.Rect>> =
+        { l ->
+            dev.kuml.io.svg.uml.UmlAssociationLabelPlan
+                .planFor(diagram = diagram, layout = l, theme = theme)
+                .mapValues { (_, byKey) ->
+                    byKey.filterKeys { it != dev.kuml.io.svg.uml.UmlLabelKeys.CENTER }.values.map { it.rect }
+                }.filterValues { it.isNotEmpty() }
+        }
+
+    /**
+     * The rectangles of the labels at the relationship ends in layout coordinates (no canvas padding), by relationship id
+     * (Nacharbeit 124): the planned role labels, and the box of the cardinality glyph at each end. The glyph box is taken
+     * straight from [dev.kuml.io.svg.erm.ErmEdgeLabelPlan.glyphRect] because the plan does not return glyphs (and returns
+     * nothing at all for a relationship without name or role). Note links have no relationship and yield nothing.
+     */
+    internal fun ermEndLabelRects(
+        layoutResult: LayoutResult,
+        relationshipsById: Map<String, ErmRelationship>,
+    ): Map<String, List<dev.kuml.layout.Rect>> {
+        val nodeLookup: (String) -> dev.kuml.layout.NodeLayout? = { id -> layoutResult.nodes[NodeId(id)] }
+        val out = LinkedHashMap<String, MutableList<dev.kuml.layout.Rect>>()
+        for ((edgeId, route) in layoutResult.edges) {
+            val rel = relationshipsById[edgeId.value] ?: continue
+            val routed = SelfLoopRouter.adjust(element = rel, originalRoute = route, nodeLookup = nodeLookup)
+            val srcDir =
+                dev.kuml.io.svg.EdgeLabelGeometry
+                    .sourceSegmentTangent(routed)
+            val tgtInto =
+                dev.kuml.io.svg.EdgeLabelGeometry
+                    .targetSegmentTangent(routed)
+            val list = out.getOrPut(edgeId.value) { ArrayList() }
+            list +=
+                dev.kuml.io.svg.erm.ErmEdgeLabelPlan
+                    .glyphRect(anchor = routed.source, dir = srcDir)
+            list +=
+                dev.kuml.io.svg.erm.ErmEdgeLabelPlan
+                    .glyphRect(anchor = routed.target, dir = -tgtInto.first to -tgtInto.second)
+        }
+        val plan = ermLabelPlan(layoutResult = layoutResult, relationshipsById = relationshipsById, padding = 0f)
+        for ((edgeId, byKey) in plan) {
+            val list = out.getOrPut(edgeId) { ArrayList() }
+            byKey.filterKeys { it != dev.kuml.io.svg.erm.ErmLabelKeys.CENTER }.values.forEach { list += it.rect }
+        }
+        return out
     }
 
     /**

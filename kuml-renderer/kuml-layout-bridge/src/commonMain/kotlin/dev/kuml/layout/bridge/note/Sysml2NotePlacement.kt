@@ -203,6 +203,7 @@ public object Sysml2NotePlacement {
         nodeObstacle: (String, Rect) -> Rect = { _, r -> r },
         placedLabels: Map<String, Rect> = emptyMap(),
         groupTitle: ((String, Rect) -> Rect?)? = null,
+        endLabels: Map<String, List<Rect>> = emptyMap(),
     ): ObstacleIndex {
         val o = ObstacleIndex()
         for ((id, n) in layout.nodes) {
@@ -241,6 +242,8 @@ public object Sysml2NotePlacement {
             ) {
                 o.addRect(kind = ObstacleKind.EDGE_LABEL, r = labelRect(pts = pts, lines = lines), ownerId = id.value)
             }
+            // Nacharbeit 124: planned labels at the edge ends (multiplicity, role, cardinality glyph), layout coordinates.
+            endLabels[id.value]?.forEach { o.addRect(kind = ObstacleKind.EDGE_LABEL, r = it, ownerId = id.value) }
         }
         return o
     }

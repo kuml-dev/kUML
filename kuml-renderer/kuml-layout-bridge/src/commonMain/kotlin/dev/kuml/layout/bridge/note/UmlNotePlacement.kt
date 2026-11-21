@@ -4,6 +4,7 @@ import dev.kuml.core.model.DiagramType
 import dev.kuml.core.model.KumlDiagram
 import dev.kuml.core.model.note.isHint
 import dev.kuml.layout.LayoutResult
+import dev.kuml.layout.Rect
 import dev.kuml.uml.Stereotypable
 import dev.kuml.uml.UmlAssociation
 import dev.kuml.uml.UmlAssociationClass
@@ -29,8 +30,8 @@ import dev.kuml.uml.UmlNamedElement
  * (Nacharbeit 102).
  *
  * Since Nacharbeit 120 a hinted note also avoids the (estimated) centre label of every edge: stereotype header and
- * name. Multiplicity and role labels at the edge ends are not yet obstacles, and notes without a hint still ignore
- * labels.
+ * name. Since Nacharbeit 124 the multiplicity and role labels at the edge ends are obstacles too, when the caller passes
+ * [place]'s `endLabelRects` (the SVG renderer does). Notes without a hint still ignore labels.
  *
  * Notes without a hint (and NEAR hints), notes without a resolvable anchor and every layout without a hinted note stay
  * byte-identical: [place] returns the layout it was given.
@@ -41,6 +42,7 @@ public object UmlNotePlacement {
         diagram: KumlDiagram,
         layout: LayoutResult,
         config: NotePlacementConfig = NotePlacementConfig(),
+        endLabelRects: (LayoutResult) -> Map<String, List<Rect>> = { emptyMap() },
     ): NotePlacementResult {
         val none = NotePlacementResult(layout = layout, unresolved = emptyList(), truncated = emptyList())
         if (diagram.type == DiagramType.SEQUENCE) return none
@@ -85,7 +87,13 @@ public object UmlNotePlacement {
             )
         // Nacharbeit 120: the centre label (stereotype header, name) of an edge is an obstacle for the hinted notes.
         val labelLines = centreLabelLines(diagram)
-        val obstacles = Sysml2NotePlacement.obstaclesOf(layout = base, edgeLabels = { id -> labelLines[id].orEmpty() })
+        // Nacharbeit 124: multiplicity and role labels at the edge ends, planned on the same [base] the placer measures
+        // against (hinted notes taken over by the placer are absent; ELK-placed notes and their links are still there).
+        val endLabels = endLabelRects(base)
+        val obstacles =
+            Sysml2NotePlacement.obstaclesOf(layout = base, edgeLabels = { id ->
+                labelLines[id].orEmpty()
+            }, endLabels = endLabels)
         val placed =
             NotePlacer.place(
                 layout = base,
@@ -101,7 +109,7 @@ public object UmlNotePlacement {
     /**
      * The lines of the centre label of every UML edge element by element id, in drawn order: the stereotype header
      * `«a, b»` (if any), then the name (if any). Mirrors the label plan of the SVG renderer (which this module cannot
-     * call); the sizes derived from it are estimates, as for the notes. Multiplicity and role labels are not covered.
+     * call); the sizes derived from it are estimates, as for the notes. Multiplicity and role labels are covered by `endLabelRects` of [place], not here.
      */
     internal fun centreLabelLines(diagram: KumlDiagram): Map<String, List<String>> {
         val out = LinkedHashMap<String, List<String>>()

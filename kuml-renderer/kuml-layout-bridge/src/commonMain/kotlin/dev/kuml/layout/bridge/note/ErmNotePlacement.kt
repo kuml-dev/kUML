@@ -3,6 +3,7 @@ package dev.kuml.layout.bridge.note
 import dev.kuml.core.model.note.isHint
 import dev.kuml.erm.model.ErmModel
 import dev.kuml.layout.LayoutResult
+import dev.kuml.layout.Rect
 import dev.kuml.layout.bridge.erm.ErmChenLayoutBridge
 
 /**
@@ -13,7 +14,8 @@ import dev.kuml.layout.bridge.erm.ErmChenLayoutBridge
  * rules and is reported as `KUML-NOTE-W004`.
  *
  * Since Nacharbeit 120 a hinted note also avoids the (estimated) name label at the centre of a relationship edge;
- * cardinalities and roles are not yet obstacles, and notes without a hint still ignore labels.
+ * since Nacharbeit 124 the roles and cardinality glyphs at the relationship ends are obstacles too, when the caller
+ * passes `endLabelRects` (the SVG renderer does for Martin and Bachman). Notes without a hint still ignore labels.
  *
  * Notes without a hint (and NEAR hints), notes without a resolvable anchor and every layout without a hinted note stay
  * byte-identical: [place] returns the layout it was given.
@@ -46,6 +48,7 @@ public object ErmNotePlacement {
         layout: LayoutResult,
         resolveTarget: (String) -> String = { it },
         config: NotePlacementConfig = NotePlacementConfig(),
+        endLabelRects: (LayoutResult) -> Map<String, List<Rect>> = { emptyMap() },
     ): NotePlacementResult {
         val none = NotePlacementResult(layout = layout, unresolved = emptyList(), truncated = emptyList())
         val layoutIds =
@@ -112,8 +115,14 @@ public object ErmNotePlacement {
                 layout = base,
                 notes = inputs,
                 resolver = AnchorGeometryResolver(layout = base),
-                // Nacharbeit 120: the relationship name at the edge centre is an obstacle (cardinalities and roles are not yet).
-                obstacles = Sysml2NotePlacement.obstaclesOf(layout = base, edgeLabels = { id -> labels[id].orEmpty() }),
+                // Nacharbeit 120: the relationship name at the edge centre is an obstacle. Nacharbeit 124: so are the
+                // planned labels at the edge ends (roles, cardinality glyphs) when the caller supplies them.
+                obstacles =
+                    Sysml2NotePlacement.obstaclesOf(
+                        layout = base,
+                        edgeLabels = { id -> labels[id].orEmpty() },
+                        endLabels = endLabelRects(base),
+                    ),
                 config = config,
             )
         if (placed.hintNotHonoured.isEmpty()) return placed
