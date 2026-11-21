@@ -7,7 +7,6 @@ import dev.kuml.io.latex.LatexRenderOptions
 import dev.kuml.io.latex.fmtCoord
 import dev.kuml.layout.EdgeRoute
 import dev.kuml.layout.Point
-import kotlin.math.sqrt
 
 /**
  * Crow's-foot (Martin) cardinality glyphs as TikZ primitives, with the same offsets as the SVG renderer
@@ -30,42 +29,8 @@ internal object CrowFootTikz {
     /** Radius of the "optional" open-circle marker. */
     const val CIRCLE_RADIUS_PX: Float = 4f
 
-    /** Unit direction pointing away from the entity into the edge, at the source end and at the target end. */
-    data class EndDirections(
-        val source: Pair<Float, Float>,
-        val target: Pair<Float, Float>,
-    )
-
-    /** The directions the glyphs extend along, from the first and last segment of [route]. */
-    fun endDirections(route: EdgeRoute): EndDirections {
-        val (afterSource, beforeTarget) =
-            when (route) {
-                is EdgeRoute.Direct -> route.target to route.source
-                is EdgeRoute.OrthogonalRounded -> neighbours(route.waypoints, route)
-                is EdgeRoute.TreeRounded -> neighbours(route.waypoints, route)
-                is EdgeRoute.Bezier ->
-                    (route.controlPoints.firstOrNull() ?: route.target) to (route.controlPoints.lastOrNull() ?: route.source)
-            }
-        return EndDirections(
-            source = unit(from = route.source, to = afterSource),
-            target = unit(from = route.target, to = beforeTarget),
-        )
-    }
-
-    private fun neighbours(
-        points: List<Point>,
-        route: EdgeRoute,
-    ): Pair<Point, Point> = (points.firstOrNull() ?: route.target) to (points.lastOrNull() ?: route.source)
-
-    private fun unit(
-        from: Point,
-        to: Point,
-    ): Pair<Float, Float> {
-        val dx = to.x - from.x
-        val dy = to.y - from.y
-        val len = sqrt(dx * dx + dy * dy)
-        return if (len < 1e-3f) 1f to 0f else dx / len to dy / len
-    }
+    /** The directions the glyphs extend along (shared helper, see [ErmTikz.endDirections]). */
+    fun endDirections(route: EdgeRoute): ErmTikz.EndDirections = ErmTikz.endDirections(route)
 
     /** What a glyph consists of, for tests: crow's-foot flag and marker kind. */
     internal fun hasCrowFoot(c: Cardinality): Boolean = c.many
@@ -115,5 +80,5 @@ internal object CrowFootTikz {
     fun pt(
         x: Float,
         y: Float,
-    ): String = "(${fmtCoord(x)}pt, ${fmtCoord(-y)}pt)"
+    ): String = ErmTikz.pt(x, y)
 }

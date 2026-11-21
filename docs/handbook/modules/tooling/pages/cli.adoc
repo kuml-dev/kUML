@@ -456,7 +456,7 @@ document has not loaded it yet, so your own `babel` options stay in force.
 
 * File names are sanitised (`[A-Za-z0-9._-]`) and made unique case-insensitively; a rename is
   reported as `NOTE`. `main` and `kuml-preamble` are reserved at the top level.
-* `SKIP` — the diagram family has no LaTeX output (ERM in a notation other than Martin, SysML 2 package, BPMN choreography and
+* `SKIP` — the diagram family has no LaTeX output (ERM in Chen notation, SysML 2 package, BPMN choreography and
   conversation), or the script is a symbolic link. `ERROR` — the script failed. `WARN` — the figure is
   written but left out of `main.tex` because it references a TikZ node that is not defined (for example a BPMN
   message flow to an element id that does not exist). Only the first diagram of a script is exported (`NOTE`).

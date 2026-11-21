@@ -1,5 +1,10 @@
 package dev.kuml.cli.export
 
+import dev.kuml.core.script.ExtractedDiagram
+import dev.kuml.erm.model.ErmDiagram
+import dev.kuml.erm.model.ErmModel
+import dev.kuml.erm.model.ErmNotation
+import dev.kuml.io.latex.LatexFamily
 import dev.kuml.layout.LayoutEngineRegistry
 import io.kotest.core.spec.style.FunSpec
 import io.kotest.matchers.shouldBe
@@ -75,15 +80,34 @@ class LatexExportServiceTest :
             ok.tex shouldContain "Customer"
         }
 
-        test("an ERM diagram in another notation is a failure that names the notation, not a half file") {
+        test("Bachman and IDEF1X ERM diagrams export (Nacharbeit 126)") {
+            for (f in listOf("latex/erm-bachman.kuml.kts", "latex/erm-idef1x.kuml.kts")) {
+                LatexExportService
+                    .export(script = script(f), themeName = "kuml", standalone = true)
+                    .shouldBeInstanceOf<LatexExportResult.Success>()
+            }
+        }
+
+        test("unsupportedReason and familyOf: Martin, Bachman and IDEF1X are ERM, Chen has a reason and no family") {
+            fun erm(n: ErmNotation) = ExtractedDiagram.Erm(model = ErmModel(name = "M"), diagram = ErmDiagram(name = "D", notation = n))
+            for (n in listOf(ErmNotation.MARTIN, ErmNotation.BACHMAN, ErmNotation.IDEF1X)) {
+                LatexExportService.unsupportedReason(erm(n)) shouldBe null
+                LatexExportService.familyOf(erm(n)) shouldBe LatexFamily.ERM
+            }
+            LatexExportService.unsupportedReason(erm(ErmNotation.CHEN)) shouldBe
+                "ERM notation CHEN is not supported in LaTeX yet (supported: MARTIN, BACHMAN, IDEF1X)"
+            LatexExportService.familyOf(erm(ErmNotation.CHEN)) shouldBe null
+        }
+
+        test("a Chen ERM diagram is a failure that names the notation, not a half file") {
             val erm =
                 Files.walk(File("src/test/resources/latex-folder").toPath()).use { s ->
                     s.filter { it.fileName.toString() == "erm.kuml.kts" }.findFirst()
                 }
             val result = LatexExportService.export(script = erm.get().toFile().readText(), themeName = "kuml", standalone = true)
             val message = result.shouldBeInstanceOf<LatexExportResult.Failure>().message
-            message shouldContain "BACHMAN"
-            message shouldContain "supported: MARTIN"
+            message shouldContain "CHEN"
+            message shouldContain "supported: MARTIN, BACHMAN, IDEF1X"
         }
 
         test("a SysML 2 package diagram (or a script shape that does not evaluate) is a failure") {
@@ -138,7 +162,7 @@ class LatexExportServiceTest :
                     sharedPreamble = true,
                 )
             erm.shouldBeInstanceOf<LatexFileExportResult.Skipped>().reason shouldContain
-                "ERM notation BACHMAN is not supported in LaTeX yet"
+                "ERM notation CHEN is not supported in LaTeX yet"
             val martin =
                 LatexExportService.exportFile(
                     input = File("src/test/resources/latex/erm-martin.kuml.kts"),

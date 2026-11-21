@@ -137,6 +137,8 @@ class LatexStandaloneAllFamiliesTest :
                 "bpmn-collaboration",
                 "blueprint",
                 "erm-martin",
+                "erm-bachman",
+                "erm-idef1x",
             )
     }
 }

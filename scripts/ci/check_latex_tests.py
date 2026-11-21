@@ -35,7 +35,7 @@ CLASSES = {
 MIN_EXECUTED = {
     "BpmnCollaborationPdfBuildTest": 2,
     "BpmnTaskTypePdfBuildTest": 1,
-    "LatexStandaloneAllFamiliesTest": 16,
+    "LatexStandaloneAllFamiliesTest": 18,
 }
 SUPPORT_COPIES = [
     "kuml-io/kuml-io-latex/src/test/kotlin/dev/kuml/io/latex/note/Pdflatex.kt",

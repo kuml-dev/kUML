@@ -27,7 +27,7 @@ internal fun latexModeOf(standalone: Boolean): LatexMode = if (standalone) Latex
 
 /**
  * Whether the CLI's LaTeX path can draw [extracted]: UML, C4, SysML 2 (not the package diagram), BPMN process and
- * collaboration diagrams, Blueprint and ERM in Martin notation (Nacharbeit 123). The other ERM notations and the
+ * collaboration diagrams, Blueprint and ERM in Martin, Bachman and IDEF1X notation (Nacharbeit 123, 126). Chen and the
  * remaining BPMN kinds are refused by the pipeline.
  */
 internal fun isLatexCapable(extracted: ExtractedDiagram): Boolean =

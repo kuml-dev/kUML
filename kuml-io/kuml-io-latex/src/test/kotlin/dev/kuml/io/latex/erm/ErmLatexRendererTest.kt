@@ -110,12 +110,17 @@ class ErmLatexRendererTest :
             KumlLatexRenderer.sharedPreamble(setOf(LatexFamily.ERM)) shouldBe KumlLatexRenderer.sharedPreamble(setOf(LatexFamily.UML))
         }
 
-        "other notations are refused with the documented message" {
-            for (n in listOf(ErmNotation.BACHMAN, ErmNotation.CHEN, ErmNotation.IDEF1X)) {
-                val ex = shouldThrow<UnsupportedOperationException> { ErmLatexFixtures.render(notation = n) }
-                ex.message shouldBe "ERM notation $n is not supported in LaTeX yet (supported: MARTIN)"
-                ex.message shouldBe KumlLatexRenderer.ermUnsupportedNotationMessage(n)
-            }
+        "only Chen is refused with the documented message" {
+            val ex = shouldThrow<UnsupportedOperationException> { ErmLatexFixtures.render(notation = ErmNotation.CHEN) }
+            ex.message shouldBe "ERM notation CHEN is not supported in LaTeX yet (supported: MARTIN, BACHMAN, IDEF1X)"
+            ex.message shouldBe KumlLatexRenderer.ermUnsupportedNotationMessage(ErmNotation.CHEN)
+            KumlLatexRenderer.ermLatexSupports(ErmNotation.CHEN) shouldBe false
+        }
+
+        "Bachman and IDEF1X no longer throw" {
+            ErmLatexFixtures.render(notation = ErmNotation.BACHMAN) shouldContain "\\begin{tikzpicture}"
+            ErmLatexFixtures.render(notation = ErmNotation.IDEF1X) shouldContain "\\begin{tikzpicture}"
+            KumlLatexRenderer.ermLatexNotations.toList() shouldBe listOf(ErmNotation.MARTIN, ErmNotation.BACHMAN, ErmNotation.IDEF1X)
         }
 
         "output is deterministic" {

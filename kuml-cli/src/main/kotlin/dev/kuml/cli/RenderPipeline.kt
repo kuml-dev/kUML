@@ -1980,11 +1980,11 @@ internal object RenderPipeline {
         val model = extracted.model
         val diagram = extracted.diagram
 
-        // Nacharbeit 123: LaTeX supports Martin only; refuse before any layout work, using the effective notation
+        // Nacharbeit 123/126: LaTeX supports Martin, Bachman and IDEF1X (not Chen); refuse before any layout work, using the effective notation
         // (the --notation override wins over the diagram's own).
         if (format == "latex") {
             val effective = notationOverride?.let { ErmNotation.valueOf(it.uppercase()) } ?: diagram.notation
-            if (effective != ErmNotation.MARTIN) {
+            if (!KumlLatexRenderer.ermLatexSupports(effective)) {
                 throw ScriptEvaluationException(message = KumlLatexRenderer.ermUnsupportedNotationMessage(effective))
             }
         }

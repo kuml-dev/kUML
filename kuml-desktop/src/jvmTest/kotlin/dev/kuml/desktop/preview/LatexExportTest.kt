@@ -117,6 +117,15 @@ class LatexExportTest :
             }
         }
 
+        test("ERM is LaTeX capable in Martin, Bachman and IDEF1X notation, not in Chen (Nacharbeit 126)") {
+            val base = sample("erm-martin-ecommerce")
+            for ((notation, capable) in listOf("MARTIN" to true, "BACHMAN" to true, "IDEF1X" to true, "CHEN" to false)) {
+                val script = base.replace("ErmNotation.MARTIN", "ErmNotation.$notation")
+                val result = DesktopRenderPipeline.render(script = script, themeName = "kuml")
+                result.shouldBeInstanceOf<DesktopRenderResult.Svg>().latexCapable shouldBe capable
+            }
+        }
+
         test("choreography and conversation diagrams are not LaTeX capable") {
             for (name in listOf("bpmn-choreography-bestellprozess", "bpmn-conversation-pdv")) {
                 val result = DesktopRenderPipeline.render(script = sample(name), themeName = "kuml")

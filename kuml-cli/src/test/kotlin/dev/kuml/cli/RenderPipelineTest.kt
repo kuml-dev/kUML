@@ -601,18 +601,35 @@ class RenderPipelineTest :
             tex shouldContain "Customer"
         }
 
-        test("RenderPipeline ERM LaTeX export of a Bachman diagram is refused with the documented message") {
+        test("RenderPipeline ERM LaTeX export of a Chen diagram is refused with the documented message") {
             val ex = ermLatexError(fixture = File("src/test/resources/latex-folder/erm.kuml.kts"))
-            ex.message shouldContain "ERM notation BACHMAN is not supported in LaTeX yet (supported: MARTIN)"
+            ex.message shouldContain "ERM notation CHEN is not supported in LaTeX yet (supported: MARTIN, BACHMAN, IDEF1X)"
         }
 
-        test("RenderPipeline ERM LaTeX --notation martin override makes a Bachman diagram exportable") {
-            val tex = ermLatex(fixture = File("src/test/resources/latex-folder/erm.kuml.kts"), notation = "martin")
-            tex shouldContain "\\begin{tikzpicture}"
+        test("RenderPipeline ERM LaTeX --notation martin, bachman and idef1x overrides make a Chen diagram exportable") {
+            for (n in listOf("martin", "bachman", "idef1x")) {
+                val tex = ermLatex(fixture = File("src/test/resources/latex-folder/erm.kuml.kts"), notation = n)
+                tex shouldContain "\\begin{tikzpicture}"
+            }
         }
 
-        test("RenderPipeline ERM LaTeX --notation chen on a Martin diagram is refused") {
-            val ex = ermLatexError(fixture = File("src/test/resources/erm/valid-ecommerce.kuml.kts"), notation = "chen")
-            ex.message shouldContain "ERM notation CHEN is not supported in LaTeX yet"
+        test("RenderPipeline ERM LaTeX export writes Bachman and IDEF1X diagrams (Nacharbeit 126)") {
+            val bachman = ermLatex(fixture = File("src/test/resources/latex/erm-bachman.kuml.kts"))
+            bachman shouldStartWith "\\documentclass[border=10pt]{standalone}"
+            bachman shouldContain "\\filldraw"
+            bachman shouldContain "Customer"
+            val idef1x = ermLatex(fixture = File("src/test/resources/latex/erm-idef1x.kuml.kts"))
+            idef1x shouldStartWith "\\documentclass[border=10pt]{standalone}"
+            idef1x shouldContain "rounded corners=8"
+            idef1x shouldContain "circle (12.000pt)"
+            idef1x shouldContain "{P};"
+            idef1x shouldContain "Customer\\_Account"
+        }
+
+        test("RenderPipeline ERM LaTeX --notation chen on a Martin or Bachman diagram is refused") {
+            for (f in listOf("erm/valid-ecommerce.kuml.kts", "latex/erm-bachman.kuml.kts")) {
+                val ex = ermLatexError(fixture = File("src/test/resources/$f"), notation = "chen")
+                ex.message shouldContain "ERM notation CHEN is not supported in LaTeX yet"
+            }
         }
     })

@@ -124,17 +124,23 @@ public object KumlLatexRenderer {
     /** Message of the refusal for package diagrams (wave 2I-a): the LaTeX renderer does not draw frames, tabs or view cards yet. */
     public const val PACKAGE_DIAGRAM_UNSUPPORTED: String = "Package diagrams are not supported by the LaTeX renderer yet (wave 2I-a)"
 
-    /** Message of the refusal for ERM notations other than Martin (Nacharbeit 123); the CLI, the desktop and the export service share it. */
+    /** ERM notations with LaTeX output (Nacharbeit 126), in a fixed order; only Chen is refused. */
+    public val ermLatexNotations: Set<ErmNotation> = linkedSetOf(ErmNotation.MARTIN, ErmNotation.BACHMAN, ErmNotation.IDEF1X)
+
+    /** True if [notation] can be exported as LaTeX. */
+    public fun ermLatexSupports(notation: ErmNotation): Boolean = notation in ermLatexNotations
+
+    /** Message of the refusal for unsupported ERM notations (only Chen); the CLI, the desktop and the export service share it. */
     public fun ermUnsupportedNotationMessage(notation: ErmNotation): String =
-        "ERM notation $notation is not supported in LaTeX yet (supported: MARTIN)"
+        "ERM notation $notation is not supported in LaTeX yet (supported: ${ermLatexNotations.joinToString(", ")})"
 
     /**
-     * Renders an ERM diagram in Martin (crow's-foot) notation as TikZ (Nacharbeit 123). Uses the layout of the SVG pipeline
-     * (`ErmRenderPlan`); notes with a side hint are placed first, exactly as the SVG renderer does.
+     * Renders an ERM diagram in Martin (crow's-foot), Bachman or IDEF1X notation as TikZ (Nacharbeit 123, 126). Uses the
+     * layout of the SVG pipeline (`ErmRenderPlan`); notes with a side hint are placed first, exactly as the SVG renderer
+     * does. For IDEF1X, [layoutResult] must come from the IDEF1X layout graph (category circle nodes and connectors).
      *
-     * @throws UnsupportedOperationException for any [notation] other than [ErmNotation.MARTIN]
-     *   (message: [ermUnsupportedNotationMessage]); Bachman shares the Martin layout but has other glyphs, Chen and
-     *   IDEF1X use other layout graphs.
+     * @throws UnsupportedOperationException for [ErmNotation.CHEN] (message: [ermUnsupportedNotationMessage]); Chen uses
+     *   a different layout graph (expanded attributes).
      */
     public fun toLatex(
         model: ErmModel,
@@ -143,13 +149,20 @@ public object KumlLatexRenderer {
         notation: ErmNotation = diagram.notation,
         options: LatexRenderOptions = LatexRenderOptions.DEFAULT,
     ): String {
-        if (notation != ErmNotation.MARTIN) throw UnsupportedOperationException(ermUnsupportedNotationMessage(notation))
+        if (!ermLatexSupports(notation)) throw UnsupportedOperationException(ermUnsupportedNotationMessage(notation))
         val placed = ErmNotePlacement.place(model = model, layout = layoutResult).layout
         return buildString {
             if (options.standalone) appendStandalonePreamble(extraLibraries = LatexFamily.ERM.extraTikzLibraries)
             appendPictureOpen(options.scale)
             appendPictureStyles(options)
-            ErmLatexRenderer.renderBody(model = model, diagram = diagram, layout = placed, options = options, out = this)
+            ErmLatexRenderer.renderBody(
+                model = model,
+                diagram = diagram,
+                layout = placed,
+                options = options,
+                out = this,
+                notation = notation,
+            )
             appendPictureClose()
             if (options.standalone) appendStandaloneCoda()
         }

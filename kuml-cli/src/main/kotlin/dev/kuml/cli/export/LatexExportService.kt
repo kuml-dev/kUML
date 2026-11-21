@@ -5,7 +5,6 @@ import dev.kuml.bpmn.model.ConversationDiagram
 import dev.kuml.cli.RenderPipeline
 import dev.kuml.core.script.ExtractedDiagram
 import dev.kuml.core.script.ScriptEvaluationException
-import dev.kuml.erm.model.ErmNotation
 import dev.kuml.io.latex.KumlLatexRenderer
 import dev.kuml.io.latex.LatexFamily
 import dev.kuml.sysml2.Sysml2PackageDiagram
@@ -158,10 +157,10 @@ public object LatexExportService {
     public fun unsupportedReason(extracted: ExtractedDiagram): String? =
         when (extracted) {
             is ExtractedDiagram.Erm ->
-                // Nacharbeit 123: only the Martin notation has LaTeX output. This sees the diagram's own notation, not
+                // Nacharbeit 123: Martin, Bachman and IDEF1X have LaTeX output (Nacharbeit 126), Chen has none. This sees the diagram's own notation, not
                 // a `--notation` override; the render pipeline checks the effective one.
                 extracted.diagram.notation
-                    .takeIf { it != ErmNotation.MARTIN }
+                    .takeIf { !KumlLatexRenderer.ermLatexSupports(it) }
                     ?.let(KumlLatexRenderer::ermUnsupportedNotationMessage)
             is ExtractedDiagram.Sysml2 ->
                 if (extracted.diagram is Sysml2PackageDiagram) KumlLatexRenderer.PACKAGE_DIAGRAM_UNSUPPORTED else null
@@ -182,7 +181,7 @@ public object LatexExportService {
             is ExtractedDiagram.Sysml2 -> LatexFamily.SYSML2
             is ExtractedDiagram.Bpmn -> LatexFamily.BPMN
             is ExtractedDiagram.Blueprint -> LatexFamily.BLUEPRINT
-            is ExtractedDiagram.Erm -> if (extracted.diagram.notation == ErmNotation.MARTIN) LatexFamily.ERM else null
+            is ExtractedDiagram.Erm -> if (KumlLatexRenderer.ermLatexSupports(extracted.diagram.notation)) LatexFamily.ERM else null
         }
 
     private class CoreResult(

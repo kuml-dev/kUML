@@ -7,11 +7,13 @@ import dev.kuml.core.model.note.KumlNoteLink
 import dev.kuml.core.model.note.NotePlacement
 import dev.kuml.erm.model.Cardinality
 import dev.kuml.erm.model.ErmAttribute
+import dev.kuml.erm.model.ErmCategory
 import dev.kuml.erm.model.ErmDataType
 import dev.kuml.erm.model.ErmDiagram
 import dev.kuml.erm.model.ErmEntity
 import dev.kuml.erm.model.ErmForeignKey
 import dev.kuml.erm.model.ErmModel
+import dev.kuml.erm.model.ErmNotation
 import dev.kuml.erm.model.ErmNote
 import dev.kuml.erm.model.ErmNoteLink
 import dev.kuml.erm.model.ErmRelationship
@@ -27,6 +29,7 @@ import dev.kuml.layout.NodeLayout
 import dev.kuml.layout.Point
 import dev.kuml.layout.Rect
 import dev.kuml.layout.Size
+import dev.kuml.layout.bridge.erm.ErmIdef1xLayoutBridge
 
 /** Hand-made ERM model and layout for the structural LaTeX tests (no layout engine). */
 internal object ErmLatexFixtures {
@@ -147,6 +150,108 @@ internal object ErmLatexFixtures {
                     if (withNote) put(EdgeId("l1"), EdgeRoute.Direct(source = Point(400f, 50f), target = Point(220f, 280f)))
                 },
             groups = emptyMap(),
+        )
+
+    // ---- IDEF1X fixtures (Nacharbeit 126): a category cluster plus relationships covering Z, 1, P and blank ----
+
+    private val retail =
+        ErmEntity(
+            id = "retail",
+            name = "Retail",
+            attributes = listOf(ErmAttribute(id = "retail.id", name = "id", type = ErmDataType.Uuid, primaryKey = true, nullable = false)),
+        )
+    private val wholesale =
+        ErmEntity(
+            id = "wholesale",
+            name = "Wholesale",
+            attributes =
+                listOf(
+                    ErmAttribute(id = "wholesale.id", name = "id", type = ErmDataType.Uuid, primaryKey = true, nullable = false),
+                ),
+        )
+
+    /**
+     * Customer with the category c1 (subtypes Retail, Wholesale), Order, a weak OrderItem and four relationships:
+     * r1 (blank letter, mandatory parent), r2 (P, optional parent, identifying), r3 (Z, non-identifying),
+     * r4 (1, optional parent, non-identifying).
+     */
+    fun categoryModel(
+        complete: Boolean = true,
+        discriminator: String? = "customer.disc",
+    ): ErmModel =
+        model().copy(
+            entities = listOf(customer, order, item, retail, wholesale),
+            relationships =
+                model().relationships +
+                    listOf(
+                        ErmRelationship(
+                            id = "r3",
+                            name = null,
+                            sourceEntityId = "order",
+                            targetEntityId = "wholesale",
+                            sourceCardinality = Cardinality.ONE,
+                            targetCardinality = Cardinality.ZERO_ONE,
+                        ),
+                        ErmRelationship(
+                            id = "r4",
+                            name = null,
+                            sourceEntityId = "item",
+                            targetEntityId = "retail",
+                            sourceCardinality = Cardinality.ZERO_ONE,
+                            targetCardinality = Cardinality.ONE,
+                        ),
+                    ),
+            categories =
+                listOf(
+                    ErmCategory(
+                        id = "c1",
+                        name = "Kind",
+                        supertypeEntityId = "customer",
+                        subtypeEntityIds = listOf("retail", "wholesale"),
+                        complete = complete,
+                        discriminatorAttributeId = discriminator,
+                    ),
+                ),
+        )
+
+    fun categoryLayout(withCategoryNode: Boolean = true): LayoutResult {
+        val base = layout()
+        val p = ErmIdef1xLayoutBridge
+        return base.copy(
+            nodes =
+                base.nodes +
+                    buildMap {
+                        put(NodeId("retail"), NodeLayout(bounds = rect(300f, 20f, 100f, 60f)))
+                        put(NodeId("wholesale"), NodeLayout(bounds = rect(450f, 20f, 100f, 60f)))
+                        if (withCategoryNode) put(NodeId("${p.CATEGORY_NODE_PREFIX}c1"), NodeLayout(bounds = rect(250f, 90f, 24f, 24f)))
+                        put(NodeId("${p.CATEGORY_NODE_PREFIX}ghost"), NodeLayout(bounds = rect(250f, 200f, 24f, 24f)))
+                    },
+            edges =
+                base.edges +
+                    mapOf(
+                        EdgeId("r3") to EdgeRoute.Direct(source = Point(220f, 280f), target = Point(450f, 80f)),
+                        EdgeId("r4") to EdgeRoute.Direct(source = Point(420f, 260f), target = Point(350f, 80f)),
+                        EdgeId("${p.CATEGORY_EDGE_SUP_PREFIX}c1") to
+                            EdgeRoute.Direct(source = Point(220f, 90f), target = Point(250f, 102f)),
+                        EdgeId("${p.CATEGORY_EDGE_SUB_PREFIX}c1::retail") to
+                            EdgeRoute.Direct(source = Point(274f, 102f), target = Point(350f, 80f)),
+                        EdgeId("${p.CATEGORY_EDGE_SUB_PREFIX}c1::wholesale") to
+                            EdgeRoute.Direct(source = Point(274f, 102f), target = Point(500f, 80f)),
+                    ),
+        )
+    }
+
+    fun renderIdef1x(
+        model: ErmModel = categoryModel(),
+        layout: LayoutResult = categoryLayout(),
+        options: LatexRenderOptions = LatexRenderOptions(),
+    ): String =
+        KumlLatexRenderer.toLatex(
+            model = model,
+            diagram = model.diagrams.first(),
+            layoutResult = layout,
+            notation = ErmNotation.IDEF1X,
+            options = options,
         )
 
     fun render(

@@ -6,6 +6,7 @@ import dev.kuml.erm.model.ErmAttribute
 import dev.kuml.erm.model.ErmDiagram
 import dev.kuml.erm.model.ErmEntity
 import dev.kuml.erm.model.ErmModel
+import dev.kuml.erm.model.ErmNotation
 import dev.kuml.erm.model.ErmRelationship
 import dev.kuml.erm.model.ErmView
 import dev.kuml.erm.model.RelationshipKind
@@ -23,11 +24,12 @@ import dev.kuml.layout.EdgeRoute
 import dev.kuml.layout.LayoutResult
 import dev.kuml.layout.NodeId
 import dev.kuml.layout.NodeLayout
+import dev.kuml.layout.bridge.erm.ErmIdef1xLayoutBridge
 import dev.kuml.layout.bridge.erm.ErmContentSizeProvider.Companion as Sizing
 
 /**
- * TikZ body of an ERM diagram in Martin (crow's-foot) notation: entity boxes with PK/FK rows, view boxes,
- * relationship lines with crow's-foot glyphs and notes. Node boxes and edge routes come from the same layout graph
+ * TikZ body of an ERM diagram in Martin (crow's-foot), Bachman or IDEF1X notation: entity boxes with PK/FK rows, view
+ * boxes, relationship lines with the notation's glyphs, IDEF1X category circles and notes. Chen is not supported. Node boxes and edge routes come from the same layout graph
  * as the SVG output; row heights use the constants of the layout bridge's size provider (the same values the SVG
  * renderer mirrors), so rows stay inside the boxes. The wrapper (preamble, picture, styles, note placement) lives in
  * [dev.kuml.io.latex.KumlLatexRenderer].
@@ -40,7 +42,11 @@ internal object ErmLatexRenderer {
         layout: LayoutResult,
         options: LatexRenderOptions,
         out: StringBuilder,
+        notation: ErmNotation = ErmNotation.MARTIN,
     ) {
+        val idef1x = notation == ErmNotation.IDEF1X
+        val dependent = if (idef1x) Idef1xTikz.dependentEntityIds(model) else emptySet()
+        val categories = model.categories.associateBy { it.id }
         val entities = model.entities.associateBy { it.id }
         val views = model.views.associateBy { it.id }
         val relationships = model.relationships.associateBy { it.id }
@@ -56,9 +62,28 @@ internal object ErmLatexRenderer {
 
         for ((nodeId, nodeLayout) in layout.nodes) {
             if (nodeId.value in noteIds) continue
+            if (idef1x && nodeId.value.startsWith(ErmIdef1xLayoutBridge.CATEGORY_NODE_PREFIX)) {
+                val category = categories[nodeId.value.removePrefix(ErmIdef1xLayoutBridge.CATEGORY_NODE_PREFIX)] ?: continue
+                Idef1xTikz.appendCategory(
+                    category = category,
+                    nodeLayout = nodeLayout,
+                    supertype = entities[category.supertypeEntityId],
+                    options = options,
+                    out = out,
+                )
+                continue
+            }
             val entity = entities[nodeId.value]
             if (entity != null) {
-                renderEntity(entity = entity, nodeId = nodeId, layout = nodeLayout, diagram = diagram, options = options, out = out)
+                renderEntity(
+                    entity = entity,
+                    nodeId = nodeId,
+                    layout = nodeLayout,
+                    diagram = diagram,
+                    options = options,
+                    out = out,
+                    cornerRadius = if (nodeId.value in dependent) Idef1xTikz.CORNER_RADIUS_PX else 0f,
+                )
                 continue
             }
             val view = views[nodeId.value] ?: continue
@@ -72,8 +97,23 @@ internal object ErmLatexRenderer {
                 NoteTikz.renderAnchor(route = route, style = NoteTikzAnchor.DASHED, options = options, out = out)
                 continue
             }
+            if (idef1x &&
+                (
+                    edgeId.value.startsWith(ErmIdef1xLayoutBridge.CATEGORY_EDGE_SUP_PREFIX) ||
+                        edgeId.value.startsWith(ErmIdef1xLayoutBridge.CATEGORY_EDGE_SUB_PREFIX)
+                )
+            ) {
+                UmlEdgeLatexRenderer.render(
+                    route = route,
+                    style = UmlEdgeLatexRenderer.Style.PLAIN,
+                    options = options,
+                    out = out,
+                    arrowOverride = "-",
+                )
+                continue
+            }
             val rel = relationships[edgeId.value] ?: continue
-            renderRelationship(rel = rel, route = route, options = options, out = out)
+            renderRelationship(rel = rel, route = route, notation = notation, options = options, out = out)
         }
         // A note link the layout carries no route for still gets a line between the two named nodes.
         for (link in model.noteLinks) {
@@ -93,17 +133,19 @@ internal object ErmLatexRenderer {
         diagram: ErmDiagram,
         options: LatexRenderOptions,
         out: StringBuilder,
+        cornerRadius: Float = 0f,
     ) {
         val x = layout.bounds.origin.x
         val y = layout.bounds.origin.y
         val w = layout.bounds.size.width
         val h = layout.bounds.size.height
         val ind = options.indent
-        frame(nodeId = nodeId, x = x, y = y, w = w, h = h, options = options, out = out, dashed = false)
+        frame(nodeId = nodeId, x = x, y = y, w = w, h = h, options = options, out = out, dashed = false, cornerRadius = cornerRadius)
         if (entity.weak) {
             val inset = WEAK_BORDER_INSET
+            val rounded = if (cornerRadius > 0f) ", rounded corners=${fmtCoord(Idef1xTikz.innerCornerRadiusPx)}pt" else ""
             out.appendLine(
-                "$ind\\draw[line width=0.6pt] ${pt(x + inset, y + inset)} rectangle ${pt(x + w - inset, y + h - inset)};",
+                "$ind\\draw[line width=0.6pt$rounded] ${pt(x + inset, y + inset)} rectangle ${pt(x + w - inset, y + h - inset)};",
             )
         }
         out.appendLine(
@@ -183,10 +225,12 @@ internal object ErmLatexRenderer {
         options: LatexRenderOptions,
         out: StringBuilder,
         dashed: Boolean,
+        cornerRadius: Float = 0f,
     ) {
         val dash = if (dashed) ", dashed" else ""
+        val rounded = if (cornerRadius > 0f) ", rounded corners=${fmtCoord(cornerRadius)}pt" else ""
         out.appendLine(
-            "${options.indent}\\node[kuml-class$dash, anchor=north west, " +
+            "${options.indent}\\node[kuml-class$dash$rounded, anchor=north west, " +
                 "minimum width=${fmtCoord(w)}pt, minimum height=${fmtCoord(h)}pt] " +
                 "(${tikzId(nodeId)}) at ${pt(x, y)} {};",
         )
@@ -252,6 +296,7 @@ internal object ErmLatexRenderer {
     private fun renderRelationship(
         rel: ErmRelationship,
         route: EdgeRoute,
+        notation: ErmNotation,
         options: LatexRenderOptions,
         out: StringBuilder,
     ) {
@@ -264,20 +309,24 @@ internal object ErmLatexRenderer {
             arrowOverride = if (dashed) "dashed, -" else "-",
         )
         val dirs = CrowFootTikz.endDirections(route)
-        CrowFootTikz.appendGlyph(
-            anchor = route.source,
-            dir = dirs.source,
-            cardinality = rel.sourceCardinality,
-            options = options,
-            out = out,
-        )
-        CrowFootTikz.appendGlyph(
-            anchor = route.target,
-            dir = dirs.target,
-            cardinality = rel.targetCardinality,
-            options = options,
-            out = out,
-        )
+        when (notation) {
+            ErmNotation.MARTIN -> {
+                CrowFootTikz.appendGlyph(route.source, dirs.source, rel.sourceCardinality, options, out)
+                CrowFootTikz.appendGlyph(route.target, dirs.target, rel.targetCardinality, options, out)
+            }
+            ErmNotation.BACHMAN -> {
+                BachmanTikz.appendGlyph(route.source, dirs.source, rel.sourceCardinality, options, out)
+                BachmanTikz.appendGlyph(route.target, dirs.target, rel.targetCardinality, options, out)
+            }
+            ErmNotation.IDEF1X -> {
+                if (rel.sourceCardinality.optional) Idef1xTikz.appendParentDiamond(route.source, dirs.source, options, out)
+                Idef1xTikz.appendChildDot(route.target, dirs.target, options, out)
+                Idef1xTikz.cardinalityLabel(rel.targetCardinality)?.let {
+                    Idef1xTikz.appendCardinalityLabel(route.target, dirs.target, it, options, out)
+                }
+            }
+            else -> error("unreachable: Chen is rejected before rendering")
+        }
 
         val name = rel.name?.takeIf { it.isNotBlank() }
         if (name != null) {
