@@ -1,5 +1,7 @@
-package dev.kuml.io.svg
+package dev.kuml.layout.bridge
 
+import dev.kuml.erm.model.Cardinality
+import dev.kuml.erm.model.ErmRelationship
 import dev.kuml.layout.EdgeRoute
 import dev.kuml.layout.NodeLayout
 import dev.kuml.layout.Point
@@ -215,5 +217,35 @@ class SelfLoopRouterTest :
             val adjusted = SelfLoopRouter.adjust(element = selfAssoc, originalRoute = originalRoute) { null }
 
             adjusted shouldBe originalRoute
+        }
+
+        test("ErmRelationship mit identischer Quell- und Ziel-Entity ist ein Self-Loop und bekommt die C-Loop-Route") {
+            val self =
+                ErmRelationship(
+                    id = "r1",
+                    name = "manages",
+                    sourceEntityId = "emp",
+                    targetEntityId = "emp",
+                    sourceCardinality = Cardinality.ZERO_ONE,
+                    targetCardinality = Cardinality.ZERO_MANY,
+                )
+            val other =
+                ErmRelationship(
+                    id = "r2",
+                    name = "works for",
+                    sourceEntityId = "emp",
+                    targetEntityId = "dept",
+                    sourceCardinality = Cardinality.ONE,
+                    targetCardinality = Cardinality.ZERO_MANY,
+                )
+            SelfLoopRouter.selfLoopNodeId(self) shouldBe "emp"
+            SelfLoopRouter.isSelfLoop(other) shouldBe false
+
+            val raw = EdgeRoute.Direct(source = Point(x = 0f, y = 0f), target = Point(x = 1f, y = 1f))
+            val route = SelfLoopRouter.adjust(element = self, originalRoute = raw, nodeLookup = { nodeLayout })
+            val rounded = route.shouldBeInstanceOf<EdgeRoute.OrthogonalRounded>()
+            rounded.source.x shouldBe 300f
+            rounded.waypoints.map { it.x } shouldBe listOf(332f, 332f)
+            SelfLoopRouter.adjust(element = other, originalRoute = raw, nodeLookup = { nodeLayout }) shouldBe raw
         }
     })

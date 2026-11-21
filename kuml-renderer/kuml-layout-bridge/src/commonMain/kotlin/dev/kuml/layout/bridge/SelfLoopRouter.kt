@@ -1,4 +1,4 @@
-package dev.kuml.io.svg
+package dev.kuml.layout.bridge
 
 import dev.kuml.c4.model.C4Relationship
 import dev.kuml.core.model.KumlElement
@@ -44,7 +44,7 @@ import dev.kuml.uml.UmlLink
  * Damit landet der Pfeilkopf am unteren Anker, die Label-Mitte sitzt rechts
  * außerhalb des Knotens und kollidiert nicht mehr mit Multiplicity-Labels.
  */
-internal object SelfLoopRouter {
+public object SelfLoopRouter {
     /** Wie weit der C-Loop seitlich neben den Knoten hinausragt (px). */
     private const val LOOP_EXTENT_PX = 32f
 
@@ -59,7 +59,7 @@ internal object SelfLoopRouter {
      * Liefert das gemeinsame Endknoten-ID-Paar zurück, wenn das [element] ein
      * Self-Loop ist (also `sourceNodeId == targetNodeId`), sonst `null`.
      */
-    fun selfLoopNodeId(element: KumlElement): String? =
+    public fun selfLoopNodeId(element: KumlElement): String? =
         when (element) {
             is UmlAssociation ->
                 element.ends
@@ -107,14 +107,14 @@ internal object SelfLoopRouter {
         }
 
     /** `true` wenn das Modell-Element einen Self-Loop beschreibt. */
-    fun isSelfLoop(element: KumlElement): Boolean = selfLoopNodeId(element) != null
+    public fun isSelfLoop(element: KumlElement): Boolean = selfLoopNodeId(element) != null
 
     /**
      * Erzeugt eine ausgeprägte C-förmige Self-Loop-Route auf der rechten Seite
      * der [nodeLayout]-Box. Koordinaten sind im rohen Layout-Raum (vor dem
      * Padding-Shift in [KumlSvgRenderer]).
      */
-    fun selfLoopRoute(nodeLayout: NodeLayout): EdgeRoute.OrthogonalRounded {
+    public fun selfLoopRoute(nodeLayout: NodeLayout): EdgeRoute.OrthogonalRounded {
         val bounds = nodeLayout.bounds
         val right = bounds.origin.x + bounds.size.width
         val top = bounds.origin.y
@@ -142,7 +142,7 @@ internal object SelfLoopRouter {
      * Aufrufer liefern eine Lookup-Funktion statt der Layout-Map, damit die
      * NodeId-Konvertierung lokal beim Aufrufer bleibt.
      */
-    fun adjust(
+    public fun adjust(
         element: KumlElement,
         originalRoute: EdgeRoute,
         nodeLookup: (String) -> NodeLayout?,

@@ -24,6 +24,7 @@ import dev.kuml.layout.EdgeRoute
 import dev.kuml.layout.LayoutResult
 import dev.kuml.layout.NodeId
 import dev.kuml.layout.NodeLayout
+import dev.kuml.layout.bridge.SelfLoopRouter
 import dev.kuml.layout.bridge.erm.ErmIdef1xLayoutBridge
 import dev.kuml.layout.bridge.erm.ErmContentSizeProvider.Companion as Sizing
 
@@ -113,7 +114,10 @@ internal object ErmLatexRenderer {
                 continue
             }
             val rel = relationships[edgeId.value] ?: continue
-            renderRelationship(rel = rel, route = route, notation = notation, options = options, out = out)
+            // Nacharbeit 127: a self-reference gets the same right-hand loop as in the SVG output instead of ELK's raw U-shape.
+            val routed = SelfLoopRouter.adjust(element = rel, originalRoute = route, nodeLookup = { id -> layout.nodes[NodeId(id)] })
+            val selfLoopNode = SelfLoopRouter.selfLoopNodeId(rel)?.let { layout.nodes[NodeId(it)] }
+            renderRelationship(rel = rel, route = routed, notation = notation, options = options, out = out, selfLoopNode = selfLoopNode)
         }
         // A note link the layout carries no route for still gets a line between the two named nodes.
         for (link in model.noteLinks) {
@@ -299,6 +303,7 @@ internal object ErmLatexRenderer {
         notation: ErmNotation,
         options: LatexRenderOptions,
         out: StringBuilder,
+        selfLoopNode: NodeLayout? = null,
     ) {
         val dashed = rel.kind == RelationshipKind.NON_IDENTIFYING
         UmlEdgeLatexRenderer.render(
@@ -329,6 +334,10 @@ internal object ErmLatexRenderer {
         }
 
         val name = rel.name?.takeIf { it.isNotBlank() }
+        if (selfLoopNode != null && route is EdgeRoute.OrthogonalRounded && route.waypoints.isNotEmpty()) {
+            appendSelfLoopLabels(rel = rel, name = name, route = route, node = selfLoopNode, options = options, out = out)
+            return
+        }
         if (name != null) {
             val mid = routeMidPoint(route)
             if (mid != null) {
@@ -340,6 +349,42 @@ internal object ErmLatexRenderer {
         }
         roleLabel(role = rel.sourceRole, anchor = route.source, dir = dirs.source, options = options, out = out)
         roleLabel(role = rel.targetRole, anchor = route.target, dir = dirs.target, options = options, out = out)
+    }
+
+    /**
+     * Labels of a self-reference (Nacharbeit 127), laid out for the right-hand loop of [SelfLoopRouter]: the name to the
+     * right of the loop (no background, so the loop line stays uninterrupted), the source role above and the target role
+     * below the loop ends, both just outside the entity box. All y values are layout space (y down); [pt] flips them.
+     */
+    private fun appendSelfLoopLabels(
+        rel: ErmRelationship,
+        name: String?,
+        route: EdgeRoute.OrthogonalRounded,
+        node: NodeLayout,
+        options: LatexRenderOptions,
+        out: StringBuilder,
+    ) {
+        val ind = options.indent
+        val right = node.bounds.origin.x + node.bounds.size.width
+        val outerX = route.waypoints[0].x
+        if (name != null) {
+            val cy = node.bounds.origin.y + node.bounds.size.height / 2f
+            out.appendLine(
+                "$ind\\node[kuml-feature, inner sep=1pt, anchor=west] at ${pt(outerX + SELF_LOOP_NAME_GAP, cy)} {${escapeLatex(name)}};",
+            )
+        }
+        rel.sourceRole?.takeIf { it.isNotBlank() }?.let {
+            out.appendLine(
+                "$ind\\node[kuml-feature, font=\\sffamily\\scriptsize, fill=white, inner sep=0.5pt, anchor=south west] " +
+                    "at ${pt(right + SELF_LOOP_ROLE_INSET_X, route.source.y - SELF_LOOP_ROLE_GAP_Y)} {${escapeLatex(it)}};",
+            )
+        }
+        rel.targetRole?.takeIf { it.isNotBlank() }?.let {
+            out.appendLine(
+                "$ind\\node[kuml-feature, font=\\sffamily\\scriptsize, fill=white, inner sep=0.5pt, anchor=north west] " +
+                    "at ${pt(right + SELF_LOOP_ROLE_INSET_X, route.target.y + SELF_LOOP_ROLE_GAP_Y)} {${escapeLatex(it)}};",
+            )
+        }
     }
 
     private fun roleLabel(
@@ -361,6 +406,9 @@ internal object ErmLatexRenderer {
     private const val WEAK_BORDER_INSET: Float = 3f
     private const val ROLE_ALONG: Float = 30f
     private const val ROLE_ASIDE: Float = 9f
+    private const val SELF_LOOP_NAME_GAP: Float = 4f
+    private const val SELF_LOOP_ROLE_INSET_X: Float = 2f
+    private const val SELF_LOOP_ROLE_GAP_Y: Float = 10f
 
     private fun pt(
         x: Float,

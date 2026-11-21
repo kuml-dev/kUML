@@ -375,6 +375,18 @@ class ErmMartinSvgTest :
             (kotlin.math.abs(parentY - childY) >= 12f) shouldBe true
         }
 
+        "self-loop canvas is wide enough for the loop and its labels (Nacharbeit 127)" {
+            val svg = selfLoopSvg()
+            val viewBoxWidth =
+                Regex("""viewBox="0 0 ([0-9.]+) """).find(svg)!!.groupValues[1].toFloat()
+            val padding = SvgRenderOptions.DEFAULT.paddingPx
+            // Box right edge 380, loop extent 32: the loop reaches x = 412 (layout), the layout canvas is only 400 wide.
+            (viewBoxWidth >= 412f + 2 * padding) shouldBe true
+            // The name label (planned right of the loop) lies inside the canvas, too.
+            val nameLabel = edgeLabels(svg).single { it.text == "subcategory of" }
+            (nameLabel.x <= viewBoxWidth) shouldBe true
+        }
+
         "self-loop determinism — same input renders byte-identically" {
             val one = selfLoopSvg()
             val two = selfLoopSvg()

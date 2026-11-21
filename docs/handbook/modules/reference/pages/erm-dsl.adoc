@@ -287,7 +287,7 @@ export reports the script as `SKIP`. The check uses the effective notation, so `
 or `--notation idef1x` makes a Chen diagram exportable and `--notation chen` makes any other diagram fail.
 
 Limits: relationship names and role labels sit at fixed positions (the middle of the route, a fixed distance from the
-end) without the collision planning of the SVG output (this includes the IDEF1X cardinality letters); self-referencing relationships use the layout's raw route; fonts
+end) without the collision planning of the SVG output (this includes the IDEF1X cardinality letters); self-referencing relationships use the same right-hand loop as the SVG output, with the role labels above and below the loop ends and the name to its right; fonts
 differ from the SVG, so text width is not identical. Compiled and checked with pdflatex on macOS only.
 
 == Full example

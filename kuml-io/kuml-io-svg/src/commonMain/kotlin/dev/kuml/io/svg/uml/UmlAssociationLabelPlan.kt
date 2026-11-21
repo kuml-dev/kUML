@@ -78,7 +78,7 @@ public object UmlAssociationLabelPlan {
             drawn[edgeId.value] =
                 dev.kuml.io.svg.KumlSvgRenderer.shiftRoute(
                     route =
-                        dev.kuml.io.svg.SelfLoopRouter
+                        dev.kuml.layout.bridge.SelfLoopRouter
                             .adjust(element = el, originalRoute = route, nodeLookup = nodeLookup),
                     dx = padding,
                 )

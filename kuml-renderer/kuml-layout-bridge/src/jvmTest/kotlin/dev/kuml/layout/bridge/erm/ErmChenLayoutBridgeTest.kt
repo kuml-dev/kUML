@@ -171,6 +171,9 @@ class ErmChenLayoutBridgeTest :
             val tgtEdge = relEdges.first { it.id.value.startsWith(ErmChenLayoutBridge.REL_EDGE_TGT_PREFIX) }
             tgtEdge.source.nodeId shouldBe NodeId(ErmChenLayoutBridge.REL_PREFIX + "rel_manages")
             tgtEdge.target.nodeId shouldBe NodeId(ErmChenLayoutBridge.ENTITY_PREFIX + "employee")
+
+            // Nacharbeit 127: Chen is not affected by the self-loop route — no edge of the Chen graph loops on one node.
+            graph.edges.none { it.source.nodeId == it.target.nodeId } shouldBe true
         }
 
         test("groups is always empty") {

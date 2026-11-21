@@ -139,6 +139,9 @@ class LatexStandaloneAllFamiliesTest :
                 "erm-martin",
                 "erm-bachman",
                 "erm-idef1x",
+                "erm-martin-selfref",
+                "erm-bachman-selfref",
+                "erm-idef1x-selfref",
             )
     }
 }

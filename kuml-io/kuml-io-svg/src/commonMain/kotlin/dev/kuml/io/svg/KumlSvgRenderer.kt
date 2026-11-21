@@ -73,6 +73,7 @@ import dev.kuml.layout.Rect
 import dev.kuml.layout.Size
 import dev.kuml.layout.arcLengthMidpoint
 import dev.kuml.layout.borderIntersectionTowards
+import dev.kuml.layout.bridge.SelfLoopRouter
 import dev.kuml.layout.bridge.Sysml2LayoutBridge
 import dev.kuml.layout.bridge.erm.ErmChenLayoutBridge
 import dev.kuml.layout.bridge.erm.ErmIdef1xLayoutBridge
@@ -4941,6 +4942,14 @@ public object KumlSvgRenderer {
                             { l -> ermEndLabelRects(layoutResult = l, relationshipsById = model.relationships.associateBy { it.id }) }
                         },
                 ).layout
+                .let { placed ->
+                    // Nacharbeit 127: the right-hand self-loop must fit inside the canvas (Chen has no self-loop edges).
+                    if (notation == ErmNotation.CHEN) {
+                        placed
+                    } else {
+                        widenCanvasForSelfLoops(layoutResult = placed, relationshipsById = model.relationships.associateBy { it.id })
+                    }
+                }
         return when (notation) {
             ErmNotation.MARTIN ->
                 renderErmMartin(
@@ -5050,6 +5059,41 @@ public object KumlSvgRenderer {
                 builder = edgesBuilder,
             )
         }
+    }
+
+    /**
+     * Nacharbeit 127 — the right-hand self-loop of [SelfLoopRouter] (and its role/name labels) reaches further right than the
+     * layout engine reserved: ELK sizes the canvas for its own ~10 px U-shape, so for an entity at the right edge the loop was
+     * clipped by the frame. Widens the canvas (layout coordinates, before padding) to hold the loops and their planned labels;
+     * a diagram without a self-reference is returned unchanged.
+     */
+    private fun widenCanvasForSelfLoops(
+        layoutResult: LayoutResult,
+        relationshipsById: Map<String, ErmRelationship>,
+    ): LayoutResult {
+        val selfLoopIds =
+            layoutResult.edges.keys
+                .filter { id -> relationshipsById[id.value]?.let { SelfLoopRouter.isSelfLoop(it) } == true }
+                .map { it.value }
+                .toSet()
+        if (selfLoopIds.isEmpty()) return layoutResult
+        val nodeLookup: (String) -> dev.kuml.layout.NodeLayout? = { id -> layoutResult.nodes[NodeId(id)] }
+        var right = layoutResult.canvas.width
+        for ((edgeId, route) in layoutResult.edges) {
+            val rel = relationshipsById[edgeId.value] ?: continue
+            if (edgeId.value !in selfLoopIds) continue
+            val routed = SelfLoopRouter.adjust(element = rel, originalRoute = route, nodeLookup = nodeLookup)
+            if (routed is EdgeRoute.OrthogonalRounded) {
+                for (p in routed.waypoints) right = maxOf(right, p.x)
+            }
+        }
+        val plan = ermLabelPlan(layoutResult = layoutResult, relationshipsById = relationshipsById, padding = 0f)
+        for ((edgeId, byKey) in plan) {
+            if (edgeId !in selfLoopIds) continue
+            for (placed in byKey.values) right = maxOf(right, placed.rect.origin.x + placed.rect.size.width)
+        }
+        if (right <= layoutResult.canvas.width) return layoutResult
+        return layoutResult.copy(canvas = layoutResult.canvas.copy(width = right))
     }
 
     /**

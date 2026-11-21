@@ -241,6 +241,74 @@ internal object ErmLatexFixtures {
         )
     }
 
+    // ---- Self-reference fixture (Nacharbeit 127): Employee "manages" Employee, with ELK's raw cramped U-shape ----
+
+    val employee =
+        ErmEntity(
+            id = "employee",
+            name = "Employee",
+            attributes =
+                listOf(
+                    ErmAttribute(id = "employee.id", name = "id", type = ErmDataType.Uuid, primaryKey = true, nullable = false),
+                    ErmAttribute(id = "employee.mgr", name = "manager_id", type = ErmDataType.Uuid),
+                ),
+        )
+
+    /** Layout-space geometry of the self-reference entity, shared by the tests. */
+    val employeeBounds: Rect = rect(20f, 20f, 200f, 100f)
+
+    fun selfReferenceModel(): ErmModel =
+        ErmModel(
+            name = "Staff",
+            entities = listOf(employee),
+            relationships =
+                listOf(
+                    ErmRelationship(
+                        id = "r1",
+                        name = "manages",
+                        sourceEntityId = "employee",
+                        targetEntityId = "employee",
+                        sourceCardinality = Cardinality.ZERO_ONE,
+                        targetCardinality = Cardinality.ZERO_MANY,
+                        sourceRole = "manager",
+                        targetRole = "report",
+                    ),
+                ),
+            diagrams = listOf(ErmDiagram(name = "Overview")),
+        )
+
+    fun selfReferenceLayout(): LayoutResult =
+        LayoutResult(
+            engineId = LayoutEngineId("test"),
+            seed = null,
+            canvas = Size(width = 300f, height = 160f),
+            nodes = mapOf(NodeId("employee") to NodeLayout(bounds = employeeBounds)),
+            edges =
+                mapOf(
+                    // ELK's raw route: a ~10 px U-shape hugging the left side of the box.
+                    EdgeId("r1") to
+                        EdgeRoute.OrthogonalRounded(
+                            source = Point(20f, 45f),
+                            target = Point(20f, 95f),
+                            waypoints = listOf(Point(10f, 45f), Point(10f, 95f)),
+                            cornerRadiusPx = 0f,
+                        ),
+                ),
+            groups = emptyMap(),
+        )
+
+    fun renderSelfReference(
+        notation: ErmNotation,
+        model: ErmModel = selfReferenceModel(),
+    ): String =
+        KumlLatexRenderer.toLatex(
+            model = model,
+            diagram = model.diagrams.first(),
+            layoutResult = selfReferenceLayout(),
+            notation = notation,
+            options = LatexRenderOptions(),
+        )
+
     fun renderIdef1x(
         model: ErmModel = categoryModel(),
         layout: LayoutResult = categoryLayout(),
