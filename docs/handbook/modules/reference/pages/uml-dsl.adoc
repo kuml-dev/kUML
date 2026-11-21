@@ -207,7 +207,10 @@ two ends exactly like `association(...)` (navigability arrowheads, aggregation
 diamonds, role/multiplicity labels included), and a dashed tether line connecting the
 box to the association line's midpoint — the visual cue that both belong to the same
 element. Self-association classes (both ends on the same classifier) get the same
-widened C-loop routing as a self-association. `kuml validate` flags an end referencing
+widened C-loop routing as a self-association. A self-association is drawn on the right of its class unless another
+edge runs through the 32 px strip along that side; it then moves to the left if that side is free
+and at least 32 px of layout space are available there. The SVG canvas is not widened to the left
+for the loop's labels. `kuml validate` flags an end referencing
 an unknown classifier ID as a `DANGLING_REFERENCE` warning, same as a plain association.
 
 **Current scope**: `ends` always has exactly two entries — the DSL exposes no way to

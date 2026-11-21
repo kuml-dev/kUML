@@ -331,6 +331,19 @@ A larger, neutral e-commerce schema covering multiple foreign keys into the same
 a self-reference, and three foreign keys from a single entity is available as a vault
 worked example: `03 Bereiche/kUML/Beispiele/39 ERM Martin – E-Commerce Schema.md`.
 
+=== Where a self-reference is drawn
+
+A relationship from an entity to itself is drawn as a C-shaped loop, 32 px wide, beside the entity,
+with its name and the two roles outside the loop. The loop is on the right of the entity unless
+another relationship runs through the right-hand strip (a strip along the entity border, 32 px
+wide). It then moves to the left, provided that strip is free and there is room for it
+(the entity is at least 32 px from the left edge of the layout). If both sides are busy, or there
+is no room on the left, the loop stays on the right. The rule is the same in the SVG and the
+LaTeX output, in all three notations. Limits: the loop is never drawn above or below the entity;
+a neighbouring entity within the 32 px does not count as busy; several self-references of one
+entity still lie on top of each other on the same side; edges drawn as splines are checked
+conservatively through their control points.
+
 == From UML: the UML→ERM transform
 
 An ERM model can be derived from an existing UML class diagram instead of being written

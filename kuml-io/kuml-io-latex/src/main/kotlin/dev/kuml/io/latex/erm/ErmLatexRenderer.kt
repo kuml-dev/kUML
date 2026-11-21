@@ -25,6 +25,7 @@ import dev.kuml.layout.LayoutResult
 import dev.kuml.layout.NodeId
 import dev.kuml.layout.NodeLayout
 import dev.kuml.layout.bridge.SelfLoopRouter
+import dev.kuml.layout.bridge.SelfLoopSide
 import dev.kuml.layout.bridge.erm.ErmIdef1xLayoutBridge
 import dev.kuml.layout.bridge.erm.ErmContentSizeProvider.Companion as Sizing
 
@@ -93,6 +94,8 @@ internal object ErmLatexRenderer {
         for (note in notes) NoteTikz.renderNote(spec = note, options = options, out = out)
 
         val linkIds = model.noteLinks.map { it.id }.toSet()
+        // Nacharbeit 129: one self-loop side decision for the layout, the same planner the SVG renderer uses.
+        val selfLoopPlan = SelfLoopRouter.planAll(layout = layout, elementLookup = relationships::get)
         for ((edgeId, route) in layout.edges) {
             if (edgeId.value in linkIds) {
                 NoteTikz.renderAnchor(route = route, style = NoteTikzAnchor.DASHED, options = options, out = out)
@@ -115,9 +118,24 @@ internal object ErmLatexRenderer {
             }
             val rel = relationships[edgeId.value] ?: continue
             // Nacharbeit 127: a self-reference gets the same right-hand loop as in the SVG output instead of ELK's raw U-shape.
-            val routed = SelfLoopRouter.adjust(element = rel, originalRoute = route, nodeLookup = { id -> layout.nodes[NodeId(id)] })
+            val routed =
+                SelfLoopRouter.adjust(
+                    element = rel,
+                    originalRoute = route,
+                    nodeLookup = { id -> layout.nodes[NodeId(id)] },
+                    plan = selfLoopPlan,
+                    edgeId = edgeId.value,
+                )
             val selfLoopNode = SelfLoopRouter.selfLoopNodeId(rel)?.let { layout.nodes[NodeId(it)] }
-            renderRelationship(rel = rel, route = routed, notation = notation, options = options, out = out, selfLoopNode = selfLoopNode)
+            renderRelationship(
+                rel = rel,
+                route = routed,
+                notation = notation,
+                options = options,
+                out = out,
+                selfLoopNode = selfLoopNode,
+                selfLoopSide = SelfLoopRouter.sideOf(selfLoopPlan, edgeId.value),
+            )
         }
         // A note link the layout carries no route for still gets a line between the two named nodes.
         for (link in model.noteLinks) {
@@ -304,6 +322,7 @@ internal object ErmLatexRenderer {
         options: LatexRenderOptions,
         out: StringBuilder,
         selfLoopNode: NodeLayout? = null,
+        selfLoopSide: SelfLoopSide = SelfLoopSide.RIGHT,
     ) {
         val dashed = rel.kind == RelationshipKind.NON_IDENTIFYING
         UmlEdgeLatexRenderer.render(
@@ -335,7 +354,15 @@ internal object ErmLatexRenderer {
 
         val name = rel.name?.takeIf { it.isNotBlank() }
         if (selfLoopNode != null && route is EdgeRoute.OrthogonalRounded && route.waypoints.isNotEmpty()) {
-            appendSelfLoopLabels(rel = rel, name = name, route = route, node = selfLoopNode, options = options, out = out)
+            appendSelfLoopLabels(
+                rel = rel,
+                name = name,
+                route = route,
+                node = selfLoopNode,
+                side = selfLoopSide,
+                options = options,
+                out = out,
+            )
             return
         }
         if (name != null) {
@@ -361,31 +388,41 @@ internal object ErmLatexRenderer {
         name: String?,
         route: EdgeRoute.OrthogonalRounded,
         node: NodeLayout,
+        side: SelfLoopSide = SelfLoopSide.RIGHT,
         options: LatexRenderOptions,
         out: StringBuilder,
     ) {
         val ind = options.indent
-        val right = node.bounds.origin.x + node.bounds.size.width
+        val left = side == SelfLoopSide.LEFT
+        val southAnchor = if (left) "anchor=south east" else "anchor=south west"
+        val northAnchor = if (left) "anchor=north east" else "anchor=north west"
+        val borderX = if (left) node.bounds.origin.x else node.bounds.origin.x + node.bounds.size.width
         val outerX = route.waypoints[0].x
         if (name != null) {
             val cy = node.bounds.origin.y + node.bounds.size.height / 2f
             out.appendLine(
-                "$ind\\node[kuml-feature, inner sep=1pt, anchor=west] at ${pt(outerX + SELF_LOOP_NAME_GAP, cy)} {${escapeLatex(name)}};",
+                "$ind\\node[kuml-feature, inner sep=1pt, ${if (left) "anchor=east" else "anchor=west"}] at " +
+                    "${pt(if (left) outerX - SELF_LOOP_NAME_GAP else outerX + SELF_LOOP_NAME_GAP, cy)} {${escapeLatex(name)}};",
             )
         }
         rel.sourceRole?.takeIf { it.isNotBlank() }?.let {
             out.appendLine(
-                "$ind\\node[kuml-feature, font=\\sffamily\\scriptsize, fill=white, inner sep=0.5pt, anchor=south west] " +
-                    "at ${pt(right + SELF_LOOP_ROLE_INSET_X, route.source.y - SELF_LOOP_ROLE_GAP_Y)} {${escapeLatex(it)}};",
+                "$ind\\node[kuml-feature, font=\\sffamily\\scriptsize, fill=white, inner sep=0.5pt, $southAnchor] " +
+                    "at ${pt(roleX(borderX, left), route.source.y - SELF_LOOP_ROLE_GAP_Y)} {${escapeLatex(it)}};",
             )
         }
         rel.targetRole?.takeIf { it.isNotBlank() }?.let {
             out.appendLine(
-                "$ind\\node[kuml-feature, font=\\sffamily\\scriptsize, fill=white, inner sep=0.5pt, anchor=north west] " +
-                    "at ${pt(right + SELF_LOOP_ROLE_INSET_X, route.target.y + SELF_LOOP_ROLE_GAP_Y)} {${escapeLatex(it)}};",
+                "$ind\\node[kuml-feature, font=\\sffamily\\scriptsize, fill=white, inner sep=0.5pt, $northAnchor] " +
+                    "at ${pt(roleX(borderX, left), route.target.y + SELF_LOOP_ROLE_GAP_Y)} {${escapeLatex(it)}};",
             )
         }
     }
+
+    private fun roleX(
+        borderX: Float,
+        left: Boolean,
+    ): Float = if (left) borderX - SELF_LOOP_ROLE_INSET_X else borderX + SELF_LOOP_ROLE_INSET_X
 
     private fun roleLabel(
         role: String?,

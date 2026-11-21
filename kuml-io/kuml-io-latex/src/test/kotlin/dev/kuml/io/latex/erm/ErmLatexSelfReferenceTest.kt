@@ -76,6 +76,38 @@ class ErmLatexSelfReferenceTest :
             }
         }
 
+        val leftBounds = ErmLatexFixtures.employeeBoundsRightBusy
+        val leftX = leftBounds.origin.x
+
+        for (notation in notations) {
+            "$notation: a busy right side puts the loop, roles and name on the left (Nacharbeit 129)" {
+                val tex = ErmLatexFixtures.renderSelfReferenceRightBusy(notation)
+                val loop = points(lineWith(tex, "rounded corners=6.000pt"))
+                loop.size shouldBe 4
+                val (source, wp1, wp2, target) = loop
+                source.first shouldBe (leftX plusOrMinus 0.01f)
+                target.first shouldBe (leftX plusOrMinus 0.01f)
+                wp1.first shouldBe (leftX - 32f plusOrMinus 0.01f)
+                wp2.first shouldBe (leftX - 32f plusOrMinus 0.01f)
+                val sourceRoleLine = lineWith(tex, "{manager}")
+                val targetRoleLine = lineWith(tex, "{report}")
+                val nameLine = lineWith(tex, "{manages}")
+                sourceRoleLine.contains("anchor=south east") shouldBe true
+                targetRoleLine.contains("anchor=north east") shouldBe true
+                nameLine.contains("anchor=east") shouldBe true
+                nameLine shouldNotContain "fill=white"
+                points(sourceRoleLine).single().first shouldBeLessThan leftX
+                points(targetRoleLine).single().first shouldBeLessThan leftX
+                points(nameLine).single().first shouldBeLessThan leftX - 32f
+            }
+        }
+
+        "a free right side keeps the east-anchor-free right-hand loop" {
+            val tex = ErmLatexFixtures.renderSelfReference(ErmNotation.MARTIN)
+            tex shouldNotContain "anchor=east] at"
+            tex shouldNotContain "anchor=south east] at"
+        }
+
         "a diagram without a self-reference has no west-anchored name node" {
             for (notation in notations) {
                 val tex = ErmLatexFixtures.render(notation = notation)

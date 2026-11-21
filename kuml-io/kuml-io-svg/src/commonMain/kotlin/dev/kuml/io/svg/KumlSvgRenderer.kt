@@ -73,7 +73,9 @@ import dev.kuml.layout.Rect
 import dev.kuml.layout.Size
 import dev.kuml.layout.arcLengthMidpoint
 import dev.kuml.layout.borderIntersectionTowards
+import dev.kuml.layout.bridge.SelfLoopPlacement
 import dev.kuml.layout.bridge.SelfLoopRouter
+import dev.kuml.layout.bridge.SelfLoopSide
 import dev.kuml.layout.bridge.Sysml2LayoutBridge
 import dev.kuml.layout.bridge.erm.ErmChenLayoutBridge
 import dev.kuml.layout.bridge.erm.ErmIdef1xLayoutBridge
@@ -619,12 +621,20 @@ public object KumlSvgRenderer {
 
             // PAL 2B-b — name / stereotype / multiplicity / role of associations are placed by the shared
             // LabelPlacer (cost model over nodes, other labels and foreign edges) instead of fixed offsets.
+            // Nacharbeit 129 — one self-loop side decision per layout, read by the label plan, the edge loop and the tether.
+            val selfLoopPlan = SelfLoopRouter.planAll(layout = effectiveLayoutResult, elementLookup = { id -> flatElementIndex[id] })
             val associationLabelPlan: Map<String, Map<String, dev.kuml.layout.bridge.label.PlacedLabel>> =
                 if (isComponentDiagram) {
                     emptyMap()
                 } else {
                     dev.kuml.io.svg.uml.UmlAssociationLabelPlan
-                        .planFor(layout = effectiveLayoutResult, elements = flatElementIndex, theme = theme, padding = padding)
+                        .planFor(
+                            layout = effectiveLayoutResult,
+                            elements = flatElementIndex,
+                            theme = theme,
+                            padding = padding,
+                            selfLoopPlan = selfLoopPlan,
+                        )
                 }
 
             for ((edgeId, route) in effectiveLayoutResult.edges) {
@@ -633,7 +643,14 @@ public object KumlSvgRenderer {
                     // V2.x — Self-Loops bekommen eine vergrößerte C-Loop-Route,
                     // statt der von ELK gelieferten 10-px-U-Form, damit Self-FKs
                     // (z.B. `UserPosts.parent → UserPosts`) sichtbar bleiben.
-                    val routed = SelfLoopRouter.adjust(element = element, originalRoute = route, nodeLookup = nodeLookup)
+                    val routed =
+                        SelfLoopRouter.adjust(
+                            element = element,
+                            originalRoute = route,
+                            nodeLookup = nodeLookup,
+                            plan = selfLoopPlan,
+                            edgeId = edgeId.value,
+                        )
                     val shiftedRoute = shiftRoute(route = routed, dx = padding)
                     // V2.0.46: für Activity-Diagramme die Endpunkte auf den
                     //          tatsächlichen Shape-Rand des Quell-/Zielknotens
@@ -704,7 +721,14 @@ public object KumlSvgRenderer {
                 // same widened C-loop route the edge-drawing loop above applies via
                 // SelfLoopRouter.adjust — without it the tether points at ELK's raw,
                 // cramped self-loop route instead of the actually-rendered C-loop.
-                val route = SelfLoopRouter.adjust(element = element, originalRoute = rawRoute, nodeLookup = nodeLookup)
+                val route =
+                    SelfLoopRouter.adjust(
+                        element = element,
+                        originalRoute = rawRoute,
+                        nodeLookup = nodeLookup,
+                        plan = selfLoopPlan,
+                        edgeId = element.id,
+                    )
                 val shiftedRoute = shiftRoute(route = route, dx = padding)
                 val shiftedBounds =
                     box.bounds.copy(
@@ -5071,29 +5095,56 @@ public object KumlSvgRenderer {
         layoutResult: LayoutResult,
         relationshipsById: Map<String, ErmRelationship>,
     ): LayoutResult {
-        val selfLoopIds =
-            layoutResult.edges.keys
-                .filter { id -> relationshipsById[id.value]?.let { SelfLoopRouter.isSelfLoop(it) } == true }
-                .map { it.value }
-                .toSet()
-        if (selfLoopIds.isEmpty()) return layoutResult
-        val nodeLookup: (String) -> dev.kuml.layout.NodeLayout? = { id -> layoutResult.nodes[NodeId(id)] }
+        val selfLoopPlan = SelfLoopRouter.planAll(layout = layoutResult, elementLookup = relationshipsById::get)
+        if (selfLoopPlan.isEmpty()) return layoutResult
+        val selfLoopIds = selfLoopPlan.keys
         var right = layoutResult.canvas.width
-        for ((edgeId, route) in layoutResult.edges) {
-            val rel = relationshipsById[edgeId.value] ?: continue
-            if (edgeId.value !in selfLoopIds) continue
-            val routed = SelfLoopRouter.adjust(element = rel, originalRoute = route, nodeLookup = nodeLookup)
-            if (routed is EdgeRoute.OrthogonalRounded) {
-                for (p in routed.waypoints) right = maxOf(right, p.x)
+        var left = 0f
+        for (placement in selfLoopPlan.values) {
+            for (p in placement.route.waypoints) {
+                right = maxOf(right, p.x)
+                if (placement.side == SelfLoopSide.LEFT) left = minOf(left, p.x)
             }
         }
-        val plan = ermLabelPlan(layoutResult = layoutResult, relationshipsById = relationshipsById, padding = 0f)
+        val anyLeft = selfLoopPlan.values.any { it.side == SelfLoopSide.LEFT }
+        val plan =
+            ermLabelPlan(layoutResult = layoutResult, relationshipsById = relationshipsById, padding = 0f, selfLoopPlan = selfLoopPlan)
         for ((edgeId, byKey) in plan) {
             if (edgeId !in selfLoopIds) continue
-            for (placed in byKey.values) right = maxOf(right, placed.rect.origin.x + placed.rect.size.width)
+            for (placed in byKey.values) {
+                right = maxOf(right, placed.rect.origin.x + placed.rect.size.width)
+                if (anyLeft && selfLoopPlan[edgeId]?.side == SelfLoopSide.LEFT) left = minOf(left, placed.rect.origin.x)
+            }
         }
-        if (right <= layoutResult.canvas.width) return layoutResult
-        return layoutResult.copy(canvas = layoutResult.canvas.copy(width = right))
+        val widened =
+            if (right <= layoutResult.canvas.width) layoutResult else layoutResult.copy(canvas = layoutResult.canvas.copy(width = right))
+        // Nacharbeit 129: a loop on the left side must stay inside the canvas too — shift everything right, once, before
+        // anything is planned or drawn. Only when a left loop (or its labels) actually leaves the coordinate space.
+        if (left >= 0f) return widened
+        return shiftLayout(layout = widened, dx = kotlin.math.ceil(-left))
+    }
+
+    /** Shifts every coordinate of [layout] by [dx] to the right and widens the canvas by the same amount (Nacharbeit 129). */
+    private fun shiftLayout(
+        layout: LayoutResult,
+        dx: Float,
+    ): LayoutResult {
+        fun dev.kuml.layout.Point.sh() = dev.kuml.layout.Point(x = x + dx, y = y)
+
+        fun dev.kuml.layout.Rect.sh() = copy(origin = origin.sh())
+        return layout.copy(
+            canvas = layout.canvas.copy(width = layout.canvas.width + dx),
+            nodes =
+                layout.nodes.mapValues { (_, n) ->
+                    n.copy(
+                        bounds = n.bounds.sh(),
+                        ports = n.ports.mapValues { it.value.sh() },
+                        labels = n.labels.mapValues { it.value.sh() },
+                    )
+                },
+            edges = layout.edges.mapValues { (_, r) -> shiftRoute(route = r, dx = dx, dy = 0f) },
+            groups = layout.groups.mapValues { (_, g) -> g.copy(bounds = g.bounds.sh()) },
+        )
     }
 
     /**
@@ -5104,13 +5155,29 @@ public object KumlSvgRenderer {
         layoutResult: LayoutResult,
         relationshipsById: Map<String, ErmRelationship>,
         padding: Float,
+        selfLoopPlan: Map<String, SelfLoopPlacement> =
+            SelfLoopRouter.planAll(
+                layout = layoutResult,
+                elementLookup = relationshipsById::get,
+            ),
     ): Map<String, Map<String, dev.kuml.layout.bridge.label.PlacedLabel>> {
         val nodeLookup: (String) -> dev.kuml.layout.NodeLayout? = { id -> layoutResult.nodes[NodeId(id)] }
         val routes = LinkedHashMap<String, EdgeRoute>()
         val labels = LinkedHashMap<String, dev.kuml.io.svg.erm.ErmEdgeLabelSpec>()
         for ((edgeId, route) in layoutResult.edges) {
             val rel = relationshipsById[edgeId.value]
-            val routed = if (rel != null) SelfLoopRouter.adjust(element = rel, originalRoute = route, nodeLookup = nodeLookup) else route
+            val routed =
+                if (rel != null) {
+                    SelfLoopRouter.adjust(
+                        element = rel,
+                        originalRoute = route,
+                        nodeLookup = nodeLookup,
+                        plan = selfLoopPlan,
+                        edgeId = edgeId.value,
+                    )
+                } else {
+                    route
+                }
             routes[edgeId.value] = shiftRoute(route = routed, dx = padding)
             if (rel != null) {
                 labels[edgeId.value] =
@@ -5155,9 +5222,17 @@ public object KumlSvgRenderer {
     ): Map<String, List<dev.kuml.layout.Rect>> {
         val nodeLookup: (String) -> dev.kuml.layout.NodeLayout? = { id -> layoutResult.nodes[NodeId(id)] }
         val out = LinkedHashMap<String, MutableList<dev.kuml.layout.Rect>>()
+        val selfLoopPlan = SelfLoopRouter.planAll(layout = layoutResult, elementLookup = relationshipsById::get)
         for ((edgeId, route) in layoutResult.edges) {
             val rel = relationshipsById[edgeId.value] ?: continue
-            val routed = SelfLoopRouter.adjust(element = rel, originalRoute = route, nodeLookup = nodeLookup)
+            val routed =
+                SelfLoopRouter.adjust(
+                    element = rel,
+                    originalRoute = route,
+                    nodeLookup = nodeLookup,
+                    plan = selfLoopPlan,
+                    edgeId = edgeId.value,
+                )
             val srcDir =
                 dev.kuml.io.svg.EdgeLabelGeometry
                     .sourceSegmentTangent(routed)
@@ -5172,7 +5247,8 @@ public object KumlSvgRenderer {
                 dev.kuml.io.svg.erm.ErmEdgeLabelPlan
                     .glyphRect(anchor = routed.target, dir = -tgtInto.first to -tgtInto.second)
         }
-        val plan = ermLabelPlan(layoutResult = layoutResult, relationshipsById = relationshipsById, padding = 0f)
+        val plan =
+            ermLabelPlan(layoutResult = layoutResult, relationshipsById = relationshipsById, padding = 0f, selfLoopPlan = selfLoopPlan)
         for ((edgeId, byKey) in plan) {
             val list = out.getOrPut(edgeId) { ArrayList() }
             byKey.filterKeys { it != dev.kuml.io.svg.erm.ErmLabelKeys.CENTER }.values.forEach { list += it.rect }
@@ -5198,6 +5274,7 @@ public object KumlSvgRenderer {
     ): ErmLabelGeometry {
         val rels = model.relationships.associateBy { it.id }
         val nodeLookup: (String) -> dev.kuml.layout.NodeLayout? = { id -> layoutResult.nodes[NodeId(id)] }
+        val selfLoopPlan = SelfLoopRouter.planAll(layout = layoutResult, elementLookup = rels::get)
         val routes =
             layoutResult.edges.entries.associate { (id, route) ->
                 val rel = rels[id.value]
@@ -5205,7 +5282,13 @@ public object KumlSvgRenderer {
                     if (rel !=
                         null
                     ) {
-                        SelfLoopRouter.adjust(element = rel, originalRoute = route, nodeLookup = nodeLookup)
+                        SelfLoopRouter.adjust(
+                            element = rel,
+                            originalRoute = route,
+                            nodeLookup = nodeLookup,
+                            plan = selfLoopPlan,
+                            edgeId = id.value,
+                        )
                     } else {
                         route
                     }
@@ -5227,7 +5310,13 @@ public object KumlSvgRenderer {
         return ErmLabelGeometry(
             routes = routes,
             nodes = nodes,
-            labels = ermLabelPlan(layoutResult = layoutResult, relationshipsById = rels, padding = paddingPx),
+            labels =
+                ermLabelPlan(
+                    layoutResult = layoutResult,
+                    relationshipsById = rels,
+                    padding = paddingPx,
+                    selfLoopPlan = selfLoopPlan,
+                ),
         )
     }
 
@@ -5269,7 +5358,10 @@ public object KumlSvgRenderer {
                 },
             )
 
-        val labelPlan = ermLabelPlan(layoutResult = layoutResult, relationshipsById = relationshipsById, padding = padding)
+        // Nacharbeit 129 — one self-loop side decision for this (already widened/shifted) layout, shared by labels and edges.
+        val selfLoopPlan = SelfLoopRouter.planAll(layout = layoutResult, elementLookup = relationshipsById::get)
+        val labelPlan =
+            ermLabelPlan(layoutResult = layoutResult, relationshipsById = relationshipsById, padding = padding, selfLoopPlan = selfLoopPlan)
         return SvgDocument.render(
             layoutResult = layoutResult,
             theme = theme,
@@ -5309,7 +5401,14 @@ public object KumlSvgRenderer {
                 // Category`) get the same wide C-loop treatment as UML/C4 self-
                 // loops instead of ELK's cramped raw route (see SelfLoopRouter's
                 // KDoc on the ErmRelationship branch).
-                val routed = SelfLoopRouter.adjust(element = rel, originalRoute = route, nodeLookup = nodeLookup)
+                val routed =
+                    SelfLoopRouter.adjust(
+                        element = rel,
+                        originalRoute = route,
+                        nodeLookup = nodeLookup,
+                        plan = selfLoopPlan,
+                        edgeId = edgeId.value,
+                    )
                 val shiftedRoute = shiftRoute(route = routed, dx = padding)
                 renderRelationship(
                     rel,
@@ -5556,7 +5655,9 @@ public object KumlSvgRenderer {
                 relationshipRoutes.map { (edgeId, route) -> Triple(edgeId, route, relationshipsById[edgeId.value]?.name) },
             )
 
-        val idefLabelPlan = ermLabelPlan(layoutResult = layoutResult, relationshipsById = relationshipsById, padding = padding)
+        val selfLoopPlan = SelfLoopRouter.planAll(layout = layoutResult, elementLookup = relationshipsById::get)
+        val idefLabelPlan =
+            ermLabelPlan(layoutResult = layoutResult, relationshipsById = relationshipsById, padding = padding, selfLoopPlan = selfLoopPlan)
         return SvgDocument.render(
             layoutResult = layoutResult,
             theme = theme,
@@ -5626,7 +5727,14 @@ public object KumlSvgRenderer {
                     else -> {
                         val rel = relationshipsById[id] ?: continue
                         // V3.4.x — see the matching self-loop wiring in [renderErm].
-                        val routed = SelfLoopRouter.adjust(element = rel, originalRoute = route, nodeLookup = nodeLookup)
+                        val routed =
+                            SelfLoopRouter.adjust(
+                                element = rel,
+                                originalRoute = route,
+                                nodeLookup = nodeLookup,
+                                plan = selfLoopPlan,
+                                edgeId = id,
+                            )
                         val shiftedRoute = shiftRoute(route = routed, dx = padding)
                         renderErmIdef1xRelationship(
                             rel = rel,

@@ -132,7 +132,7 @@ class SelfLoopRouterTest :
         }
 
         test("selfLoopRoute liefert C-Schleife rechts neben der Box") {
-            val route = SelfLoopRouter.selfLoopRoute(nodeLayout)
+            val route = SelfLoopRouter.selfLoopRoute(nodeLayout = nodeLayout)
 
             // Bounding box: x=100..300, y=50..130
             val rightEdge = 300f

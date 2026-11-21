@@ -77,6 +77,19 @@ class LatexStandaloneAllFamiliesTest :
             }
         }
 
+        test("the left-loop ERM fixture really draws the self-reference on the left (Nacharbeit 129)") {
+            val dir = Files.createTempDirectory("kuml-latex-left")
+            try {
+                val tex = render("erm-martin-selfref-left", standalone = false, dir = dir)
+                tex shouldContain "anchor=east] at"
+                tex shouldContain "anchor=south east] at"
+                tex shouldContain "anchor=north east] at"
+                tex shouldNotContain "anchor=west] at"
+            } finally {
+                dir.toFile().deleteRecursively()
+            }
+        }
+
         if (Pdflatex.executable == null) {
             val mode = if (Pdflatex.required) "kuml.latex.require=true, the compile tests will FAIL" else "the compile tests are skipped"
             println("[LatexStandaloneAllFamiliesTest] pdflatex not found on PATH or /Library/TeX/texbin: $mode")
@@ -142,6 +155,7 @@ class LatexStandaloneAllFamiliesTest :
                 "erm-martin-selfref",
                 "erm-bachman-selfref",
                 "erm-idef1x-selfref",
+                "erm-martin-selfref-left",
             )
     }
 }

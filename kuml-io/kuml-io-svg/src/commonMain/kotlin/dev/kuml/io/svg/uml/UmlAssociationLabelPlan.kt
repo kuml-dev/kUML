@@ -70,6 +70,9 @@ public object UmlAssociationLabelPlan {
         elements: Map<String, KumlElement>,
         theme: KumlTheme,
         padding: Float,
+        selfLoopPlan: Map<String, dev.kuml.layout.bridge.SelfLoopPlacement> =
+            dev.kuml.layout.bridge.SelfLoopRouter
+                .planAll(layout = layout, elementLookup = { id -> elements[id] }),
     ): Map<String, Map<String, PlacedLabel>> {
         val nodeLookup: (String) -> dev.kuml.layout.NodeLayout? = { id -> layout.nodes[dev.kuml.layout.NodeId(id)] }
         val drawn = LinkedHashMap<String, EdgeRoute>()
@@ -79,7 +82,13 @@ public object UmlAssociationLabelPlan {
                 dev.kuml.io.svg.KumlSvgRenderer.shiftRoute(
                     route =
                         dev.kuml.layout.bridge.SelfLoopRouter
-                            .adjust(element = el, originalRoute = route, nodeLookup = nodeLookup),
+                            .adjust(
+                                element = el,
+                                originalRoute = route,
+                                nodeLookup = nodeLookup,
+                                plan = selfLoopPlan,
+                                edgeId = edgeId.value,
+                            ),
                     dx = padding,
                 )
         }

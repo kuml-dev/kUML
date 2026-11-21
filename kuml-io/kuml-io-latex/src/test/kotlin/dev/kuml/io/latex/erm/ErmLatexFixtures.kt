@@ -297,6 +297,62 @@ internal object ErmLatexFixtures {
             groups = emptyMap(),
         )
 
+    /** Nacharbeit 129: the same self-reference, but another edge ends on the right border and there is room on the left. */
+    val employeeBoundsRightBusy: Rect = rect(120f, 20f, 200f, 100f)
+
+    fun selfReferenceRightBusyModel(): ErmModel {
+        val department = employee.copy(id = "department", name = "Department")
+        val base = selfReferenceModel()
+        return base.copy(
+            entities = listOf(employee, department),
+            relationships =
+                base.relationships +
+                    ErmRelationship(
+                        id = "r2",
+                        name = "works in",
+                        sourceEntityId = "employee",
+                        targetEntityId = "department",
+                        sourceCardinality = Cardinality.ONE,
+                        targetCardinality = Cardinality.ZERO_MANY,
+                    ),
+        )
+    }
+
+    fun selfReferenceRightBusyLayout(): LayoutResult =
+        LayoutResult(
+            engineId = LayoutEngineId("test"),
+            seed = null,
+            canvas = Size(width = 600f, height = 160f),
+            nodes =
+                mapOf(
+                    NodeId("employee") to NodeLayout(bounds = employeeBoundsRightBusy),
+                    NodeId("department") to NodeLayout(bounds = rect(460f, 20f, 120f, 100f)),
+                ),
+            edges =
+                mapOf(
+                    EdgeId("r1") to
+                        EdgeRoute.OrthogonalRounded(
+                            source = Point(120f, 45f),
+                            target = Point(120f, 95f),
+                            waypoints = listOf(Point(110f, 45f), Point(110f, 95f)),
+                            cornerRadiusPx = 0f,
+                        ),
+                    EdgeId("r2") to EdgeRoute.Direct(source = Point(320f, 70f), target = Point(460f, 70f)),
+                ),
+            groups = emptyMap(),
+        )
+
+    fun renderSelfReferenceRightBusy(notation: ErmNotation): String {
+        val model = selfReferenceRightBusyModel()
+        return KumlLatexRenderer.toLatex(
+            model = model,
+            diagram = model.diagrams.first(),
+            layoutResult = selfReferenceRightBusyLayout(),
+            notation = notation,
+            options = LatexRenderOptions(),
+        )
+    }
+
     fun renderSelfReference(
         notation: ErmNotation,
         model: ErmModel = selfReferenceModel(),
