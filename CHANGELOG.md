@@ -6,6 +6,13 @@ All notable changes to this project are documented here. Format follows
 
 ## [Unreleased]
 
+### Nacharbeit 125: LSP quick fix for OKF alias types
+
+- **Why.** The Desktop could rewrite an OKF alias `type:` value to its canonical id in one click, but the language server could not; the handbook said so.
+- **Change.** `kuml-language-server` now publishes an `OKF-I-001` information diagnostic (source `kuml-okf`) for markdown buffers (`.md`, `.markdown`) in-process, without the CLI, and offers the quick fix "Replace alias with canonical type" through `textDocument/codeAction` (kind `quickfix` only). The edit is a single `TextEdit` on the `type:` value, derived from the same locator as `OkfAliasFix.canonicalizeType` (`OkfAliasFix.typeValueSpan`, new). The canonical id is always recomputed from the current document text; stale diagnostics (shifted line, changed value, removed frontmatter, mismatching `data`) and lone-`\r` files yield no action. `OkfValidator.aliasFinding` was extracted so the message matches the CLI. Handbook, architecture page and the stale "not offered yet" sentence updated.
+- **Tests.** New `OkfAliasQuickFixTest` (offered, byte-identical to `canonicalizeType` for plain, quoted, CRLF and non-ASCII input, idempotent, foreign diagnostics, stale/forged data), service-level markdown publish/clear/close, boot test for `codeActionProvider` (quickfix only), `typeValueSpan` and `aliasFinding` tests.
+- **Not fixed.** The VS Code extension still selects only `kuml` documents, so markdown never reaches the server there (separate repository `kuml-vscode`). No versioned edit (the range and text check is the guard). No fix-all or source-level action.
+
 ### Nacharbeit 124: hinted notes avoid the labels at the edge ends
 
 - **Why.** Since Nacharbeit 120 a hinted note avoided the centre label of an edge, but not the multiplicity and role labels (UML) or the roles and cardinality glyphs (ERM) at the edge ends. A note put on the wished side of a class could therefore sit exactly where the final label plan then placed a multiplicity.

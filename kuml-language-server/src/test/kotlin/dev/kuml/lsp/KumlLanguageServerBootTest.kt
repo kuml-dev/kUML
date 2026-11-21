@@ -60,6 +60,8 @@ class KumlLanguageServerBootTest :
                 caps.completionProvider.shouldNotBeNull()
                 caps.completionProvider.triggerCharacters shouldContainExactly listOf(".", " ")
                 caps.completionProvider.resolveProvider shouldBe true
+                caps.codeActionProvider.shouldNotBeNull()
+                caps.codeActionProvider.right.codeActionKinds shouldContainExactly listOf("quickfix")
                 result.serverInfo?.name shouldBe "kuml-lsp"
 
                 remote.initialized(InitializedParams())

@@ -7,6 +7,8 @@ import io.kotest.matchers.nulls.shouldBeNull
 import io.kotest.matchers.nulls.shouldNotBeNull
 import io.kotest.matchers.shouldBe
 import io.kotest.matchers.string.shouldContain
+import org.eclipse.lsp4j.CodeActionContext
+import org.eclipse.lsp4j.CodeActionParams
 import org.eclipse.lsp4j.CompletionItem
 import org.eclipse.lsp4j.CompletionParams
 import org.eclipse.lsp4j.DiagnosticSeverity
@@ -20,6 +22,7 @@ import org.eclipse.lsp4j.MessageParams
 import org.eclipse.lsp4j.MessageType
 import org.eclipse.lsp4j.Position
 import org.eclipse.lsp4j.PublishDiagnosticsParams
+import org.eclipse.lsp4j.Range
 import org.eclipse.lsp4j.ShowMessageRequestParams
 import org.eclipse.lsp4j.TextDocumentContentChangeEvent
 import org.eclipse.lsp4j.TextDocumentIdentifier
@@ -249,6 +252,70 @@ class KumlTextDocumentServiceTest :
                 doc.shouldNotBeNull()
                 doc.right.shouldNotBeNull()
                 doc.right.value shouldContain "SysML 2 part definition"
+            } finally {
+                service.close()
+            }
+        }
+
+        test("markdown: didOpen publishes one OKF-I-001 diagnostic, didChange with fixed text clears it, no CLI warning") {
+            val server = KumlLanguageServer()
+            val client = RecordingClient()
+            server.connect(client)
+            val service = KumlTextDocumentService(server = server, config = server.config, cliResolver = { _, _ -> null })
+            try {
+                val uri = "file:///note.md"
+                client.latchFor(uri)
+                service.didOpen(DidOpenTextDocumentParams(TextDocumentItem(uri, "markdown", 1, "---\ntype: Sysml2Bdd\n---\nbody")))
+                client.awaitFor(uri = uri, timeout = 10, unit = TimeUnit.SECONDS) shouldBe true
+                val published = client.diagnostics.last { it.uri == uri }.diagnostics
+                published shouldHaveSize 1
+                published[0].code.left shouldBe "OKF-I-001"
+                published[0].source shouldBe "kuml-okf"
+                published[0].severity shouldBe DiagnosticSeverity.Information
+                published[0].data.shouldNotBeNull()
+
+                client.latchFor(uri)
+                service.didChange(
+                    DidChangeTextDocumentParams(
+                        VersionedTextDocumentIdentifier(uri, 2),
+                        mutableListOf(TextDocumentContentChangeEvent("---\ntype: Sysml2BlockDefinition\n---\nbody")),
+                    ),
+                )
+                client.awaitFor(uri = uri, timeout = 10, unit = TimeUnit.SECONDS) shouldBe true
+                client.diagnostics
+                    .last { it.uri == uri }
+                    .diagnostics
+                    .shouldBeEmpty()
+
+                service.didClose(DidCloseTextDocumentParams(TextDocumentIdentifier(uri)))
+                client.diagnostics
+                    .last { it.uri == uri }
+                    .diagnostics
+                    .shouldBeEmpty()
+                client.warnings.shouldBeEmpty()
+            } finally {
+                service.close()
+            }
+        }
+
+        test("codeAction returns the quick fix for an open markdown document and nothing for unknown documents") {
+            val server = KumlLanguageServer()
+            val client = RecordingClient()
+            server.connect(client)
+            val service = KumlTextDocumentService(server = server, config = server.config, cliResolver = { _, _ -> null })
+            try {
+                val uri = "file:///fix.md"
+                val text = "---\ntype: Sysml2Bdd\n---\nbody"
+                service.didOpen(DidOpenTextDocumentParams(TextDocumentItem(uri, "markdown", 1, text)))
+                val diag = OkfAliasQuickFix.diagnostic(text = text, uri = uri)!!
+                val range = Range(Position(0, 0), Position(0, 0))
+                val params = CodeActionParams(TextDocumentIdentifier(uri), range, CodeActionContext(listOf(diag)))
+                val actions = service.codeAction(params).get(10, TimeUnit.SECONDS)
+                actions shouldHaveSize 1
+                actions[0].right.title shouldBe "Replace alias with canonical type"
+
+                val unknown = CodeActionParams(TextDocumentIdentifier("file:///other.md"), range, CodeActionContext(listOf(diag)))
+                service.codeAction(unknown).get(10, TimeUnit.SECONDS).shouldBeEmpty()
             } finally {
                 service.close()
             }

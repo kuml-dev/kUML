@@ -5,7 +5,8 @@ package dev.kuml.workspace
  *
  * This is a pure building block. It is wired into [OkfAliasRewriter] and the CLI (`kuml workspace validate
  * --fix-aliases`); the Desktop uses it for the buffer-level one-click action
- * (Nacharbeit 122b); the language-server code action is still open.
+ * (Nacharbeit 122b); the language server derives its quick-fix edit from [typeValueSpan]
+ * (Nacharbeit 125).
  * It works on the raw text (no line-ending normalisation, no re-serialisation), so spacing, comments,
  * quotes and `\r\n` line endings survive; only the alias characters change.
  */
@@ -17,6 +18,33 @@ public object OkfAliasFix {
         val valueStart: Int,
         val valueEnd: Int,
     )
+
+    /**
+     * Location of the `type:` value inside the frontmatter (quotes excluded).
+     *
+     * @property line 0-based line index (split on `\n` only, so a `\r` of CRLF stays on the line).
+     * @property startColumn UTF-16 start column of the value within the line.
+     * @property endColumn UTF-16 end column (exclusive).
+     * @property value the raw value text.
+     */
+    public data class TypeValueSpan(
+        val line: Int,
+        val startColumn: Int,
+        val endColumn: Int,
+        val value: String,
+    )
+
+    /** Locates the `type:` value (last `type:` line wins), or `null` without frontmatter / `type:`. */
+    public fun typeValueSpan(markdown: String): TypeValueSpan? {
+        val lines = markdown.split('\n')
+        val hit = findTypeValue(lines) ?: return null
+        return TypeValueSpan(
+            line = hit.lineIndex,
+            startColumn = hit.valueStart,
+            endColumn = hit.valueEnd,
+            value = lines[hit.lineIndex].substring(hit.valueStart, hit.valueEnd),
+        )
+    }
 
     /** Returns the rewritten text, or `null` when nothing must change (no frontmatter, no `type:`, canonical or unknown id). */
     public fun canonicalizeType(markdown: String): String? {

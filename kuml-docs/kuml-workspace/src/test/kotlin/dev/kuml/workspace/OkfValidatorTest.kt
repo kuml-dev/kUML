@@ -242,6 +242,14 @@ class OkfValidatorTest :
             }
         }
 
+        test("aliasFinding equals the finding produced by validate") {
+            val viaValidate = validateOne("---\ntype: Sysml2Bdd\n---\nbody").single { it.code == "OKF-I-001" }
+            val direct = OkfValidator.aliasFinding(file = viaValidate.file, rawType = "Sysml2Bdd", typeLine = 2)
+            direct shouldBe viaValidate
+            OkfValidator.aliasFinding(file = "x.md", rawType = "Concept", typeLine = 2) shouldBe null
+            OkfValidator.aliasFinding(file = "x.md", rawType = null, typeLine = null) shouldBe null
+        }
+
         test("OKF-W-002 reports the type line") {
             validateOne("---\ntitle: T\ntype: Totally-Custom\n---\nbody").single { it.code == "OKF-W-002" }.line shouldBe 3
         }

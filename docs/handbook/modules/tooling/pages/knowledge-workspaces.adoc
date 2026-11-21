@@ -310,8 +310,11 @@ without writing anything. `--fix-aliases` can be combined with `--document`; the
 touched. The findings printed in the same run describe the state before the rewrite; run `validate` again to see
 the result. Exit codes: validation errors keep exit code 5 (the fixes are applied first), otherwise exit code 4 if
 at least one file was skipped (also in a dry run), otherwise 0. `-o json` adds a `fixes` array with one entry per
-document (`status`: `rewritten`, `would-rewrite`, `unchanged` or `skipped`). The Desktop and the language server
-do not offer this action yet. Editors list and write only the canonical ids.
+document (`status`: `rewritten`, `would-rewrite`, `unchanged` or `skipped`). The Desktop offers the same
+rewrite as a one-click action on the open document. The language server offers a quick fix, "Replace alias with
+canonical type", for the `OKF-I-001` information diagnostic on markdown documents that a client opens; it appears
+only in editors that send `.md` files to the server (the current VS Code extension selects only kUML documents, so
+it does not show there yet). Editors list and write only the canonical ids.
 Matching is case-sensitive.
 
 [cols="2,2"]

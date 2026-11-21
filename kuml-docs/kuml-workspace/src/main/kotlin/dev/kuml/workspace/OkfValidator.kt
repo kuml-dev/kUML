@@ -130,24 +130,32 @@ public object OkfValidator {
                 ),
             )
         }
-        if (OkfType.isAlias(doc.rawType)) {
-            val canonical = OkfType.canonicalIdFor(doc.rawType)
-            return listOf(
-                OkfFinding(
-                    code = "OKF-I-001",
-                    severity = OkfSeverity.INFO,
-                    file = doc.relativePath,
-                    line = doc.typeLine ?: 1,
-                    message = "type '${doc.rawType}' is an alias; canonical id is '$canonical'.",
-                    suggestion =
-                        "Replace 'type: ${doc.rawType}' with 'type: $canonical' to use the canonical id, " +
-                            "or run 'kuml workspace validate --fix-aliases <dir>'; the alias is accepted as-is " +
-                            "and is only rewritten on explicit request.",
-                    canonicalId = canonical,
-                ),
-            )
-        }
-        return emptyList()
+        return listOfNotNull(aliasFinding(file = doc.relativePath, rawType = doc.rawType, typeLine = doc.typeLine))
+    }
+
+    /**
+     * Builds the `OKF-I-001` finding when [rawType] is a registered alias, otherwise `null`.
+     * Shared by the CLI validation and the language server so message and suggestion stay identical.
+     */
+    public fun aliasFinding(
+        file: String,
+        rawType: String?,
+        typeLine: Int?,
+    ): OkfFinding? {
+        if (!OkfType.isAlias(rawType)) return null
+        val canonical = OkfType.canonicalIdFor(rawType)
+        return OkfFinding(
+            code = "OKF-I-001",
+            severity = OkfSeverity.INFO,
+            file = file,
+            line = typeLine ?: 1,
+            message = "type '$rawType' is an alias; canonical id is '$canonical'.",
+            suggestion =
+                "Replace 'type: $rawType' with 'type: $canonical' to use the canonical id, " +
+                    "or run 'kuml workspace validate --fix-aliases <dir>'; the alias is accepted as-is " +
+                    "and is only rewritten on explicit request.",
+            canonicalId = canonical,
+        )
     }
 
     private fun checkDiagramBlockPresence(doc: OkfDocument): List<OkfFinding> {

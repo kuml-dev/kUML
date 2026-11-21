@@ -3,6 +3,9 @@ package dev.kuml.lsp
 import dev.kuml.langsupport.cli.KumlCliLocator
 import dev.kuml.langsupport.completion.KumlCompletionItems
 import dev.kuml.langsupport.diagnostics.KumlDiagnostic
+import org.eclipse.lsp4j.CodeAction
+import org.eclipse.lsp4j.CodeActionParams
+import org.eclipse.lsp4j.Command
 import org.eclipse.lsp4j.CompletionItem
 import org.eclipse.lsp4j.CompletionList
 import org.eclipse.lsp4j.CompletionParams
@@ -86,6 +89,16 @@ class KumlTextDocumentService(
     override fun resolveCompletionItem(unresolved: CompletionItem): CompletableFuture<CompletionItem> =
         CompletableFuture.completedFuture(CompletionMapper.resolve(unresolved))
 
+    override fun codeAction(params: CodeActionParams): CompletableFuture<List<Either<Command, CodeAction>>> {
+        val uri = params.textDocument.uri
+        val text = documents.text(uri) ?: return CompletableFuture.completedFuture(emptyList())
+        val actions =
+            OkfAliasQuickFix
+                .actions(uri = uri, text = text, context = params.context.diagnostics.orEmpty())
+                .map { Either.forRight<Command, CodeAction>(it) }
+        return CompletableFuture.completedFuture(actions)
+    }
+
     /** Debounced entry point: coalesces rapid didChange/didSave bursts into one CLI run. */
     private fun scheduleValidation(uri: String) {
         debouncer.submit(key = uri) { runAndPublish(uri) }
@@ -97,6 +110,12 @@ class KumlTextDocumentService(
             return
         }
         val text = documents.text(uri) ?: return // doc closed mid-flight
+
+        if (uri.isMarkdownUri()) {
+            // Markdown buffers: OKF alias finding computed in-process, no CLI involved.
+            publish(uri = uri, diagnostics = listOfNotNull(OkfAliasQuickFix.diagnostic(text = text, uri = uri)))
+            return
+        }
 
         val cli = resolveCli(uri)
         if (cli == null) {
@@ -169,6 +188,11 @@ class KumlTextDocumentService(
     internal fun documentText(uri: String): String? = documents.text(uri)
 
     override fun close() = debouncer.close()
+
+    private fun String.isMarkdownUri(): Boolean {
+        val path = substringBefore('?').substringBefore('#').lowercase()
+        return path.endsWith(".md") || path.endsWith(".markdown")
+    }
 
     private fun String.toFileOrNull(): File? = runCatching { File(URI(this)) }.getOrNull()?.takeIf { it.isAbsolute }
 

@@ -67,4 +67,19 @@ class OkfAliasFixTest :
             OkfAliasFix.typeLineNumber("---\ntitle: X\ntype: $alias\n---\n") shouldBe 3
             OkfAliasFix.typeLineNumber("no frontmatter") shouldBe null
         }
+
+        test("typeValueSpan returns columns, excludes quotes, and null without frontmatter or type") {
+            OkfAliasFix.typeValueSpan("---\ntitle: X\ntype:   $alias\n---\n") shouldBe
+                OkfAliasFix.TypeValueSpan(line = 2, startColumn = 8, endColumn = 8 + alias.length, value = alias)
+            OkfAliasFix.typeValueSpan("---\ntype: \"$alias\"\n---\n") shouldBe
+                OkfAliasFix.TypeValueSpan(line = 1, startColumn = 7, endColumn = 7 + alias.length, value = alias)
+            OkfAliasFix.typeValueSpan("type: $alias") shouldBe null
+            OkfAliasFix.typeValueSpan("---\ntitle: X\n---\n") shouldBe null
+        }
+
+        test("typeValueSpan uses the last type line, consistent with canonicalizeType") {
+            val input = "---\ntype: Concept\ntype: $alias\n---\n"
+            OkfAliasFix.typeValueSpan(input)!!.line shouldBe 2
+            OkfAliasFix.canonicalizeType(input) shouldBe "---\ntype: Concept\ntype: $canonical\n---\n"
+        }
     })

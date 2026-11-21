@@ -1,5 +1,7 @@
 package dev.kuml.lsp
 
+import org.eclipse.lsp4j.CodeActionKind
+import org.eclipse.lsp4j.CodeActionOptions
 import org.eclipse.lsp4j.CompletionOptions
 import org.eclipse.lsp4j.InitializeParams
 import org.eclipse.lsp4j.InitializeResult
@@ -48,6 +50,10 @@ class KumlLanguageServer :
                 // KumlCompletionItems catalogue on `textDocument/completion`,
                 // documentation filled lazily on `completionItem/resolve`.
                 completionProvider = CompletionOptions(true, listOf(".", " "))
+                // Quick fix for OKF-I-001 on markdown buffers (Nacharbeit 125); QuickFix kind only.
+                setCodeActionProvider(
+                    CodeActionOptions(listOf(CodeActionKind.QuickFix)).apply { resolveProvider = false },
+                )
                 // NOTE: push diagnostics need no capability entry (no diagnosticProvider).
             }
         val info = ServerInfo("kuml-lsp", serverVersion())

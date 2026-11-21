@@ -286,7 +286,8 @@ editor, MCP server and the AI assistant sit on top.
 
 | `kuml-lang-support`, `kuml-language-server`
 | Editor-agnostic completion and diagnostics, and the LSP server used by the IDE plugin and the
-separate https://github.com/kuml-dev/kuml-vscode[VS Code extension].
+separate https://github.com/kuml-dev/kuml-vscode[VS Code extension]. The server also depends on
+`kuml-workspace` for the OKF alias quick fix on markdown documents.
 
 | `kuml-packaging`
 | jpackage installers (DMG, MSI, DEB, RPM), Docker image and jlink runtime bundles.

@@ -18,6 +18,7 @@ application {
 
 dependencies {
     implementation(project(":kuml-lang-support"))
+    implementation(project(":kuml-docs:kuml-workspace"))
     implementation(libs.lsp4j)
 
     testImplementation(libs.lsp4j) // client launcher used by the boot test
