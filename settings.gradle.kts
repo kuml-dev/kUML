@@ -21,6 +21,11 @@ dependencyResolutionManagement {
         maven {
             name = "Eclipse Releases"
             url = uri("https://repo.eclipse.org/content/repositories/releases/")
+            // Only ask this flaky host about Eclipse groups. Without the filter, a
+            // dynamic version range of a foreign artifact (e.g. gson [2.9.1,3.0)
+            // pulled in by lsp4j) makes Gradle list versions here too, and a 503
+            // from repo.eclipse.org then fails the whole build (CI, 2026-11-22).
+            content { includeGroupByRegex("org\\.eclipse(\\..*)?") }
         }
     }
 }
