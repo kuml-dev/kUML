@@ -29,7 +29,7 @@ import dev.kuml.uml.UmlNamedElement
  * Sequence diagrams are skipped here: their notes are placed by [SeqNotePlacer], which evaluates the hint itself
  * (Nacharbeit 102).
  *
- * Since Nacharbeit 120 a hinted note also avoids the (estimated) centre label of every edge: stereotype header and
+ * Since Nacharbeit 120 a hinted note also avoids the centre label of every edge (the real rectangle since Nacharbeit 131, an estimate only for edges the caller did not plan): stereotype header and
  * name. Since Nacharbeit 124 the multiplicity and role labels at the edge ends are obstacles too, when the caller passes
  * [place]'s `endLabelRects` (the SVG renderer does). Notes without a hint still ignore labels.
  *
@@ -37,12 +37,20 @@ import dev.kuml.uml.UmlNamedElement
  * byte-identical: [place] returns the layout it was given.
  */
 public object UmlNotePlacement {
-    /** Places the hinted notes of [diagram] in [layout]; returns [layout] unchanged when there is nothing to do. */
+    /**
+     * Places the hinted notes of [diagram] in [layout]; returns [layout] unchanged when there is nothing to do.
+     *
+     * [centreLabelRects] (Nacharbeit 131) gives the real centre-label rectangle per edge id, computed on the layout
+     * without the hinted notes. Three states per edge id: key present with a rect = the drawn centre label, used as
+     * obstacle instead of the estimate; key present with `null` = planned edge without centre label, no obstacle;
+     * key absent = edge not planned (e.g. UML component diagrams), the old estimate applies.
+     */
     public fun place(
         diagram: KumlDiagram,
         layout: LayoutResult,
         config: NotePlacementConfig = NotePlacementConfig(),
         endLabelRects: (LayoutResult) -> Map<String, List<Rect>> = { emptyMap() },
+        centreLabelRects: (LayoutResult) -> Map<String, Rect?> = { emptyMap() },
     ): NotePlacementResult {
         val none = NotePlacementResult(layout = layout, unresolved = emptyList(), truncated = emptyList())
         if (diagram.type == DiagramType.SEQUENCE) return none
@@ -90,10 +98,16 @@ public object UmlNotePlacement {
         // Nacharbeit 124: multiplicity and role labels at the edge ends, planned on the same [base] the placer measures
         // against (hinted notes taken over by the placer are absent; ELK-placed notes and their links are still there).
         val endLabels = endLabelRects(base)
+        // Nacharbeit 131: the real centre label where the caller planned one; the estimate only for unplanned edges.
+        val centre = centreLabelRects(base)
+        val placedCentre: Map<String, Rect> = centre.mapNotNull { (k, v) -> v?.let { k to it } }.toMap()
         val obstacles =
-            Sysml2NotePlacement.obstaclesOf(layout = base, edgeLabels = { id ->
-                labelLines[id].orEmpty()
-            }, endLabels = endLabels)
+            Sysml2NotePlacement.obstaclesOf(
+                layout = base,
+                edgeLabels = { id -> if (id in centre) emptyList() else labelLines[id].orEmpty() },
+                placedLabels = placedCentre,
+                endLabels = endLabels,
+            )
         val placed =
             NotePlacer.place(
                 layout = base,

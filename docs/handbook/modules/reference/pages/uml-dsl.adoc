@@ -437,8 +437,9 @@ labels and lanes, requirement groups keep their frame bands, and the anchor line
 without a note clearance (for example requirement and package diagrams) a position is only free when it covers no part,
 port, label, composite title, frame band, note, edge or earlier anchor line.
 In UML and ERM diagrams a hinted note also avoids the centre label of an edge: the stereotype header and name of a UML
-edge, the name of an ERM relationship. The label position is estimated at the midpoint of the edge, because notes are placed
-before the labels are planned, so the estimate can differ slightly from the drawn label. The labels at the edge ends are
+edge, the name of an ERM relationship. The note avoids the label at the position where it is actually drawn (the planned label
+rectangle, computed on the layout without the hinted notes). Exception: UML component diagrams draw no planned association
+labels, so there the label position is estimated at the midpoint of the edge. The labels at the edge ends are
 avoided as planned: multiplicities and roles of UML associations, and roles and cardinality glyphs of ERM relationships in
 Martin, Bachman and IDEF1X notation. Chen notation, the IDEF1X cardinality letters and the LaTeX output do not avoid
 end labels yet. A note without a placement hint still ignores labels. A label that blocks the wished side is treated like any other hard obstacle: the next free position wins, and if

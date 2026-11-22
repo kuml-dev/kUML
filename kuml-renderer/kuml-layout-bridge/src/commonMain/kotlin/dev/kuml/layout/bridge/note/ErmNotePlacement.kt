@@ -13,7 +13,7 @@ import dev.kuml.layout.bridge.erm.ErmChenLayoutBridge
  * SysML 2 and UML notes; a hint that no free position on the requested side can satisfy falls back to the default
  * rules and is reported as `KUML-NOTE-W004`.
  *
- * Since Nacharbeit 120 a hinted note also avoids the (estimated) name label at the centre of a relationship edge;
+ * Since Nacharbeit 120 a hinted note also avoids the name label at the centre (the real rectangle since Nacharbeit 131 when supplied, else an estimate) of a relationship edge;
  * since Nacharbeit 124 the roles and cardinality glyphs at the relationship ends are obstacles too, when the caller
  * passes `endLabelRects` (the SVG renderer does for Martin and Bachman). Notes without a hint still ignore labels.
  *
@@ -42,6 +42,11 @@ public object ErmNotePlacement {
     /**
      * Places the hinted notes of [model] in [layout]; returns [layout] unchanged when there is nothing to do.
      * [resolveTarget] maps a link target id to the layout node id (identity except for Chen, see [chenTarget]).
+     *
+     * [centreLabelRects] (Nacharbeit 131) gives the real centre-label rectangle per edge id, computed on the layout
+     * without the hinted notes. Three states per edge id: key present with a rect = the drawn centre label, used as
+     * obstacle instead of the estimate; key present with `null` = planned edge without centre label, no obstacle;
+     * key absent = edge not planned (e.g. UML component diagrams), the old estimate applies.
      */
     public fun place(
         model: ErmModel,
@@ -49,6 +54,7 @@ public object ErmNotePlacement {
         resolveTarget: (String) -> String = { it },
         config: NotePlacementConfig = NotePlacementConfig(),
         endLabelRects: (LayoutResult) -> Map<String, List<Rect>> = { emptyMap() },
+        centreLabelRects: (LayoutResult) -> Map<String, Rect?> = { emptyMap() },
     ): NotePlacementResult {
         val none = NotePlacementResult(layout = layout, unresolved = emptyList(), truncated = emptyList())
         val layoutIds =
@@ -110,6 +116,9 @@ public object ErmNotePlacement {
             model.relationships
                 .filter { !it.name.isNullOrBlank() }
                 .associate { it.id to listOf(it.name.orEmpty()) }
+        // Nacharbeit 131: the real centre label where the caller planned one; the estimate only for unplanned edges.
+        val centre = centreLabelRects(base)
+        val placedCentre: Map<String, Rect> = centre.mapNotNull { (k, v) -> v?.let { k to it } }.toMap()
         val placed =
             NotePlacer.place(
                 layout = base,
@@ -120,7 +129,8 @@ public object ErmNotePlacement {
                 obstacles =
                     Sysml2NotePlacement.obstaclesOf(
                         layout = base,
-                        edgeLabels = { id -> labels[id].orEmpty() },
+                        edgeLabels = { id -> if (id in centre) emptyList() else labels[id].orEmpty() },
+                        placedLabels = placedCentre,
                         endLabels = endLabelRects(base),
                     ),
                 config = config,

@@ -251,7 +251,7 @@ evaluated after the layout in all four notations: the note is placed on the wish
 exists. If none exists, the default placement is used and `kuml render` reports `KUML-NOTE-W004`. A free-standing note
 and `NEAR` never warn. In Chen notation the note is placed relative to the entity or view box. See
 xref:uml-dsl.adoc#note-placement-hint[Note placement hint].
-A hinted note also avoids the (estimated) name label at the centre of a relationship edge in Martin, Bachman and IDEF1X notation;
+A hinted note also avoids the name label at the centre of a relationship edge in Martin, Bachman and IDEF1X notation, at the position where it is actually drawn;
 it also avoids the role labels and the cardinality glyphs at the relationship ends (Martin, Bachman, IDEF1X). Chen notation,
 the IDEF1X cardinality letters and hinted notes in the LaTeX output do not avoid end labels yet, and a note without a hint still ignores labels.
 

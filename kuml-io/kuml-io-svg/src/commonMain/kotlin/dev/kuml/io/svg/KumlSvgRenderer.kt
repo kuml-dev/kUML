@@ -181,6 +181,8 @@ public object KumlSvgRenderer {
                     layout = layoutResult,
                     // Nacharbeit 124: multiplicity and role labels at the association ends are obstacles for hinted notes.
                     endLabelRects = umlEndLabelRects(diagram = diagram, theme = theme),
+                    // Nacharbeit 131: the drawn centre label (stereotype header, name) is the obstacle, not an estimate.
+                    centreLabelRects = umlCentreLabelRects(diagram = diagram, theme = theme),
                 ).layout
         // STATE diagrams have their own renderer-direct path (vertex/transition dispatch)
         if (diagram.type == DiagramType.STATE) {
@@ -4965,6 +4967,13 @@ public object KumlSvgRenderer {
                         } else {
                             { l -> ermEndLabelRects(layoutResult = l, relationshipsById = model.relationships.associateBy { it.id }) }
                         },
+                    // Nacharbeit 131: the drawn relationship name (Martin, Bachman, IDEF1X); Chen's name sits in a node.
+                    centreLabelRects =
+                        if (notation == ErmNotation.CHEN) {
+                            { _ -> emptyMap() }
+                        } else {
+                            { l -> ermCentreLabelRects(layoutResult = l, relationshipsById = model.relationships.associateBy { it.id }) }
+                        },
                 ).layout
                 .let { placed ->
                     // Nacharbeit 127: the right-hand self-loop must fit inside the canvas (Chen has no self-loop edges).
@@ -5209,6 +5218,38 @@ public object KumlSvgRenderer {
                     byKey.filterKeys { it != dev.kuml.io.svg.uml.UmlLabelKeys.CENTER }.values.map { it.rect }
                 }.filterValues { it.isNotEmpty() }
         }
+
+    /**
+     * The planned centre label rectangle (stereotype header, name) of a UML [diagram] by edge id, layout coordinates
+     * (Nacharbeit 131), as a callback for [UmlNotePlacement.place]. A planned edge without centre label maps to `null`;
+     * edges the renderer does not plan (component diagrams draw no association label plan) are absent.
+     */
+    internal fun umlCentreLabelRects(
+        diagram: KumlDiagram,
+        theme: KumlTheme,
+    ): (LayoutResult) -> Map<String, dev.kuml.layout.Rect?> =
+        if (diagram.type == DiagramType.COMPONENT) {
+            { _ -> emptyMap() }
+        } else {
+            { l ->
+                dev.kuml.io.svg.uml.UmlAssociationLabelPlan
+                    .planFor(diagram = diagram, layout = l, theme = theme)
+                    .mapValues { (_, byKey) -> byKey[dev.kuml.io.svg.uml.UmlLabelKeys.CENTER]?.rect }
+            }
+        }
+
+    /**
+     * The planned name label rectangle of every ERM relationship edge (Martin, Bachman, IDEF1X) by relationship id, layout
+     * coordinates without canvas padding (Nacharbeit 131). A planned edge without name maps to `null`.
+     */
+    internal fun ermCentreLabelRects(
+        layoutResult: LayoutResult,
+        relationshipsById: Map<String, ErmRelationship>,
+    ): Map<String, dev.kuml.layout.Rect?> {
+        val selfLoopPlan = SelfLoopRouter.planAll(layout = layoutResult, elementLookup = relationshipsById::get)
+        return ermLabelPlan(layoutResult = layoutResult, relationshipsById = relationshipsById, padding = 0f, selfLoopPlan = selfLoopPlan)
+            .mapValues { (_, byKey) -> byKey[dev.kuml.layout.bridge.label.ErmLabelKeys.CENTER]?.rect }
+    }
 
     /**
      * The rectangles of the labels at the relationship ends in layout coordinates (no canvas padding), by relationship id
