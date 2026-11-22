@@ -3062,7 +3062,22 @@ public object KumlSvgRenderer {
             suppressLabelEdgeIds = satisfyLabelSuppressed,
             labelFrameStrips = true,
             reqLabelPolicy = true,
-            rawLayoutResult = placeSysml2Notes(model = model, diagram = diagram, layout = layoutResult, adapter = ReqEdgeAdapter(diagram)),
+            rawLayoutResult =
+                placeSysml2Notes(
+                    model = model,
+                    diagram = diagram,
+                    layout = layoutResult,
+                    adapter = ReqEdgeAdapter(diagram),
+                    placedLabels =
+                        onLineLabelPlan(
+                            model = model,
+                            layout = layoutResult,
+                            adapter = ReqEdgeAdapter(diagram),
+                            suppressLabelEdgeIds = satisfyLabelSuppressed,
+                            labelFrameStrips = true,
+                            reqLabelPolicy = true,
+                        ),
+                ),
             theme = theme,
             options = options,
             sysml2EdgeAdapter = ReqEdgeAdapter(diagram),
@@ -3116,7 +3131,21 @@ public object KumlSvgRenderer {
                 .PackageEdgeAdapter(model)
         return renderSysml2Synthetic(
             synthetic = synthetic,
-            rawLayoutResult = placeSysml2Notes(model = model, diagram = diagram, layout = layoutResult, adapter = adapter),
+            rawLayoutResult =
+                placeSysml2Notes(
+                    model = model,
+                    diagram = diagram,
+                    layout = layoutResult,
+                    adapter = adapter,
+                    placedLabels =
+                        onLineLabelPlan(
+                            model = model,
+                            layout = layoutResult,
+                            adapter = adapter,
+                            labelFrameStrips = true,
+                            reqLabelPolicy = false,
+                        ),
+                ),
             theme = theme,
             options = options,
             sysml2EdgeAdapter = adapter,
@@ -3185,14 +3214,30 @@ public object KumlSvgRenderer {
                     dev.kuml.core.model.layout.LayoutLimits.LABEL_MAX_WIDTH_MIN,
                     dev.kuml.core.model.layout.LayoutLimits.LABEL_MAX_WIDTH_MAX,
                 )?.toFloat() ?: dev.kuml.io.svg.sysml2.edge.StmLabelPlacer.DEFAULT_MAX_WIDTH_PX
+        val stmTransform = stmRouteTransform(model = model, visible = visible)
+        val stmObstaclesOf: (LayoutResult, Float) -> List<dev.kuml.io.svg.sysml2.edge.StmObstacleNode> = { lr, padding ->
+            dev.kuml.io.svg.sysml2
+                .stmObstacleNodes(model = model, visibleIds = visible, layoutResult = lr, paddingPx = padding)
+        }
+        val stmLayoutNoNotes = Sysml2LayoutBridge.withoutStmOrderEdges(layoutResult)
         return renderSysml2Synthetic(
             synthetic = synthetic,
             rawLayoutResult =
                 placeSysml2Notes(
                     model = model,
                     diagram = diagram,
-                    layout = Sysml2LayoutBridge.withoutStmOrderEdges(layoutResult),
+                    layout = stmLayoutNoNotes,
                     adapter = StmEdgeAdapter(model = model, diagram = diagram),
+                    placedLabels =
+                        stmLabelPlan(
+                            model = model,
+                            layout = stmLayoutNoNotes,
+                            adapter = StmEdgeAdapter(model = model, diagram = diagram),
+                            padding = options.paddingPx,
+                            obstacles = stmObstaclesOf,
+                            routeTransform = stmTransform,
+                            maxWidthPx = labelMaxWidthPx,
+                        ),
                     stmLabelMaxWidthPx = labelMaxWidthPx,
                     noteMaxWidth = dev.kuml.layout.bridge.NoteLayout.STM_MAX_W,
                     strictNotes =
@@ -3206,11 +3251,8 @@ public object KumlSvgRenderer {
             edgeBackdropFill = theme.colors.background.toHex(),
             wrapStmLabels = true,
             stmLabelMaxWidthPx = labelMaxWidthPx,
-            stmObstacles = { lr, padding ->
-                dev.kuml.io.svg.sysml2
-                    .stmObstacleNodes(model = model, visibleIds = visible, layoutResult = lr, paddingPx = padding)
-            },
-            routeTransform = stmRouteTransform(model = model, visible = visible),
+            stmObstacles = stmObstaclesOf,
+            routeTransform = stmTransform,
             deferredNodeIds =
                 model.definitions
                     .filterIsInstance<StateDefinition>()
@@ -3264,6 +3306,12 @@ public object KumlSvgRenderer {
         )
     }
 
+    /**
+     * Nacharbeit 133: activity notes still avoid an estimated label rectangle. The drawn labels come from
+     * `Sysml2DiagramLabelPlan.planActLabels`, which needs the pin-anchored and clipped final routes, the shifted bounds, pin,
+     * title and lane rectangles and the widened canvas, all of which exist only after the note placement; a pre-plan would build
+     * the whole activity draw pipeline twice. See the CHANGELOG entry "Not fixed".
+     */
     private fun actFinalLayout(
         model: Sysml2Model,
         diagram: ActDiagram,
@@ -4429,6 +4477,83 @@ public object KumlSvgRenderer {
 
     /** State machines: clearance in px between a note and edges, states and other notes (Nacharbeit 25). */
     internal const val STM_NOTE_EDGE_CLEARANCE: Float = 16f
+
+    /**
+     * Nacharbeit 133 (REQ, PKG): the label rectangles [renderSysml2Synthetic] draws on their own line, planned on the
+     * layout [layout] without notes and returned in layout coordinates (no padding), so the note placer avoids the label as
+     * drawn instead of an estimate at the polyline midpoint. Empty without notes: note-free diagrams are not touched.
+     * The final label may still move because the notes and their anchor lines are obstacles of the drawn run.
+     */
+    internal fun onLineLabelPlan(
+        model: Sysml2Model,
+        layout: LayoutResult,
+        adapter: Sysml2EdgeAdapter,
+        suppressLabelEdgeIds: Set<String> = emptySet(),
+        labelFrameStrips: Boolean,
+        reqLabelPolicy: Boolean,
+    ): Map<String, dev.kuml.layout.bridge.label.PlacedLabel> {
+        if (sysml2NoteElements(model).isEmpty()) return emptyMap()
+        val routes = sysml2ShiftedRoutes(layoutResult = layout, padding = 0f, routeTransform = null)
+        val pending = ArrayList<Sysml2EdgeRenderer.PendingEdgeLabel>()
+        for (edgeId in layout.edges.keys) {
+            if (edgeId.value in suppressLabelEdgeIds) continue
+            val meta = adapter.metadataFor(edgeId.value) ?: continue
+            Sysml2EdgeRenderer.pendingLabelOf(id = edgeId.value, metadata = meta)?.let { pending += it }
+        }
+        if (pending.isEmpty()) return emptyMap()
+        val nodeRects = layout.nodes.values.map { it.bounds }
+        val hardObstacles = if (labelFrameStrips) layout.groups.values.flatMap { frameStrips(it.bounds) } else emptyList()
+        val rects =
+            Sysml2EdgeRenderer.planLabelsOnLine(
+                pending = pending,
+                allRoutes = routes,
+                obstacles = nodeRects,
+                hardObstacles = hardObstacles,
+                preferSourceEnd = reqLabelPolicy,
+            )
+        return rects.mapValues { (_, r) ->
+            dev.kuml.layout.bridge.label
+                .PlacedLabel(rect = r, onLine = true)
+        }
+    }
+
+    /**
+     * Nacharbeit 133 (STM): the wrapped label blocks as [renderSysml2Synthetic] plans them on the layout [layout] without
+     * notes, as rectangles in layout coordinates. Runs with the real [padding] (the plan has an absolute top frame) and
+     * subtracts it again. Empty without notes.
+     */
+    internal fun stmLabelPlan(
+        model: Sysml2Model,
+        layout: LayoutResult,
+        adapter: Sysml2EdgeAdapter,
+        padding: Float,
+        obstacles: (LayoutResult, Float) -> List<dev.kuml.io.svg.sysml2.edge.StmObstacleNode>,
+        routeTransform: (
+            (Map<String, dev.kuml.layout.EdgeRoute>, Map<String, dev.kuml.layout.Rect>) -> Map<String, dev.kuml.layout.EdgeRoute>
+        )?,
+        maxWidthPx: Float,
+    ): Map<String, dev.kuml.layout.bridge.label.PlacedLabel> {
+        if (sysml2NoteElements(model).isEmpty()) return emptyMap()
+        val routes = sysml2ShiftedRoutes(layoutResult = layout, padding = padding, routeTransform = routeTransform)
+        val blocks =
+            planStmBlocks(
+                routes = routes,
+                layoutEdgeIds = layout.edges.keys.map { it.value },
+                obstacles = obstacles(layout, padding),
+                adapter = adapter,
+                maxWidthPx = maxWidthPx,
+            )
+        return blocks.mapValues { (_, b) ->
+            dev.kuml.layout.bridge.label.PlacedLabel(
+                rect =
+                    dev.kuml.layout.Rect(
+                        origin = dev.kuml.layout.Point(x = b.cx - b.w / 2f - padding, y = b.cy - b.h / 2f - padding),
+                        size = dev.kuml.layout.Size(width = b.w, height = b.h),
+                    ),
+                onLine = false,
+            )
+        }
+    }
 
     /**
      * Places the notes of [diagram] after the layout (see [Sysml2NotePlacement]); the result carries the notes as

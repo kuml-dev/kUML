@@ -534,6 +534,77 @@ internal object Sysml2EdgeRenderer {
         }
     }
 
+    private data class LabelLine(
+        val text: String,
+        val css: String,
+    )
+
+    /** The wrapped text lines of each pending label; shared by the plan and the drawing so they can never diverge. */
+    private fun labelLinesOf(pending: List<PendingEdgeLabel>): Map<String, List<LabelLine>> =
+        pending.associate { p ->
+            val ls = ArrayList<LabelLine>()
+            p.stereotype?.let { st ->
+                wrapWords(text = st, maxChars = EDGE_LABEL_WRAP_CHARS).ifEmpty { listOf(st) }.forEach {
+                    ls += LabelLine(text = it, css = "kuml-stereotype")
+                }
+            }
+            p.label?.let { l ->
+                wrapWords(text = l, maxChars = EDGE_LABEL_WRAP_CHARS).ifEmpty { listOf(l) }.forEach {
+                    ls +=
+                        LabelLine(text = it, css = "kuml-body")
+                }
+            }
+            p.id to ls
+        }
+
+    private fun placeLabelRects(
+        pending: List<PendingEdgeLabel>,
+        lines: Map<String, List<LabelLine>>,
+        allRoutes: Map<String, EdgeRoute>,
+        obstacles: List<dev.kuml.layout.Rect>,
+        hardObstacles: List<dev.kuml.layout.Rect>,
+        preferSourceEnd: Boolean,
+    ): Map<String, dev.kuml.layout.Rect> {
+        val requests =
+            pending.mapNotNull { p ->
+                val route = allRoutes[p.id] ?: return@mapNotNull null
+                val ls = lines.getValue(p.id)
+                val w = (ls.maxOfOrNull { it.text.length } ?: 1) * 6.2f + 8f
+                val h = ls.size * LABEL_LINE_HEIGHT_PX + 4f
+                dev.kuml.io.svg.sysml2
+                    .LabelRequest(id = p.id, polyline = polylinePoints(route), w = w, h = h)
+            }
+        return dev.kuml.io.svg.sysml2.Sysml2LabelPlacement.placeAll(
+            requests = requests,
+            allRoutes = allRoutes.mapValues { polylinePoints(it.value) },
+            obstacles = obstacles,
+            hardObstacles = hardObstacles,
+            preferSourceEnd = preferSourceEnd,
+        )
+    }
+
+    /**
+     * The rectangles [emitLabelsOnLine] would draw for [pending], without drawing (Nacharbeit 133): the notes of REQ and
+     * package diagrams use them instead of an estimate. Same wrapping, sizes and placer as the drawing.
+     */
+    internal fun planLabelsOnLine(
+        pending: List<PendingEdgeLabel>,
+        allRoutes: Map<String, EdgeRoute>,
+        obstacles: List<dev.kuml.layout.Rect>,
+        hardObstacles: List<dev.kuml.layout.Rect> = emptyList(),
+        preferSourceEnd: Boolean = false,
+    ): Map<String, dev.kuml.layout.Rect> {
+        if (pending.isEmpty()) return emptyMap()
+        return placeLabelRects(
+            pending = pending,
+            lines = labelLinesOf(pending),
+            allRoutes = allRoutes,
+            obstacles = obstacles,
+            hardObstacles = hardObstacles,
+            preferSourceEnd = preferSourceEnd,
+        )
+    }
+
     /**
      * Places and draws the [pending] labels of REQ / UC / ACT edges (wave C2b): each label is centred on the
      * longest free segment of its own line, on an opaque backdrop chosen by [backdropFor] (box centre ->
@@ -551,39 +622,12 @@ internal object Sysml2EdgeRenderer {
         preferSourceEnd: Boolean = false,
     ) {
         if (pending.isEmpty()) return
-
-        data class Line(
-            val text: String,
-            val css: String,
-        )
-
-        val lines =
-            pending.associate { p ->
-                val ls = ArrayList<Line>()
-                p.stereotype?.let { st ->
-                    wrapWords(text = st, maxChars = EDGE_LABEL_WRAP_CHARS).ifEmpty { listOf(st) }.forEach {
-                        ls +=
-                            Line(it, "kuml-stereotype")
-                    }
-                }
-                p.label?.let { l ->
-                    wrapWords(text = l, maxChars = EDGE_LABEL_WRAP_CHARS).ifEmpty { listOf(l) }.forEach { ls += Line(it, "kuml-body") }
-                }
-                p.id to ls
-            }
-        val requests =
-            pending.mapNotNull { p ->
-                val route = allRoutes[p.id] ?: return@mapNotNull null
-                val ls = lines.getValue(p.id)
-                val w = (ls.maxOfOrNull { it.text.length } ?: 1) * 6.2f + 8f
-                val h = ls.size * LABEL_LINE_HEIGHT_PX + 4f
-                dev.kuml.io.svg.sysml2
-                    .LabelRequest(id = p.id, polyline = polylinePoints(route), w = w, h = h)
-            }
+        val lines = labelLinesOf(pending)
         val placed =
-            dev.kuml.io.svg.sysml2.Sysml2LabelPlacement.placeAll(
-                requests = requests,
-                allRoutes = allRoutes.mapValues { polylinePoints(it.value) },
+            placeLabelRects(
+                pending = pending,
+                lines = lines,
+                allRoutes = allRoutes,
                 obstacles = obstacles,
                 hardObstacles = hardObstacles,
                 preferSourceEnd = preferSourceEnd,
