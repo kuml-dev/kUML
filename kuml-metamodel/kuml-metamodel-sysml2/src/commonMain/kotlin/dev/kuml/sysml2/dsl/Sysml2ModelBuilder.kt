@@ -52,6 +52,7 @@ import dev.kuml.sysml2.PartDefinition
 import dev.kuml.sysml2.PartUsage
 import dev.kuml.sysml2.PortDefinition
 import dev.kuml.sysml2.PortDirection
+import dev.kuml.sysml2.PortLabelAt
 import dev.kuml.sysml2.PortUsage
 import dev.kuml.sysml2.ReqContains
 import dev.kuml.sysml2.ReqCopy
@@ -2742,7 +2743,8 @@ class DefinitionBuilder internal constructor(
 
     /**
      * Declare a port-usage: `port inlet : Inlet`. [direction] is the drawn
-     * direction (`in` / `out` / `inout`); [conjugated] marks a `~Inlet` port.
+     * direction (`in` / `out` / `inout`); [conjugated] marks a `~Inlet` port. [labelAt] hints where the port label
+     * stands (`Before` / `After` / `Auto`).
      */
     fun port(
         name: String,
@@ -2750,6 +2752,7 @@ class DefinitionBuilder internal constructor(
         multiplicity: KermlMultiplicity = KermlMultiplicity.EXACTLY_ONE,
         direction: PortDirection? = null,
         conjugated: Boolean = false,
+        labelAt: PortLabelAt = PortLabelAt.Auto,
     ): PortUsage {
         val qn = "$parentId::$name"
         val usage =
@@ -2761,6 +2764,8 @@ class DefinitionBuilder internal constructor(
                 multiplicity = multiplicity,
                 direction = direction,
                 isConjugated = conjugated,
+                labelAt = labelAt,
+                labelAtLine = if (labelAt == PortLabelAt.Auto) null else callerScriptLine(),
             )
         collected += toFeature(usage = usage, typeId = typeId)
         modelBuilder.registerUsage(usage)

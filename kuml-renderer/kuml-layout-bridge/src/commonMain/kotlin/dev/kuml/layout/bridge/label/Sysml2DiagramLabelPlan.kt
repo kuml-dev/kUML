@@ -28,6 +28,10 @@ public data class PortLabelSpec(
     val outward: LabelSide? = null,
     /** The owner box; obstacles owned by it do not count against the label. */
     val parentId: String? = null,
+    /** `labelAt` wish: `-1` Before (above / left), `+1` After (below / right), `0` Auto (PAL Welle B). */
+    val preferredTangent: Int = 0,
+    /** Script line of the port call carrying the hint, for the `KUML-IBD-W001` warning. */
+    val hintLine: Int? = null,
 )
 
 /** One pin label of an activity action: the pin square [pinRect] on the [side] of the action box [ownerId] (PAL wave 2C-b2b). */
@@ -126,6 +130,7 @@ public object Sysml2DiagramLabelPlan {
                     excludedSide = p.excludedSide,
                     outward = p.outward,
                     parentId = p.parentId,
+                    preferredTangent = p.preferredTangent,
                 )
         }
         for ((id, route) in layout.edges.entries.sortedBy { it.key.value }) {

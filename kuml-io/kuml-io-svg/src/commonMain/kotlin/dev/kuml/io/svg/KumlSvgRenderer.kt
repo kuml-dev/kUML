@@ -2712,6 +2712,10 @@ public object KumlSvgRenderer {
                 configure = portObstacles(layout = layout, extras = extras, portLabelRects = emptyList()),
                 portLabels = Sysml2LayoutBridge.ibdPortLabelSpecs(model = model, diagram = diagram, layout = layout),
                 titleRects = Sysml2LayoutBridge.ibdTitleObstacles(model = model, layout = layout),
+                // PAL Welle B: the connector label block keeps 6 px from every bend of its line.
+                costs =
+                    dev.kuml.layout.bridge.label
+                        .LabelCostModel(lineClearance = 2f, knickClearance = IBD_LABEL_KNICK_CLEARANCE_PX),
             )
 
         fun portRectsOf(plan: Map<String, dev.kuml.layout.bridge.label.PlacedLabel>): List<dev.kuml.layout.Rect> =
@@ -2752,7 +2756,24 @@ public object KumlSvgRenderer {
             }
         // Part-port label rectangles local to their part box, as the node renderer draws them.
         val portLabelsLocal = LinkedHashMap<String, dev.kuml.layout.Rect>()
-        for (spec in Sysml2LayoutBridge.ibdPortLabelSpecs(model = model, diagram = diagram, layout = notedLayout)) {
+        val portSpecs = Sysml2LayoutBridge.ibdPortLabelSpecs(model = model, diagram = diagram, layout = notedLayout)
+        // PAL Welle B: a `labelAt` hint the planner could not honour falls back to Auto and is reported (KUML-IBD-W001).
+        dev.kuml.layout.bridge.note.NotePlacementMissCollector.report(
+            portSpecs
+                .filter { it.preferredTangent != 0 && ibdFinalLabels[it.id]?.hintMissed == true }
+                .map { spec ->
+                    val wanted = if (spec.preferredTangent < 0) "Before" else "After"
+                    dev.kuml.layout.bridge.note.PlacementHintMiss(
+                        noteId = "port:${spec.ownerId}",
+                        wanted = dev.kuml.core.model.note.NotePlacement.NEAR,
+                        placed = dev.kuml.core.model.note.NotePlacement.NEAR,
+                        sourceLine = spec.hintLine,
+                        code = dev.kuml.layout.bridge.note.PlacementHintMiss.PORT_LABEL_HINT_NOT_HONOURED,
+                        customMessage = "port label hint not honoured: ${spec.ownerId}, wanted labelAt = $wanted, fell back to Auto",
+                    )
+                },
+        )
+        for (spec in portSpecs) {
             val placed = ibdFinalLabels[spec.id] ?: continue
             val origin = notedLayout.nodes[dev.kuml.layout.NodeId(spec.parentId ?: continue)]?.bounds?.origin ?: continue
             portLabelsLocal[spec.ownerId] =
@@ -4778,6 +4799,9 @@ public object KumlSvgRenderer {
                         },
             )
 
+    /** PAL Welle B: minimum distance of an IBD connector label block to a bend of its line (px). */
+    internal const val IBD_LABEL_KNICK_CLEARANCE_PX: Float = 6f
+
     /**
      * Plans the edge labels of an IBD / BDD [layout] (PAL wave 2B-c): sizes come from the lines the renderer will draw,
      * the placement from [dev.kuml.layout.bridge.label.Sysml2EdgeLabelPlan]. Layout coordinates, before notes.
@@ -4789,6 +4813,9 @@ public object KumlSvgRenderer {
         portLabels: List<dev.kuml.layout.bridge.label.PortLabelSpec> = emptyList(),
         titleRects: List<dev.kuml.layout.Rect> = emptyList(),
         keepInsideFrames: Boolean = false,
+        costs: dev.kuml.layout.bridge.label.LabelCostModel =
+            dev.kuml.layout.bridge.label
+                .LabelCostModel(lineClearance = 2f),
     ): Map<String, dev.kuml.layout.bridge.label.PlacedLabel> {
         val sizes = LinkedHashMap<String, dev.kuml.layout.Size>()
         for (edgeId in layout.edges.keys) {
@@ -4807,6 +4834,7 @@ public object KumlSvgRenderer {
                 portLabels = portLabels,
                 titleRects = titleRects,
                 keepInsideFrames = keepInsideFrames,
+                costs = costs,
             )
     }
 

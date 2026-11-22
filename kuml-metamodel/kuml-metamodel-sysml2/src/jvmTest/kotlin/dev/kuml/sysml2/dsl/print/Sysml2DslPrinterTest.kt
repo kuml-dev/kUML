@@ -13,6 +13,7 @@ import dev.kuml.sysml2.units.UnitValue
 import dev.kuml.sysml2.units.kg
 import io.kotest.core.spec.style.FunSpec
 import io.kotest.matchers.booleans.shouldBeTrue
+import io.kotest.matchers.shouldBe
 import io.kotest.matchers.string.shouldContain
 import io.kotest.matchers.string.shouldNotContain
 import io.kotest.matchers.string.shouldStartWith
@@ -20,6 +21,22 @@ import dev.kuml.sysml2.units.Unit as SysUnit
 
 class Sysml2DslPrinterTest :
     FunSpec(body = {
+
+        test("a port label hint is printed and survives a round trip; Auto prints nothing") {
+            val model =
+                sysml2Model(name = "Hint") {
+                    portDef(name = "Sig")
+                    partDef(name = "A") {
+                        port(name = "p1", typeId = "Sig", labelAt = dev.kuml.sysml2.PortLabelAt.Before)
+                        port(name = "p2", typeId = "Sig")
+                    }
+                }
+            val dsl = Sysml2DslPrinter.print(model)
+            dsl shouldContain "labelAt = PortLabelAt.Before"
+            dsl shouldNotContain "PortLabelAt.Auto"
+            val p1 = model.usages.filterIsInstance<dev.kuml.sysml2.PortUsage>().first { it.name == "p1" }
+            p1.labelAt shouldBe dev.kuml.sysml2.PortLabelAt.Before
+        }
 
         test("empty model prints a valid empty sysml2Model block") {
             val model = sysml2Model(name = "Empty")

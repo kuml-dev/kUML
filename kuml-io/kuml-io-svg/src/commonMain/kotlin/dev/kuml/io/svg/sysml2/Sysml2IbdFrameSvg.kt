@@ -26,9 +26,9 @@ internal fun renderIbdFrame(
     val y = group.bounds.origin.y + padding
     val w = group.bounds.size.width
     val h = group.bounds.size.height
-    val title = Sysml2LayoutBridge.ibdTabTitle(ownerName)
+    val lines = Sysml2LayoutBridge.ibdTabLines(ownerName)
     val tabW = Sysml2LayoutBridge.ibdTabWidth(ownerName)
-    val tabH = Sysml2LayoutBridge.IBD_FRAME_TAB_H_PX
+    val tabH = Sysml2LayoutBridge.ibdTabHeight(ownerName)
     val bevel = 8f
     builder.tag(name = "g", attrs = mapOf("id" to xmlEscapeAttr("frame:$ownerId"))) {
         tag(
@@ -44,10 +44,19 @@ internal fun renderIbdFrame(
                 x to y + tabH,
             ).joinToString(" ") { "${fmt3(it.first)},${fmt3(it.second)}" }
         tag(name = "polygon", attrs = mapOf("points" to points, "class" to "kuml-ibd-frame-tab"))
-        tag(
-            name = "text",
-            attrs = mapOf("class" to "kuml-body", "x" to fmt3(x + 8f), "y" to fmt3(y + tabH - 9f), "text-anchor" to "start"),
-        ) { text(title) }
+        // One text element per line; the baseline of line n sits 16 px below line n-1 (PAL Welle B).
+        lines.forEachIndexed { i, line ->
+            tag(
+                name = "text",
+                attrs =
+                    mapOf(
+                        "class" to "kuml-body",
+                        "x" to fmt3(x + 8f),
+                        "y" to fmt3(y + 19f + i * 16f),
+                        "text-anchor" to "start",
+                    ),
+            ) { text(line) }
+        }
     }
 }
 

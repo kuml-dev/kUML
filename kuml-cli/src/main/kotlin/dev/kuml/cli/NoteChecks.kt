@@ -58,7 +58,7 @@ public object NoteChecks {
     public fun placementMisses(misses: List<PlacementHintMiss>): List<Finding> =
         misses.map { m ->
             Finding(
-                code = KumlNoteCodes.PLACEMENT_NOT_HONOURED,
+                code = m.code ?: KumlNoteCodes.PLACEMENT_NOT_HONOURED,
                 isError = false,
                 subjectId = m.noteId,
                 message = m.message(),

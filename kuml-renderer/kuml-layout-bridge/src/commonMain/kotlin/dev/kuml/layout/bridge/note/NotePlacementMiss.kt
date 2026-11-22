@@ -18,14 +18,24 @@ public data class PlacementHintMiss(
     val placed: NotePlacement,
     val sourceLine: Int? = null,
     val outsideHomeLane: Boolean = false,
+    /** Finding code override: a `labelAt` port label hint that was not honoured is `KUML-IBD-W001` (PAL Welle B), not a note finding. */
+    val code: String? = null,
+    /** Message override for [code] findings; never a note or label body. */
+    val customMessage: String? = null,
 ) {
     /**
      * The text of the finding: `placement hint not honoured: <id>, wanted <SIDE>, placed <SIDE|NEAR>`, followed by
      * `, outside the lane or pool of its anchor` when [outsideHomeLane] is set.
      */
     public fun message(): String =
-        "placement hint not honoured: $noteId, wanted ${wanted.name}, placed ${placed.name}" +
+        customMessage
+            ?: "placement hint not honoured: $noteId, wanted ${wanted.name}, placed ${placed.name}" +
             if (outsideHomeLane) ", outside the lane or pool of its anchor" else ""
+
+    public companion object {
+        /** `labelAt` of a port could not be honoured (PAL Welle B). */
+        public const val PORT_LABEL_HINT_NOT_HONOURED: String = "KUML-IBD-W001"
+    }
 }
 
 /**

@@ -67,6 +67,12 @@ public data class LabelRequest(
     val segmentFlags: List<Int> = emptyList(),
     val extraCandidates: List<Rect> = emptyList(),
     val outsideX: Int? = null,
+    /**
+     * [LabelRole.PORT]: the wished screen direction along the box border (`-1` before = above / left, `+1` after = below /
+     * right, `0` none; PAL Welle B `labelAt`). A candidate on the other side costs [LabelCostModel.hintMiss]; when the
+     * label ends up there anyway, [PlacedLabel.hintMissed] is set.
+     */
+    val preferredTangent: Int = 0,
 )
 
 /** Segment runs along a segment of another edge (bit of [LabelRequest.segmentFlags]). */
@@ -88,6 +94,15 @@ public enum class EdgeCandidateMode {
 public data class LabelCostModel(
     /** Covering a node, port, note or another label. */
     val hardOverlap: Float = 50_000f,
+    /**
+     * PAL Welle B: an edge label (beside its line, not on it) closer than this to a bend (inner vertex of the line) costs
+     * [knickPenalty]. `0` = off (every other diagram type keeps its placement).
+     */
+    val knickClearance: Float = 0f,
+    /** Penalty of an edge label inside [knickClearance] of a bend; below every real collision, above every tie-break. */
+    val knickPenalty: Float = 3_000f,
+    /** A port label on the other side than its `labelAt` hint (below every real collision, above every tie-break). */
+    val hintMiss: Float = 1_000f,
     /** Crossing the line of a foreign edge. */
     val foreignEdge: Float = 20_000f,
     /** Crossing the owner's own line without being a deliberate on-line candidate. */
@@ -161,6 +176,8 @@ public data class PlacedLabel(
     val clean: Boolean = true,
     /** [EdgeCandidateMode.ARC_LENGTH]: index of the polyline segment the label sits beside, otherwise `-1`. */
     val segment: Int = -1,
+    /** A [LabelRequest.preferredTangent] was given and the label sits on the other side (or inside), see PAL Welle B. */
+    val hintMissed: Boolean = false,
 )
 
 /**
@@ -192,6 +209,8 @@ public object LabelPlacer {
         val inner: Boolean = false,
         val segment: Int = -1,
         val left: Boolean = false,
+        /** Screen direction along the border (-1 before / +1 after) for port candidates, 0 otherwise. */
+        val tangentSign: Int = 0,
     )
 
     /** Places [requests]; the placed labels are added to [index] as obstacles. */
@@ -244,7 +263,9 @@ public object LabelPlacer {
                     minOf(costs.hardOverlap, costs.foreignEdge)
                 }
             val clean = !chosen.onLine && bestCost < cleanLimit
-            result[req.id] = PlacedLabel(rect = chosen.rect, onLine = chosen.onLine, clean = clean, segment = chosen.segment)
+            val hintMissed = req.preferredTangent != 0 && (chosen.inner || chosen.tangentSign != req.preferredTangent)
+            result[req.id] =
+                PlacedLabel(rect = chosen.rect, onLine = chosen.onLine, clean = clean, segment = chosen.segment, hintMissed = hintMissed)
             if (req.role == LabelRole.MULTIPLICITY) multSign[req.ownerId to req.end] = chosen.sign
             index.addRect(kind = kindOf(req.role), r = chosen.rect, ownerId = req.ownerId)
         }
@@ -496,6 +517,8 @@ public object LabelPlacer {
                         sign = 0,
                         t = 0f,
                         inner = inner,
+                        // Screen direction of the shift along the border: the tangent has exactly one non-zero component.
+                        tangentSign = if (sgn * (tx + ty) > 0f) 1 else -1,
                     )
             }
             // 3. / 4. straight away from the pin, shifted to the left / up, then to the right / down.
@@ -518,6 +541,7 @@ public object LabelPlacer {
                         sign = 0,
                         t = 0f,
                         inner = inner,
+                        tangentSign = if (sgn < 0f) -1 else 1,
                     )
             }
         }
@@ -588,6 +612,14 @@ public object LabelPlacer {
             if (d > costs.maxDistancePx) cost += costs.perPxDistance * (d - costs.maxDistancePx)
         }
         if (req.role == LabelRole.EDGE_CENTER) cost += costs.perTenthOffCenter * (abs(c.t - 0.5f) * 10f)
+        if (costs.knickClearance > 0f && req.role == LabelRole.EDGE_CENTER && !c.onLine) {
+            for (i in 1 until req.polyline.size - 1) {
+                if (pointToRect(p = req.polyline[i], r = r) < costs.knickClearance) {
+                    cost += costs.knickPenalty
+                    break
+                }
+            }
+        }
         for (a in req.avoid) if (a.intersects(r)) cost += costs.hardOverlap
         if (c.segment >= 0 && !c.onLine) {
             if (c.left) cost += costs.leftSidePenalty
@@ -608,6 +640,9 @@ public object LabelPlacer {
         cost += costs.perPxAlong * c.along
         if (c.onLine) cost += costs.onLinePenalty
         if (c.inner) cost += costs.innerPenalty
+        if (req.role == LabelRole.PORT && req.preferredTangent != 0 && (c.inner || c.tangentSign != req.preferredTangent)) {
+            cost += costs.hintMiss
+        }
         return cost
     }
 

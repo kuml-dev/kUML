@@ -712,6 +712,7 @@ public object Sysml2DslPrinter {
                     multiplicityExpr(usage.multiplicity)?.let { args += "multiplicity = $it" }
                     usage.direction?.let { args += "direction = PortDirection.${it.name}" }
                     if (usage.isConjugated) args += "conjugated = true"
+                    if (usage.labelAt != dev.kuml.sysml2.PortLabelAt.Auto) args += "labelAt = PortLabelAt.${usage.labelAt.name}"
                     sb.appendLine("$indent port(${args.joinToString(", ")})")
                 }
                 is FlowPropertyUsage -> {

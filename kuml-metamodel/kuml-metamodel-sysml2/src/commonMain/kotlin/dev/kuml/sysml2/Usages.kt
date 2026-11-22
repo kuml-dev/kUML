@@ -87,6 +87,10 @@ data class PortUsage(
     val direction: PortDirection? = null,
     /** `true` for a conjugated port (`~PortDef`): flow directions are inverted. */
     val isConjugated: Boolean = false,
+    /** Label position hint (PAL Welle B); [PortLabelAt.Auto] = the label planner decides. */
+    val labelAt: PortLabelAt = PortLabelAt.Auto,
+    /** Script line of the `port(...)` call, recorded only when [labelAt] is not `Auto` (for the `KUML-IBD-W001` warning). */
+    val labelAtLine: Int? = null,
     override val metadata: Map<String, KumlMetaValue> = emptyMap(),
 ) : Sysml2Usage
 

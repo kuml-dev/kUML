@@ -3490,7 +3490,9 @@ public object Sysml2LayoutBridge {
     public const val IBD_LABEL_LINE_H: Float = IBD_LABEL_FONT_PX * 1.3f
 
     private const val IBD_PORT_MIN_GAP_PX: Float = 56f
-    private const val IBD_TAB_TITLE_MAX_CHARS: Int = 40
+    private const val IBD_TAB_MAX_WIDTH_PX: Float = 360f
+    private const val IBD_TAB_PAD_PX: Float = 16f
+    private const val IBD_TAB_LINE_H_PX: Float = 16f
     private const val IBD_LABEL_LINE_GAP_PX: Float = 3f
 
     /** Rahmen-Gruppen-Id: `frame:<ownerId>`. */
@@ -3530,14 +3532,35 @@ public object Sysml2LayoutBridge {
         return Size(width = 0.6f * fontPx * widest * 1.05f, height = 1.3f * fontPx * lines.size)
     }
 
-    /** Reiter-Titel `ibd [part] Owner` (gekürzt). */
-    public fun ibdTabTitle(ownerName: String): String {
-        val t = "ibd [part] $ownerName"
-        return if (t.length <= IBD_TAB_TITLE_MAX_CHARS) t else t.take(IBD_TAB_TITLE_MAX_CHARS - 1) + "…"
+    /** Reiter-Titel `ibd [part] Owner`, nie gekürzt (PAL Welle B: keine Ellipse, kein Clipping). */
+    public fun ibdTabTitle(ownerName: String): String = "ibd [part] $ownerName"
+
+    /**
+     * Zeilen des Reiter-Titels. Einzeilig, solange die Reiterbreite höchstens [IBD_TAB_MAX_WIDTH_PX] beträgt; sonst
+     * zwei Zeilen: Zeile 1 = `ibd [part]` plus so viele ganze Wörter, wie hineinpassen, Rest in Zeile 2. Getrennt wird
+     * nur an Leerzeichen (nie an `-`); ein überlanges Einzelwort bleibt ungebrochen (der Rahmen wächst).
+     */
+    public fun ibdTabLines(ownerName: String): List<String> {
+        val title = ibdTabTitle(ownerName)
+        if (estimateLabelSize(text = title).width + IBD_TAB_PAD_PX <= IBD_TAB_MAX_WIDTH_PX) return listOf(title)
+        val words = ownerName.trim().split(' ').filter { it.isNotEmpty() }
+        var first = "ibd [part]"
+        var used = 0
+        for (w in words) {
+            val candidate = "$first $w"
+            if (estimateLabelSize(text = candidate).width + IBD_TAB_PAD_PX > IBD_TAB_MAX_WIDTH_PX) break
+            first = candidate
+            used++
+        }
+        val rest = words.drop(used).joinToString(" ")
+        return if (rest.isEmpty()) listOf(first) else listOf(first, rest)
     }
 
+    /** Höhe des Reiters (eine Zeile = [IBD_FRAME_TAB_H_PX]); Layout und SVG-Renderer verwenden dieselbe Funktion. */
+    public fun ibdTabHeight(ownerName: String): Float = IBD_FRAME_TAB_H_PX + (ibdTabLines(ownerName).size - 1) * IBD_TAB_LINE_H_PX
+
     /** Breite des Reiters; Layout und SVG-Renderer verwenden dieselbe Funktion. */
-    public fun ibdTabWidth(ownerName: String): Float = estimateLabelSize(text = ibdTabTitle(ownerName)).width + 16f
+    public fun ibdTabWidth(ownerName: String): Float = ibdTabLines(ownerName).maxOf { estimateLabelSize(text = it).width } + IBD_TAB_PAD_PX
 
     /**
      * `name : Type` (`name : ~Type` bei konjugiertem Port). PAL 2C-b2: lange Labels werden auf höchstens zwei Zeilen
@@ -3866,6 +3889,20 @@ public object Sysml2LayoutBridge {
         model: Sysml2Model,
         port: dev.kuml.sysml2.PortUsage,
     ): String = model.definitions.firstOrNull { it.id == port.definitionId }?.name ?: port.definitionId
+
+    /** The port usages of the part-port ends of [wires]: (`nodeId`, `step::step`) → usage (for the `labelAt` hint). */
+    private fun ibdPartPortUsages(wires: List<IbdWireRef>): Map<Pair<NodeId, String>, dev.kuml.sysml2.PortUsage> {
+        val out = linkedMapOf<Pair<NodeId, String>, dev.kuml.sysml2.PortUsage>()
+        for (w in wires) {
+            for (end in listOf(w.src, w.tgt)) {
+                val nodeId = end.nodeId ?: continue
+                if (end.steps.isEmpty()) continue
+                val port = end.terminalPort ?: continue
+                out.getOrPut(NodeId(nodeId) to end.steps.joinToString("::")) { port }
+            }
+        }
+        return out
+    }
 
     /** Label-Texte der Part-Ports: `nodeId` → (`step::step` → Text). */
     private fun ibdPartPortLabels(
@@ -4276,12 +4313,13 @@ public object Sysml2LayoutBridge {
         val uB = frameParts.maxOf { it.b }
         val ownerName = model.definitions.firstOrNull { it.id == diagram.ownerId }?.name ?: diagram.ownerId
         val tabW = ibdTabWidth(ownerName)
+        val tabH = ibdTabHeight(ownerName)
         val x0 = uL - pad
         var x1 = maxOf(uR + pad, x0 + tabW + 2 * pad)
         val tabRight = x0 + tabW
         val y0 =
             frameParts.minOf {
-                it.t - (if (it.r > x0 && it.l < tabRight) IBD_FRAME_TAB_H_PX + IBD_TAB_CONTENT_GAP_PX else pad)
+                it.t - (if (it.r > x0 && it.l < tabRight) tabH + IBD_TAB_CONTENT_GAP_PX else pad)
             }
         var y1 = uB + pad
 
@@ -4372,7 +4410,7 @@ public object Sysml2LayoutBridge {
             when (side) {
                 IbdSide.Top -> tabRight + IBD_TAB_CONTENT_GAP_PX + half
                 IbdSide.Bottom -> x0 + pad
-                IbdSide.Left -> y0 + IBD_FRAME_TAB_H_PX + IBD_TAB_CONTENT_GAP_PX + half
+                IbdSide.Left -> y0 + tabH + IBD_TAB_CONTENT_GAP_PX + half
                 IbdSide.Right -> y0 + pad
             }
 
@@ -4599,7 +4637,7 @@ public object Sysml2LayoutBridge {
 
         // G. Zeichenfläche aus dem Inhalt neu bemessen und alles so verschieben, dass das Minimum bei (margin, margin) liegt.
         val frameBox = IbdBox(l = x0, t = y0, r = x1, b = y1)
-        val tabBox = IbdBox(l = x0, t = y0, r = x0 + tabW, b = y0 + IBD_FRAME_TAB_H_PX)
+        val tabBox = IbdBox(l = x0, t = y0, r = x0 + tabW, b = y0 + tabH)
         val extents = mutableListOf(frameBox, tabBox)
         extents += ownerLabelBoxes
         extents += ownerSquares
@@ -4729,7 +4767,9 @@ public object Sysml2LayoutBridge {
         layout: LayoutResult,
     ): List<dev.kuml.layout.bridge.label.PortLabelSpec> {
         val projection = sysml2IbdProjection(model = model, diagram = diagram)
-        val labelTexts = ibdPartPortLabels(model = model, wires = ibdWires(projection))
+        val wiresForSpecs = ibdWires(projection)
+        val labelTexts = ibdPartPortLabels(model = model, wires = wiresForSpecs)
+        val portUsages = ibdPartPortUsages(wiresForSpecs)
         val ownerIds = projection.boundaryPorts.map { NodeId(it.id) }.toSet()
         val out = ArrayList<dev.kuml.layout.bridge.label.PortLabelSpec>()
         for ((id, nl) in layout.nodes.entries.sortedBy { it.key.value }) {
@@ -4764,6 +4804,13 @@ public object Sysml2LayoutBridge {
                         excludedSide = labelSide,
                         outward = labelSide,
                         parentId = id.value,
+                        preferredTangent =
+                            when (portUsages[id to key]?.labelAt) {
+                                dev.kuml.sysml2.PortLabelAt.Before -> -1
+                                dev.kuml.sysml2.PortLabelAt.After -> 1
+                                else -> 0
+                            },
+                        hintLine = portUsages[id to key]?.labelAtLine,
                     )
             }
         }
@@ -4793,7 +4840,7 @@ public object Sysml2LayoutBridge {
         out += ibdLabelRects(model = model, diagram = diagram, layout = layout).map { it.rect }
         layout.groups[ibdFrameGroupId(diagram.ownerId)]?.bounds?.let { f ->
             val ownerName = model.definitions.firstOrNull { it.id == diagram.ownerId }?.name ?: diagram.ownerId
-            out += Rect(origin = f.origin, size = Size(width = ibdTabWidth(ownerName), height = IBD_FRAME_TAB_H_PX))
+            out += Rect(origin = f.origin, size = Size(width = ibdTabWidth(ownerName), height = ibdTabHeight(ownerName)))
         }
         for ((id, nl) in layout.nodes) {
             if (id in ownerIds) {
