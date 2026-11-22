@@ -6,6 +6,14 @@ All notable changes to this project are documented here. Format follows
 
 ## [Unreleased]
 
+### PAL Welle A: note findings print the script line (`kuml render`)
+
+- **Why.** `kuml render` printed `(line N)` for `KUML-NOTE-W002` and `KUML-NOTE-W004`, but not for the structural note findings (`KUML-NOTE-W001`, unknown anchor, and the other findings of `NoteChecks.of`), although the finding carried the line. The PAL documents have several multi-line `comment(...)` calls, so the line is the quickest way to the note.
+- **Changed.** `RenderPipeline` prints the line for all note findings, with the same text as before otherwise (the message still names note ids only, never the note text).
+- **Tests.** `NoteUndrawnCliTest`: captured stderr contains `(line 9)` for W001 and `(line 8)` for W002; a missed `BELOW` hint on the PAL document 46 IBD (resource `notes/hint-miss.kuml.kts`) is reported as W004 with the line of the `comment(` call.
+- **Checked, already fixed on master (regression covered by existing tests):** owner-frame and nested-part anchors are drawn or reported (`Sysml2NoteAnchorsRenderTest`, `NoteUndrawnCliTest`), dog-ear and minimum height of all note kinds (`NoteGeometryN45Test`), anchor of an edge note not on the edge label (document 46, I16 E).
+- **Not fixed.** `BELOW`/`ABOVE` of a note at an IBD edge when the free gap is smaller than the note (document 46: 75 px between edge and part, the note needs 78 px with clearance); sequence diagrams with six lifelines stay about 4:1 wide (the notes are not the cause, the lifelines are); an anchor line across a foreign swimlane in activity diagrams when the only clean position lies outside the lanes (document 62, `a5e-62`); edge routing around placed notes (REQ `satisfy`/`contains`).
+
 ### Nacharbeit 133: hinted notes avoid the drawn label (SysML 2 REQ, PKG, STM)
 
 - **Why.** Requirement, package and state machine diagrams draw their edge labels with their own placers (on-line placer for REQ and PKG, wrapped label blocks for STM), while the note placer avoided only an estimate at the polyline midpoint (see Nacharbeit 124 and 131). A note could therefore sit on the label that was actually drawn.

@@ -365,7 +365,9 @@ internal object RenderPipeline {
 
         // Note diagnostics (unknown anchors, NOTE_TRUNCATED) — printed as warnings, never abort the render.
         noteFindings.forEach { f ->
-            System.err.println("[kuml] ${if (f.isError) "ERROR" else "WARNING"} [${f.code}] ${f.message}")
+            System.err.println(
+                "[kuml] ${if (f.isError) "ERROR" else "WARNING"} [${f.code}] ${f.message}${f.sourceLine?.let { " (line $it)" }.orEmpty()}",
+            )
         }
 
         // 4–6. Branch on diagram kind: layout → render → write. The collector gathers the notes the diagram declared

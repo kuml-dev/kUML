@@ -56,4 +56,49 @@ class NoteUndrawnCliTest :
             val findings = ValidationService.validate(script = script)
             findings.single { it.code == "KUML-NOTE-W001" }.line shouldBe 9
         }
+        test("the printed warnings name the script line for W001 as well as for W002") {
+            val dir = Files.createTempDirectory("kuml-undrawn-print").toFile()
+            val original = System.err
+            val captured = java.io.ByteArrayOutputStream()
+            try {
+                val input = File(dir, "nested.kuml.kts").also { it.writeText(script) }
+                System.setErr(java.io.PrintStream(captured, true, Charsets.UTF_8))
+                RenderPipeline.run(
+                    input = input,
+                    output = dir.toPath().resolve("o.svg"),
+                    format = "svg",
+                    width = 800,
+                    themeName = "kuml",
+                )
+            } finally {
+                System.setErr(original)
+                dir.deleteRecursively()
+            }
+            val lines = captured.toString(Charsets.UTF_8).lines()
+            withClue(lines.toString()) {
+                lines.single { it.contains("[KUML-NOTE-W001]") }.endsWith("(line 9)") shouldBe true
+                lines.single { it.contains("[KUML-NOTE-W002]") }.endsWith("(line 8)") shouldBe true
+            }
+        }
+        test("a missed placement hint names the line the multi-line comment call starts on (W004)") {
+            // The resource is the PAL document 46 IBD with BELOW hints; the `a13-46` note below the edge has no room (line 42 = `comment(`).
+            val script = checkNotNull(javaClass.getResource("/notes/hint-miss.kuml.kts")).readText()
+            val dir = Files.createTempDirectory("kuml-hint-line").toFile()
+            try {
+                val input = File(dir, "hint.kuml.kts").also { it.writeText(script) }
+                val outcome =
+                    RenderPipeline.run(
+                        input = input,
+                        output = dir.toPath().resolve("o.svg"),
+                        format = "svg",
+                        width = 800,
+                        themeName = "kuml",
+                    )
+                val miss = outcome.noteFindings.single { it.code == "KUML-NOTE-W004" }
+                miss.subjectId shouldBe "a13-46"
+                miss.sourceLine shouldBe 42
+            } finally {
+                dir.deleteRecursively()
+            }
+        }
     })
