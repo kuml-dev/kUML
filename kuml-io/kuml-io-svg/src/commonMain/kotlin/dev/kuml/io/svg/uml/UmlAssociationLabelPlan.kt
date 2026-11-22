@@ -97,7 +97,29 @@ public object UmlAssociationLabelPlan {
                 id.value to
                     nl.bounds.copy(origin = nl.bounds.origin.copy(x = nl.bounds.origin.x + padding, y = nl.bounds.origin.y + padding))
             }
-        return compute(routes = drawn, nodes = drawnNodes, elements = elements, theme = theme)
+        // Nacharbeit 132: the pocket between the legs of a loop above or below a class is not a label position.
+        val pockets =
+            selfLoopPlan.values
+                .mapNotNull {
+                    dev.kuml.layout.bridge.SelfLoopRouter
+                        .verticalInterior(it)
+                }.map {
+                    it.copy(origin = Point(x = it.origin.x + padding, y = it.origin.y + padding))
+                }
+        val verticalLoops =
+            selfLoopPlan
+                .filterValues {
+                    dev.kuml.layout.bridge.SelfLoopRouter
+                        .verticalInterior(it) != null
+                }.keys
+        return compute(
+            routes = drawn,
+            nodes = drawnNodes,
+            elements = elements,
+            theme = theme,
+            fixedObstacles = pockets,
+            verticalLoops = verticalLoops,
+        )
     }
 
     /**
@@ -111,9 +133,12 @@ public object UmlAssociationLabelPlan {
         nodes: Map<String, Rect>,
         elements: Map<String, KumlElement>,
         theme: KumlTheme,
+        fixedObstacles: List<Rect> = emptyList(),
+        verticalLoops: Set<String> = emptySet(),
     ): Map<String, Map<String, PlacedLabel>> {
         val index = ObstacleIndex()
         for ((id, r) in nodes.entries.sortedBy { it.key }) index.addRect(kind = ObstacleKind.NODE, r = r, ownerId = id)
+        for ((i, rect) in fixedObstacles.withIndex()) index.addRect(kind = ObstacleKind.ROLE, r = rect, ownerId = "fixed#$i")
         val polylines = routes.entries.sortedBy { it.key }.associate { it.key to polylineOf(it.value) }
         for ((id, pts) in polylines) index.addPolyline(kind = ObstacleKind.EDGE, pts = pts, ownerId = id)
 
@@ -157,8 +182,12 @@ public object UmlAssociationLabelPlan {
                     )
             }
             if (ends.size >= 2) {
-                requests += endRequests(edgeId = edgeId, end = ends[0], side = LabelEnd.SOURCE, pts = pts)
-                requests += endRequests(edgeId = edgeId, end = ends[1], side = LabelEnd.TARGET, pts = pts)
+                // Nacharbeit 132: a loop above or below its class: end labels outside the legs (source left, target right).
+                val vertical = edgeId in verticalLoops
+                requests +=
+                    endRequests(edgeId = edgeId, end = ends[0], side = LabelEnd.SOURCE, pts = pts, outsideX = if (vertical) -1 else null)
+                requests +=
+                    endRequests(edgeId = edgeId, end = ends[1], side = LabelEnd.TARGET, pts = pts, outsideX = if (vertical) 1 else null)
             }
         }
         if (requests.isEmpty()) return emptyMap()
@@ -176,16 +205,34 @@ public object UmlAssociationLabelPlan {
         end: UmlAssociationEnd,
         side: LabelEnd,
         pts: List<Point>,
+        outsideX: Int? = null,
     ): List<LabelRequest> {
         val out = ArrayList<LabelRequest>(2)
         val mult = end.multiplicityLabel()
         val prefix = if (side == LabelEnd.SOURCE) "src" else "tgt"
         if (mult != null) {
-            out += small(id = "$edgeId#${prefix}Mult", role = LabelRole.MULTIPLICITY, edgeId = edgeId, text = mult, side = side, pts = pts)
+            out +=
+                small(
+                    id = "$edgeId#${prefix}Mult",
+                    role = LabelRole.MULTIPLICITY,
+                    edgeId = edgeId,
+                    text = mult,
+                    side = side,
+                    pts = pts,
+                    outsideX = outsideX,
+                )
         }
         end.role?.let {
             out +=
-                small(id = "$edgeId#${prefix}Role", role = LabelRole.ROLE, edgeId = edgeId, text = it, side = side, pts = pts)
+                small(
+                    id = "$edgeId#${prefix}Role",
+                    role = LabelRole.ROLE,
+                    edgeId = edgeId,
+                    text = it,
+                    side = side,
+                    pts = pts,
+                    outsideX = outsideX,
+                )
         }
         return out
     }
@@ -197,6 +244,7 @@ public object UmlAssociationLabelPlan {
         text: String,
         side: LabelEnd,
         pts: List<Point>,
+        outsideX: Int? = null,
     ) = LabelRequest(
         id = id,
         role = role,
@@ -204,6 +252,7 @@ public object UmlAssociationLabelPlan {
         size = Size(width = text.length * SMALL_CHAR_PX + SMALL_PAD_PX, height = SMALL_H_PX),
         polyline = pts,
         end = side,
+        outsideX = outsideX,
     )
 
     private fun polylineOf(route: EdgeRoute): List<Point> =

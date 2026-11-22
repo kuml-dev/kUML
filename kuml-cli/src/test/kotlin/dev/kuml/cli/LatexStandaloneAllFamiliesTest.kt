@@ -90,6 +90,19 @@ class LatexStandaloneAllFamiliesTest :
             }
         }
 
+        test("the top-loop ERM fixture draws the self-reference above or below the entity (Nacharbeit 132)") {
+            val dir = Files.createTempDirectory("kuml-latex-top")
+            try {
+                val tex = render("erm-martin-selfref-top", standalone = false, dir = dir)
+                val vertical = tex.contains("anchor=south] at") || tex.contains("anchor=north] at")
+                check(vertical) { "expected a name node with a vertical anchor, got:\n$tex" }
+                tex shouldNotContain "anchor=east] at"
+                tex shouldNotContain "anchor=west] at"
+            } finally {
+                dir.toFile().deleteRecursively()
+            }
+        }
+
         if (Pdflatex.executable == null) {
             val mode = if (Pdflatex.required) "kuml.latex.require=true, the compile tests will FAIL" else "the compile tests are skipped"
             println("[LatexStandaloneAllFamiliesTest] pdflatex not found on PATH or /Library/TeX/texbin: $mode")
@@ -164,6 +177,7 @@ class LatexStandaloneAllFamiliesTest :
                 "erm-bachman-selfref",
                 "erm-idef1x-selfref",
                 "erm-martin-selfref-left",
+                "erm-martin-selfref-top",
             )
     }
 }

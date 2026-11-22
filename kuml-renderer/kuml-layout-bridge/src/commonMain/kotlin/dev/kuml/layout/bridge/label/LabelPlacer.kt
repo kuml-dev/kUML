@@ -48,6 +48,9 @@ public enum class LabelSide { NORTH, EAST, SOUTH, WEST }
  * @property segmentFlags per polyline segment a bit mask of [SEGMENT_SHARED] / [SEGMENT_SHORT] (used by [EdgeCandidateMode.ARC_LENGTH])
  * @property extraCandidates more rectangles a [LabelRole.EDGE_CENTER] label may take (Nacharbeit 54: spots inside a subject
  *   frame); they are costed like every other candidate
+ * @property outsideX the end label of a self-loop above or below its node (Nacharbeit 132): it must stand on this horizontal
+ *   side (-1 left, +1 right) of its leg, i.e. outside the loop, and may stack further along the leg than the leg is long;
+ *   without it (`null`, every other label) both sides are candidates, limited to the end segment
  */
 public data class LabelRequest(
     val id: String,
@@ -63,6 +66,7 @@ public data class LabelRequest(
     val avoid: List<Rect> = emptyList(),
     val segmentFlags: List<Int> = emptyList(),
     val extraCandidates: List<Rect> = emptyList(),
+    val outsideX: Int? = null,
 )
 
 /** Segment runs along a segment of another edge (bit of [LabelRequest.segmentFlags]). */
@@ -424,9 +428,12 @@ public object LabelPlacer {
         val halfAlong = abs(ux) * req.size.width / 2f + abs(uy) * req.size.height / 2f
         val halfPerp = abs(nx) * req.size.width / 2f + abs(ny) * req.size.height / 2f
         // Candidates stay on the end segment: further along the label would sit across the next bend of its own line.
-        val reach = END_ALONG.filter { it + 2f * halfAlong <= l }.ifEmpty { END_ALONG.take(1) }
-        for (sign in intArrayOf(1, -1)) {
-            if (takenSign != null && sign == takenSign) continue
+        val outsideX = req.outsideX
+        val reach =
+            if (outsideX != null) END_ALONG else END_ALONG.filter { it + 2f * halfAlong <= l }.ifEmpty { END_ALONG.take(1) }
+        val signs = if (outsideX != null && nx != 0f) intArrayOf(if (nx * outsideX > 0f) 1 else -1) else intArrayOf(1, -1)
+        for (sign in signs) {
+            if (outsideX == null && takenSign != null && sign == takenSign) continue
             for (along in reach) {
                 for (perp in END_PERP) {
                     val da = along + halfAlong

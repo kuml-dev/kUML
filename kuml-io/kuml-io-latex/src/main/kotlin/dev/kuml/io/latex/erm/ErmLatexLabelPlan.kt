@@ -95,6 +95,11 @@ internal object ErmLatexLabelPlan {
         node: NodeLayout,
         side: SelfLoopSide,
     ): List<Rect> {
+        if (side == SelfLoopSide.TOP ||
+            side == SelfLoopSide.BOTTOM
+        ) {
+            return verticalSelfLoopLabelRects(rel = rel, route = route, node = node, side = side)
+        }
         val left = side == SelfLoopSide.LEFT
         val borderX = if (left) node.bounds.origin.x else node.bounds.origin.x + node.bounds.size.width
         val outerX = route.waypoints[0].x
@@ -114,6 +119,39 @@ internal object ErmLatexLabelPlan {
             val w = it.length * ROLE_CHAR_PX + ROLE_PAD_PX
             val x = if (left) borderX - ROLE_INSET_PX - w else borderX + ROLE_INSET_PX
             rects += rect(x = x, y = route.target.y + ROLE_GAP_PX, w = w, h = ROLE_H_PX)
+        }
+        return rects
+    }
+
+    /**
+     * Nacharbeit 132 — labels of a loop above or below the entity: the name centred beyond the outer line, the source role
+     * beside the left leg and the target role beside the right leg, both just outside the entity border. Mirrors
+     * `ErmLatexRenderer.appendSelfLoopLabels`.
+     */
+    private fun verticalSelfLoopLabelRects(
+        rel: ErmRelationship,
+        route: EdgeRoute.OrthogonalRounded,
+        node: NodeLayout,
+        side: SelfLoopSide,
+    ): List<Rect> {
+        val top = side == SelfLoopSide.TOP
+        val borderY = if (top) node.bounds.origin.y else node.bounds.origin.y + node.bounds.size.height
+        val outerY = route.waypoints[0].y
+        val centreX = (route.source.x + route.target.x) / 2f
+        val rects = ArrayList<Rect>()
+        rel.name?.takeIf { it.isNotBlank() }?.let {
+            val w = it.length * NAME_CHAR_PX + NAME_PAD_PX
+            val y = if (top) outerY - NAME_GAP_PX - NAME_H_PX else outerY + NAME_GAP_PX
+            rects += rect(x = centreX - w / 2f, y = y, w = w, h = NAME_H_PX)
+        }
+        val roleY = if (top) borderY - ROLE_INSET_PX - ROLE_H_PX else borderY + ROLE_INSET_PX
+        rel.sourceRole?.takeIf { it.isNotBlank() }?.let {
+            val w = it.length * ROLE_CHAR_PX + ROLE_PAD_PX
+            rects += rect(x = route.source.x - ROLE_GAP_PX - w, y = roleY, w = w, h = ROLE_H_PX)
+        }
+        rel.targetRole?.takeIf { it.isNotBlank() }?.let {
+            val w = it.length * ROLE_CHAR_PX + ROLE_PAD_PX
+            rects += rect(x = route.target.x + ROLE_GAP_PX, y = roleY, w = w, h = ROLE_H_PX)
         }
         return rects
     }

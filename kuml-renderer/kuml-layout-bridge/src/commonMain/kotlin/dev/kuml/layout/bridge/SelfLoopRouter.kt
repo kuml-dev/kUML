@@ -127,38 +127,52 @@ public object SelfLoopRouter {
         side: SelfLoopSide = SelfLoopSide.RIGHT,
     ): EdgeRoute.OrthogonalRounded {
         val bounds = nodeLayout.bounds
+        val left = bounds.origin.x
         val top = bounds.origin.y
+        val w = bounds.size.width
         val h = bounds.size.height
-        val upperY = top + h * UPPER_ANCHOR_FRACTION
-        val lowerY = top + h * LOWER_ANCHOR_FRACTION
-        val edgeX: Float
-        val outerX: Float
-        when (side) {
-            SelfLoopSide.RIGHT -> {
-                edgeX = bounds.origin.x + bounds.size.width
-                outerX = edgeX + LOOP_EXTENT_PX
+        return when (side) {
+            SelfLoopSide.RIGHT, SelfLoopSide.LEFT -> {
+                val upperY = top + h * UPPER_ANCHOR_FRACTION
+                val lowerY = top + h * LOWER_ANCHOR_FRACTION
+                val edgeX = if (side == SelfLoopSide.RIGHT) left + w else left
+                val outerX = if (side == SelfLoopSide.RIGHT) edgeX + LOOP_EXTENT_PX else edgeX - LOOP_EXTENT_PX
+                EdgeRoute.OrthogonalRounded(
+                    source = Point(x = edgeX, y = upperY),
+                    target = Point(x = edgeX, y = lowerY),
+                    waypoints =
+                        listOf(
+                            Point(x = outerX, y = upperY),
+                            Point(x = outerX, y = lowerY),
+                        ),
+                    cornerRadiusPx = LOOP_CORNER_RADIUS_PX,
+                )
             }
-            SelfLoopSide.LEFT -> {
-                edgeX = bounds.origin.x
-                outerX = edgeX - LOOP_EXTENT_PX
+            SelfLoopSide.TOP, SelfLoopSide.BOTTOM -> {
+                // Nacharbeit 132: the loop leaves and re-enters the horizontal border; the source leg is the left one.
+                val leftX = left + w * UPPER_ANCHOR_FRACTION
+                val rightX = left + w * LOWER_ANCHOR_FRACTION
+                val edgeY = if (side == SelfLoopSide.TOP) top else top + h
+                val outerY = if (side == SelfLoopSide.TOP) edgeY - LOOP_EXTENT_PX else edgeY + LOOP_EXTENT_PX
+                EdgeRoute.OrthogonalRounded(
+                    source = Point(x = leftX, y = edgeY),
+                    target = Point(x = rightX, y = edgeY),
+                    waypoints =
+                        listOf(
+                            Point(x = leftX, y = outerY),
+                            Point(x = rightX, y = outerY),
+                        ),
+                    cornerRadiusPx = LOOP_CORNER_RADIUS_PX,
+                )
             }
         }
-        return EdgeRoute.OrthogonalRounded(
-            source = Point(x = edgeX, y = upperY),
-            target = Point(x = edgeX, y = lowerY),
-            waypoints =
-                listOf(
-                    Point(x = outerX, y = upperY),
-                    Point(x = outerX, y = lowerY),
-                ),
-            cornerRadiusPx = LOOP_CORNER_RADIUS_PX,
-        )
     }
 
     /**
      * Nacharbeit 129 — the side a self-loop of [node] is drawn on: right unless another edge runs through the right-hand
      * band (a [LOOP_EXTENT_PX]-wide strip along the node, one pixel inset so an edge ending exactly on the border counts),
-     * then left if that band is free and still inside the coordinate space (`left - 32 >= 0`), otherwise right again.
+     * then left if that band is free and still inside the coordinate space (`left - 32 >= 0`), then above (`top - 32 >= 0`),
+     * then below (the canvas grows), otherwise right again.
      * Pure and deterministic: no weighting, no randomness. [otherRoutes] are the raw routes of the non-loop edges.
      */
     public fun chooseSide(
@@ -175,13 +189,29 @@ public object SelfLoopRouter {
                 size = Size(width = LOOP_EXTENT_PX + BAND_INSET_PX, height = bottom - top),
             )
         if (otherRoutes.none { routeHitsRect(route = it, r = rightBand) }) return SelfLoopSide.RIGHT
-        if (left - LOOP_EXTENT_PX < 0f) return SelfLoopSide.RIGHT
-        val leftBand =
+        if (left - LOOP_EXTENT_PX >= 0f) {
+            val leftBand =
+                Rect(
+                    origin = Point(x = left - LOOP_EXTENT_PX, y = top),
+                    size = Size(width = LOOP_EXTENT_PX + BAND_INSET_PX, height = bottom - top),
+                )
+            if (otherRoutes.none { routeHitsRect(route = it, r = leftBand) }) return SelfLoopSide.LEFT
+        }
+        // Nacharbeit 132: both vertical sides taken (or the left one would leave the coordinate space) — try above, then below.
+        if (top - LOOP_EXTENT_PX >= 0f) {
+            val topBand =
+                Rect(
+                    origin = Point(x = left, y = top - LOOP_EXTENT_PX),
+                    size = Size(width = right - left, height = LOOP_EXTENT_PX + BAND_INSET_PX),
+                )
+            if (otherRoutes.none { routeHitsRect(route = it, r = topBand) }) return SelfLoopSide.TOP
+        }
+        val bottomBand =
             Rect(
-                origin = Point(x = left - LOOP_EXTENT_PX, y = top),
-                size = Size(width = LOOP_EXTENT_PX + BAND_INSET_PX, height = bottom - top),
+                origin = Point(x = left, y = bottom - BAND_INSET_PX),
+                size = Size(width = right - left, height = LOOP_EXTENT_PX + BAND_INSET_PX),
             )
-        return if (otherRoutes.none { routeHitsRect(route = it, r = leftBand) }) SelfLoopSide.LEFT else SelfLoopSide.RIGHT
+        return if (otherRoutes.none { routeHitsRect(route = it, r = bottomBand) }) SelfLoopSide.BOTTOM else SelfLoopSide.RIGHT
     }
 
     /**
@@ -217,6 +247,22 @@ public object SelfLoopRouter {
             result[id] = SelfLoopPlacement(route = selfLoopRoute(nodeLayout = pair.second, side = side), side = side)
         }
         return result
+    }
+
+    /**
+     * Nacharbeit 132 — the pocket enclosed by a loop above or below its node (between the two legs, from the border to the
+     * outer line), in the layout space of [placement]; `null` for a loop on the right or left. Label planners treat it as an
+     * obstacle so that role and name labels never end up between the legs.
+     */
+    public fun verticalInterior(placement: SelfLoopPlacement): Rect? {
+        if (placement.side != SelfLoopSide.TOP && placement.side != SelfLoopSide.BOTTOM) return null
+        val route = placement.route
+        val borderY = route.source.y
+        val outerY = route.waypoints[0].y
+        return Rect(
+            origin = Point(x = route.source.x, y = minOf(borderY, outerY)),
+            size = Size(width = route.target.x - route.source.x, height = kotlin.math.abs(outerY - borderY)),
+        )
     }
 
     /** The side planned for [edgeId]; [SelfLoopSide.RIGHT] when the edge is not in [plan]. */
@@ -303,8 +349,8 @@ public object SelfLoopRouter {
     }
 }
 
-/** Which side of its node a self-loop is drawn on (Nacharbeit 129). */
-public enum class SelfLoopSide { RIGHT, LEFT }
+/** Which side of its node a self-loop is drawn on; the order is the order of preference (Nacharbeit 129, 132). */
+public enum class SelfLoopSide { RIGHT, LEFT, TOP, BOTTOM }
 
 /** A planned self-loop: the route as drawn and the side it sits on. */
 public data class SelfLoopPlacement(

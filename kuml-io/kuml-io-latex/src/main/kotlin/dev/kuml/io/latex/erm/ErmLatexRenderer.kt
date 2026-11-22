@@ -424,6 +424,18 @@ internal object ErmLatexRenderer {
         out: StringBuilder,
     ) {
         val ind = options.indent
+        if (side == SelfLoopSide.TOP || side == SelfLoopSide.BOTTOM) {
+            appendVerticalSelfLoopLabels(
+                rel = rel,
+                name = name,
+                route = route,
+                node = node,
+                top = side == SelfLoopSide.TOP,
+                options = options,
+                out = out,
+            )
+            return
+        }
         val left = side == SelfLoopSide.LEFT
         val southAnchor = if (left) "anchor=south east" else "anchor=south west"
         val northAnchor = if (left) "anchor=north east" else "anchor=north west"
@@ -446,6 +458,51 @@ internal object ErmLatexRenderer {
             out.appendLine(
                 "$ind\\node[kuml-feature, font=\\sffamily\\scriptsize, fill=white, inner sep=0.5pt, $northAnchor] " +
                     "at ${pt(roleX(borderX, left), route.target.y + SELF_LOOP_ROLE_GAP_Y)} {${escapeLatex(it)}};",
+            )
+        }
+    }
+
+    /**
+     * Nacharbeit 132 — labels of a loop above or below the entity. TOP: the name centred above the outer line
+     * (`anchor=south`, no background), the source role above the border to the left of the left leg (`south east`) and the
+     * target role to the right of the right leg (`south west`). BOTTOM mirrors this with `north` anchors. y values are layout
+     * space (y down); [pt] flips them, so the TikZ anchors name the label side as drawn. Rectangles in
+     * `ErmLatexLabelPlan.verticalSelfLoopLabelRects` follow the same geometry.
+     */
+    private fun appendVerticalSelfLoopLabels(
+        rel: ErmRelationship,
+        name: String?,
+        route: EdgeRoute.OrthogonalRounded,
+        node: NodeLayout,
+        top: Boolean,
+        options: LatexRenderOptions,
+        out: StringBuilder,
+    ) {
+        val ind = options.indent
+        val vertical = if (top) "south" else "north"
+        val borderY =
+            if (top) {
+                node.bounds.origin.y - SELF_LOOP_ROLE_INSET_X
+            } else {
+                node.bounds.origin.y + node.bounds.size.height +
+                    SELF_LOOP_ROLE_INSET_X
+            }
+        val outerY = route.waypoints[0].y
+        if (name != null) {
+            val centreX = (route.source.x + route.target.x) / 2f
+            val y = if (top) outerY - SELF_LOOP_NAME_GAP else outerY + SELF_LOOP_NAME_GAP
+            out.appendLine("$ind\\node[kuml-feature, inner sep=1pt, anchor=$vertical] at ${pt(centreX, y)} {${escapeLatex(name)}};")
+        }
+        rel.sourceRole?.takeIf { it.isNotBlank() }?.let {
+            out.appendLine(
+                "$ind\\node[kuml-feature, font=\\sffamily\\scriptsize, fill=white, inner sep=0.5pt, anchor=$vertical east] " +
+                    "at ${pt(route.source.x - SELF_LOOP_ROLE_GAP_Y, borderY)} {${escapeLatex(it)}};",
+            )
+        }
+        rel.targetRole?.takeIf { it.isNotBlank() }?.let {
+            out.appendLine(
+                "$ind\\node[kuml-feature, font=\\sffamily\\scriptsize, fill=white, inner sep=0.5pt, anchor=$vertical west] " +
+                    "at ${pt(route.target.x + SELF_LOOP_ROLE_GAP_Y, borderY)} {${escapeLatex(it)}};",
             )
         }
     }

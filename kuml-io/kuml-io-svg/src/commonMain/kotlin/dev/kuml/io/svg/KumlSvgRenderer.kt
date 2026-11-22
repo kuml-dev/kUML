@@ -215,6 +215,8 @@ public object KumlSvgRenderer {
                 snapPackageEdgesToBodyBoundary(elementIndex = elementIndex, layoutResult = layoutResult)
             } else if (diagram.type == DiagramType.ACTIVITY) {
                 umlActivityWidenForGuardOverhang(layoutResult = layoutResult, elements = diagram.elements, padding = options.paddingPx)
+            } else if (diagram.type == DiagramType.CLASS || diagram.type == DiagramType.OBJECT) {
+                umlWidenForVerticalSelfLoops(layoutResult = layoutResult, elements = elementIndex, theme = theme)
             } else {
                 layoutResult
             }
@@ -5109,40 +5111,120 @@ public object KumlSvgRenderer {
         val selfLoopIds = selfLoopPlan.keys
         var right = layoutResult.canvas.width
         var left = 0f
+        // Nacharbeit 132: loops above/below the entity (and their labels) may leave the canvas vertically.
+        var top = 0f
+        var bottom = layoutResult.canvas.height
         for (placement in selfLoopPlan.values) {
             for (p in placement.route.waypoints) {
                 right = maxOf(right, p.x)
                 if (placement.side == SelfLoopSide.LEFT) left = minOf(left, p.x)
+                if (placement.side == SelfLoopSide.TOP) top = minOf(top, p.y)
+                if (placement.side == SelfLoopSide.BOTTOM) bottom = maxOf(bottom, p.y)
             }
         }
-        val anyLeft = selfLoopPlan.values.any { it.side == SelfLoopSide.LEFT }
         val plan =
             ermLabelPlan(layoutResult = layoutResult, relationshipsById = relationshipsById, padding = 0f, selfLoopPlan = selfLoopPlan)
         for ((edgeId, byKey) in plan) {
             if (edgeId !in selfLoopIds) continue
+            val side = selfLoopPlan[edgeId]?.side
             for (placed in byKey.values) {
                 right = maxOf(right, placed.rect.origin.x + placed.rect.size.width)
-                if (anyLeft && selfLoopPlan[edgeId]?.side == SelfLoopSide.LEFT) left = minOf(left, placed.rect.origin.x)
+                if (side == SelfLoopSide.LEFT) left = minOf(left, placed.rect.origin.x)
+                if (side == SelfLoopSide.TOP) top = minOf(top, placed.rect.origin.y)
+                if (side == SelfLoopSide.BOTTOM) bottom = maxOf(bottom, placed.rect.origin.y + placed.rect.size.height)
             }
         }
-        val widened =
-            if (right <= layoutResult.canvas.width) layoutResult else layoutResult.copy(canvas = layoutResult.canvas.copy(width = right))
-        // Nacharbeit 129: a loop on the left side must stay inside the canvas too — shift everything right, once, before
-        // anything is planned or drawn. Only when a left loop (or its labels) actually leaves the coordinate space.
-        if (left >= 0f) return widened
-        return shiftLayout(layout = widened, dx = kotlin.math.ceil(-left))
+        return growCanvasForSelfLoops(layout = layoutResult, left = left, top = top, right = right, bottom = bottom)
     }
 
-    /** Shifts every coordinate of [layout] by [dx] to the right and widens the canvas by the same amount (Nacharbeit 129). */
+    /**
+     * Nacharbeit 132 — grows [layout]'s canvas to the extents of the self-loops and their labels. Extents beyond the left or
+     * top edge are brought back into the coordinate space by shifting everything once (Nacharbeit 129); extents beyond the
+     * right or bottom edge only enlarge the canvas. With no extent outside the canvas, [layout] is returned unchanged.
+     */
+    private fun growCanvasForSelfLoops(
+        layout: LayoutResult,
+        left: Float,
+        top: Float,
+        right: Float,
+        bottom: Float,
+    ): LayoutResult {
+        val widened =
+            if (right <= layout.canvas.width && bottom <= layout.canvas.height) {
+                layout
+            } else {
+                layout.copy(
+                    canvas = layout.canvas.copy(width = maxOf(right, layout.canvas.width), height = maxOf(bottom, layout.canvas.height)),
+                )
+            }
+        // Nacharbeit 129: a loop on the left side must stay inside the canvas too — shift everything right, once, before
+        // anything is planned or drawn. Only when a left loop (or its labels) actually leaves the coordinate space.
+        if (left >= 0f && top >= 0f) return widened
+        return shiftLayout(
+            layout = widened,
+            dx =
+                if (left <
+                    0f
+                ) {
+                    kotlin.math.ceil(-left)
+                } else {
+                    0f
+                },
+            dy = if (top < 0f) kotlin.math.ceil(-top) else 0f,
+        )
+    }
+
+    /**
+     * Nacharbeit 132 — UML counterpart of [widenCanvasForSelfLoops]. Only acts when a self-loop sits above or below its class
+     * (right and left loops keep their previous behaviour), so every diagram without such a loop is returned unchanged.
+     */
+    private fun umlWidenForVerticalSelfLoops(
+        layoutResult: LayoutResult,
+        elements: Map<String, KumlElement>,
+        theme: KumlTheme,
+    ): LayoutResult {
+        val selfLoopPlan = SelfLoopRouter.planAll(layout = layoutResult, elementLookup = elements::get)
+        val vertical = selfLoopPlan.filterValues { it.side == SelfLoopSide.TOP || it.side == SelfLoopSide.BOTTOM }
+        if (vertical.isEmpty()) return layoutResult
+        var top = 0f
+        var bottom = layoutResult.canvas.height
+        for (placement in vertical.values) {
+            for (p in placement.route.waypoints) {
+                if (placement.side == SelfLoopSide.TOP) top = minOf(top, p.y) else bottom = maxOf(bottom, p.y)
+            }
+        }
+        val plan =
+            dev.kuml.io.svg.uml.UmlAssociationLabelPlan.planFor(
+                layout = layoutResult,
+                elements = elements,
+                theme = theme,
+                padding = 0f,
+                selfLoopPlan = selfLoopPlan,
+            )
+        for ((edgeId, byKey) in plan) {
+            val side = vertical[edgeId]?.side ?: continue
+            for (placed in byKey.values) {
+                if (side == SelfLoopSide.TOP) {
+                    top = minOf(top, placed.rect.origin.y)
+                } else {
+                    bottom = maxOf(bottom, placed.rect.origin.y + placed.rect.size.height)
+                }
+            }
+        }
+        return growCanvasForSelfLoops(layout = layoutResult, left = 0f, top = top, right = layoutResult.canvas.width, bottom = bottom)
+    }
+
+    /** Shifts every coordinate of [layout] by [dx] to the right and [dy] down and grows the canvas by the same amounts (Nacharbeit 129, 132). */
     private fun shiftLayout(
         layout: LayoutResult,
         dx: Float,
+        dy: Float = 0f,
     ): LayoutResult {
-        fun dev.kuml.layout.Point.sh() = dev.kuml.layout.Point(x = x + dx, y = y)
+        fun dev.kuml.layout.Point.sh() = dev.kuml.layout.Point(x = x + dx, y = y + dy)
 
         fun dev.kuml.layout.Rect.sh() = copy(origin = origin.sh())
         return layout.copy(
-            canvas = layout.canvas.copy(width = layout.canvas.width + dx),
+            canvas = layout.canvas.copy(width = layout.canvas.width + dx, height = layout.canvas.height + dy),
             nodes =
                 layout.nodes.mapValues { (_, n) ->
                     n.copy(
@@ -5151,7 +5233,7 @@ public object KumlSvgRenderer {
                         labels = n.labels.mapValues { it.value.sh() },
                     )
                 },
-            edges = layout.edges.mapValues { (_, r) -> shiftRoute(route = r, dx = dx, dy = 0f) },
+            edges = layout.edges.mapValues { (_, r) -> shiftRoute(route = r, dx = dx, dy = dy) },
             groups = layout.groups.mapValues { (_, g) -> g.copy(bounds = g.bounds.sh()) },
         )
     }
@@ -5199,8 +5281,13 @@ public object KumlSvgRenderer {
                 id.value to
                     nl.bounds.copy(origin = nl.bounds.origin.copy(x = nl.bounds.origin.x + padding, y = nl.bounds.origin.y + padding))
             }
+        // Nacharbeit 132: the pocket between the legs of a loop above or below an entity is not a label position.
+        val pockets =
+            selfLoopPlan.values.mapNotNull { SelfLoopRouter.verticalInterior(it) }.map {
+                it.copy(origin = dev.kuml.layout.Point(x = it.origin.x + padding, y = it.origin.y + padding))
+            }
         return dev.kuml.layout.bridge.label.ErmEdgeLabelPlan
-            .compute(routes = routes, nodes = nodes, labels = labels)
+            .compute(routes = routes, nodes = nodes, labels = labels, fixedObstacles = pockets)
     }
 
     /**

@@ -70,15 +70,75 @@ class SelfLoopSideTest :
             SelfLoopRouter.chooseSide(node, listOf(line(310f, 0f, 310f, 49f), line(310f, 131f, 310f, 400f))) shouldBe SelfLoopSide.RIGHT
         }
 
-        test("both sides busy stays RIGHT") {
-            SelfLoopRouter.chooseSide(node, listOf(throughRight, throughLeft)) shouldBe SelfLoopSide.RIGHT
+        // top band: x 100..300, y 18..51; bottom band: x 100..300, y 129..162
+        val throughTop = line(200f, 0f, 200f, 30f)
+        val throughBottom = line(200f, 140f, 200f, 300f)
+
+        test("both vertical sides busy chooses TOP (Nacharbeit 132)") {
+            SelfLoopRouter.chooseSide(node, listOf(throughRight, throughLeft)) shouldBe SelfLoopSide.TOP
         }
 
-        test("no room on the left (left - 32 < 0) stays RIGHT") {
+        test("right, left and top busy chooses BOTTOM") {
+            SelfLoopRouter.chooseSide(node, listOf(throughRight, throughLeft, throughTop)) shouldBe SelfLoopSide.BOTTOM
+        }
+
+        test("all four sides busy falls back to RIGHT") {
+            SelfLoopRouter.chooseSide(node, listOf(throughRight, throughLeft, throughTop, throughBottom)) shouldBe SelfLoopSide.RIGHT
+        }
+
+        test("right busy and no room on the left chooses TOP") {
             val near = Rect(origin = Point(31f, 50f), size = Size(200f, 80f))
-            SelfLoopRouter.chooseSide(near, listOf(line(300f, 90f, 220f, 90f))) shouldBe SelfLoopSide.RIGHT
+            SelfLoopRouter.chooseSide(near, listOf(line(300f, 90f, 220f, 90f))) shouldBe SelfLoopSide.TOP
+        }
+
+        test("no room above (top - 32 < 0) is skipped and chooses BOTTOM") {
+            val flush = Rect(origin = Point(31f, 31f), size = Size(200f, 80f))
+            SelfLoopRouter.chooseSide(flush, listOf(line(300f, 70f, 220f, 70f))) shouldBe SelfLoopSide.BOTTOM
+            val exactTop = Rect(origin = Point(31f, 32f), size = Size(200f, 80f))
+            SelfLoopRouter.chooseSide(exactTop, listOf(line(300f, 70f, 220f, 70f))) shouldBe SelfLoopSide.TOP
+        }
+
+        test("TOP route geometry: legs at 0.30w and 0.70w, source left, 32 px above the border") {
+            val r = SelfLoopRouter.selfLoopRoute(nodeLayout, SelfLoopSide.TOP)
+            r.source shouldBe Point(100f + 200f * 0.30f, 50f)
+            r.target shouldBe Point(100f + 200f * 0.70f, 50f)
+            r.waypoints shouldBe listOf(Point(100f + 200f * 0.30f, 18f), Point(100f + 200f * 0.70f, 18f))
+            r.cornerRadiusPx shouldBe 6f
+        }
+
+        test("BOTTOM route geometry mirrors TOP below the border") {
+            val r = SelfLoopRouter.selfLoopRoute(nodeLayout, SelfLoopSide.BOTTOM)
+            r.source shouldBe Point(100f + 200f * 0.30f, 130f)
+            r.target shouldBe Point(100f + 200f * 0.70f, 130f)
+            r.waypoints shouldBe listOf(Point(100f + 200f * 0.30f, 162f), Point(100f + 200f * 0.70f, 162f))
+        }
+
+        test("an edge ending exactly on the top or bottom border counts as occupied (1 px inset)") {
+            SelfLoopRouter.chooseSide(node, listOf(throughRight, throughLeft, line(200f, 0f, 200f, 50f))) shouldBe SelfLoopSide.BOTTOM
+            SelfLoopRouter.chooseSide(
+                node,
+                listOf(throughRight, throughLeft, throughTop, line(200f, 130f, 200f, 300f)),
+            ) shouldBe SelfLoopSide.RIGHT
+        }
+
+        test("TOP and BOTTOM decisions are deterministic and independent of route order") {
+            val a = SelfLoopRouter.chooseSide(node, listOf(throughRight, throughLeft, throughTop))
+            val b = SelfLoopRouter.chooseSide(node, listOf(throughTop, throughLeft, throughRight))
+            a shouldBe b
+        }
+
+        test("no room on the left (left - 32 < 0) with top busy chooses BOTTOM") {
+            val near = Rect(origin = Point(31f, 50f), size = Size(200f, 80f))
+            SelfLoopRouter.chooseSide(near, listOf(line(300f, 90f, 220f, 90f), line(100f, 0f, 100f, 40f))) shouldBe SelfLoopSide.BOTTOM
             val exact = Rect(origin = Point(32f, 50f), size = Size(200f, 80f))
             SelfLoopRouter.chooseSide(exact, listOf(line(300f, 90f, 220f, 90f))) shouldBe SelfLoopSide.LEFT
+        }
+
+        test("route points are all non-NaN and finite for all four sides") {
+            for (side in SelfLoopSide.values()) {
+                val r = SelfLoopRouter.selfLoopRoute(nodeLayout, side)
+                (listOf(r.source, r.target) + r.waypoints).all { it.x.isFinite() && it.y.isFinite() } shouldBe true
+            }
         }
 
         test("a spline is checked through its control points") {

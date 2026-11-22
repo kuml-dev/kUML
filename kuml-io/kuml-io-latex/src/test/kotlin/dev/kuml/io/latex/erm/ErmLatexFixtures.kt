@@ -342,6 +342,85 @@ internal object ErmLatexFixtures {
             groups = emptyMap(),
         )
 
+    // ---- Nacharbeit 132: right and left bands busy -> the self-reference loop goes above (or, top busy too, below) ----
+
+    val employeeBoundsVertical: Rect = rect(240f, 60f, 200f, 100f)
+
+    fun selfReferenceVerticalModel(blockTop: Boolean): ErmModel {
+        val base = selfReferenceModel()
+
+        fun link(
+            id: String,
+            from: String,
+            to: String,
+        ) = ErmRelationship(
+            id = id,
+            name = null,
+            sourceEntityId = from,
+            targetEntityId = to,
+            sourceCardinality = Cardinality.ONE,
+            targetCardinality = Cardinality.ZERO_MANY,
+        )
+        val extra =
+            mutableListOf(
+                employee.copy(id = "department", name = "Department"),
+                employee.copy(id = "branch", name = "Branch"),
+            )
+        val rels = base.relationships + link("r2", "employee", "department") + link("r3", "branch", "employee")
+        if (blockTop) extra += employee.copy(id = "boss", name = "Boss")
+        return base.copy(
+            entities = listOf(employee) + extra,
+            relationships = if (blockTop) rels + link("r4", "boss", "employee") else rels,
+        )
+    }
+
+    fun selfReferenceVerticalLayout(blockTop: Boolean): LayoutResult {
+        val nodes =
+            mutableMapOf(
+                NodeId("employee") to NodeLayout(bounds = employeeBoundsVertical),
+                NodeId("department") to NodeLayout(bounds = rect(560f, 60f, 120f, 100f)),
+                NodeId("branch") to NodeLayout(bounds = rect(40f, 60f, 120f, 100f)),
+            )
+        val edges =
+            mutableMapOf<EdgeId, EdgeRoute>(
+                EdgeId("r1") to
+                    EdgeRoute.OrthogonalRounded(
+                        source = Point(240f, 85f),
+                        target = Point(240f, 135f),
+                        waypoints = listOf(Point(230f, 85f), Point(230f, 135f)),
+                        cornerRadiusPx = 0f,
+                    ),
+                EdgeId("r2") to EdgeRoute.Direct(source = Point(440f, 110f), target = Point(560f, 110f)),
+                EdgeId("r3") to EdgeRoute.Direct(source = Point(160f, 110f), target = Point(240f, 110f)),
+            )
+        if (blockTop) {
+            nodes[NodeId("boss")] = NodeLayout(bounds = rect(300f, 0f, 80f, 20f))
+            edges[EdgeId("r4")] = EdgeRoute.Direct(source = Point(340f, 20f), target = Point(340f, 60f))
+        }
+        return LayoutResult(
+            engineId = LayoutEngineId("test"),
+            seed = null,
+            canvas = Size(width = 720f, height = 200f),
+            nodes = nodes,
+            edges = edges,
+            groups = emptyMap(),
+        )
+    }
+
+    fun renderSelfReferenceVertical(
+        notation: ErmNotation,
+        blockTop: Boolean,
+    ): String {
+        val model = selfReferenceVerticalModel(blockTop)
+        return KumlLatexRenderer.toLatex(
+            model = model,
+            diagram = model.diagrams.first(),
+            layoutResult = selfReferenceVerticalLayout(blockTop),
+            notation = notation,
+            options = LatexRenderOptions(),
+        )
+    }
+
     // ---- Crowded fixture (Nacharbeit 130): two named relationships with roles leave the same border close together ----
 
     val crowdedHub: Rect = rect(200f, 20f, 160f, 100f)

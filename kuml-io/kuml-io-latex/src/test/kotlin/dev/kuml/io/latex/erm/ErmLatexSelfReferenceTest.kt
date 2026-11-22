@@ -3,6 +3,9 @@
 package dev.kuml.io.latex.erm
 
 import dev.kuml.erm.model.ErmNotation
+import dev.kuml.layout.NodeId
+import dev.kuml.layout.bridge.SelfLoopRouter
+import dev.kuml.layout.bridge.SelfLoopSide
 import io.kotest.core.spec.style.StringSpec
 import io.kotest.matchers.floats.plusOrMinus
 import io.kotest.matchers.floats.shouldBeGreaterThan
@@ -99,6 +102,99 @@ class ErmLatexSelfReferenceTest :
                 points(sourceRoleLine).single().first shouldBeLessThan leftX
                 points(targetRoleLine).single().first shouldBeLessThan leftX
                 points(nameLine).single().first shouldBeLessThan leftX - 32f
+            }
+        }
+
+        // Nacharbeit 132: top and bottom loops
+        val vb = ErmLatexFixtures.employeeBoundsVertical
+        val vTop = vb.origin.y
+        val vBottom = vTop + vb.size.height
+        val legL = vb.origin.x + 0.30f * vb.size.width
+        val legR = vb.origin.x + 0.70f * vb.size.width
+
+        for (notation in notations) {
+            "$notation: right and left busy puts the loop, roles and name above the entity (Nacharbeit 132)" {
+                val tex = ErmLatexFixtures.renderSelfReferenceVertical(notation, blockTop = false)
+                val loop = points(lineWith(tex, "rounded corners=6.000pt"))
+                loop.size shouldBe 4
+                val (source, wp1, wp2, target) = loop
+                source shouldBe (legL to vTop)
+                target shouldBe (legR to vTop)
+                wp1.second shouldBe (vTop - 32f plusOrMinus 0.01f)
+                wp2.second shouldBe (vTop - 32f plusOrMinus 0.01f)
+                val sourceRoleLine = lineWith(tex, "{manager}")
+                val targetRoleLine = lineWith(tex, "{report}")
+                val nameLine = lineWith(tex, "{manages}")
+                sourceRoleLine.contains("anchor=south east") shouldBe true
+                targetRoleLine.contains("anchor=south west") shouldBe true
+                nameLine.contains("anchor=south]") shouldBe true
+                nameLine shouldNotContain "fill=white"
+                // roles beside the legs and above the border; name centred above the outer line
+                points(sourceRoleLine).single().first shouldBeLessThan legL
+                points(targetRoleLine).single().first shouldBeGreaterThan legR
+                points(sourceRoleLine).single().second shouldBeLessThan vTop
+                points(targetRoleLine).single().second shouldBeLessThan vTop
+                points(nameLine).single().first shouldBe ((legL + legR) / 2f plusOrMinus 0.01f)
+                points(nameLine).single().second shouldBeLessThan vTop - 32f
+                // the glyph anchors of the two ends are far enough apart (0.4 * width)
+                (target.first - source.first) shouldBeGreaterThanOrEqual (0.4f * vb.size.width - 0.01f)
+            }
+
+            "$notation: right, left and top busy puts the loop, roles and name below the entity (Nacharbeit 132)" {
+                val tex = ErmLatexFixtures.renderSelfReferenceVertical(notation, blockTop = true)
+                val loop = points(lineWith(tex, "rounded corners=6.000pt"))
+                val (source, wp1, wp2, target) = loop
+                source shouldBe (legL to vBottom)
+                target shouldBe (legR to vBottom)
+                wp1.second shouldBe (vBottom + 32f plusOrMinus 0.01f)
+                wp2.second shouldBe (vBottom + 32f plusOrMinus 0.01f)
+                val sourceRoleLine = lineWith(tex, "{manager}")
+                val targetRoleLine = lineWith(tex, "{report}")
+                val nameLine = lineWith(tex, "{manages}")
+                sourceRoleLine.contains("anchor=north east") shouldBe true
+                targetRoleLine.contains("anchor=north west") shouldBe true
+                nameLine.contains("anchor=north]") shouldBe true
+                points(sourceRoleLine).single().second shouldBeGreaterThan vBottom
+                points(targetRoleLine).single().second shouldBeGreaterThan vBottom
+                points(nameLine).single().second shouldBeGreaterThan vBottom + 32f
+            }
+
+            "$notation: label rectangles of a top loop follow the TikZ anchors (plan equals renderer geometry)" {
+                val model = ErmLatexFixtures.selfReferenceVerticalModel(blockTop = false)
+                val rel = model.relationships.first { it.id == "r1" }
+                val layout = ErmLatexFixtures.selfReferenceVerticalLayout(blockTop = false)
+                val plan = SelfLoopRouter.planAll(layout = layout, elementLookup = model.relationships.associateBy { it.id }::get)
+                plan.getValue("r1").side shouldBe SelfLoopSide.TOP
+                val rects =
+                    ErmLatexLabelPlan.selfLoopLabelRects(
+                        rel = rel,
+                        route = plan.getValue("r1").route,
+                        node = layout.nodes.getValue(NodeId("employee")),
+                        side = SelfLoopSide.TOP,
+                    )
+                rects.size shouldBe 3
+                // name rect: centred on the loop, bottom edge 4 px above the outer line
+                val nameRect = rects[0]
+                (nameRect.origin.x + nameRect.size.width / 2f) shouldBe ((legL + legR) / 2f plusOrMinus 0.01f)
+                (nameRect.origin.y + nameRect.size.height) shouldBe (vTop - 32f - 4f plusOrMinus 0.01f)
+                // role rects: source role right edge left of the left leg, target role left edge right of the right leg
+                (rects[1].origin.x + rects[1].size.width) shouldBeLessThan legL
+                rects[2].origin.x shouldBeGreaterThan legR
+                // a glyph box at each end is 16 px high around its anchor: the two ends do not overlap
+                (legR - legL) shouldBeGreaterThan 16f
+                // no two label rectangles overlap
+                for (i in rects.indices) {
+                    for (j in i + 1 until rects.size) {
+                        val a = rects[i]
+                        val b = rects[j]
+                        val overlap =
+                            a.origin.x < b.origin.x + b.size.width &&
+                                b.origin.x < a.origin.x + a.size.width &&
+                                a.origin.y < b.origin.y + b.size.height &&
+                                b.origin.y < a.origin.y + a.size.height
+                        overlap shouldBe false
+                    }
+                }
             }
         }
 
