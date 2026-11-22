@@ -342,6 +342,70 @@ internal object ErmLatexFixtures {
             groups = emptyMap(),
         )
 
+    // ---- Crowded fixture (Nacharbeit 130): two named relationships with roles leave the same border close together ----
+
+    val crowdedHub: Rect = rect(200f, 20f, 160f, 100f)
+    val crowdedChild: Rect = rect(200f, 260f, 160f, 100f)
+
+    fun crowdedModel(): ErmModel =
+        ErmModel(
+            name = "Crowded",
+            entities =
+                listOf(
+                    customer.copy(id = "hub", name = "Hub"),
+                    order.copy(id = "child", name = "Child"),
+                ),
+            relationships =
+                listOf(
+                    ErmRelationship(
+                        id = "r1",
+                        name = "places",
+                        sourceEntityId = "hub",
+                        targetEntityId = "child",
+                        sourceCardinality = Cardinality.ONE,
+                        targetCardinality = Cardinality.ZERO_MANY,
+                        sourceRole = "buyer",
+                        targetRole = "orders",
+                    ),
+                    ErmRelationship(
+                        id = "r2",
+                        name = "contains",
+                        sourceEntityId = "hub",
+                        targetEntityId = "child",
+                        sourceCardinality = Cardinality.ZERO_ONE,
+                        targetCardinality = Cardinality.ONE_MANY,
+                        sourceRole = "owner",
+                        targetRole = "items",
+                    ),
+                ),
+            diagrams = listOf(ErmDiagram(name = "Overview")),
+        )
+
+    fun crowdedLayout(): LayoutResult =
+        LayoutResult(
+            engineId = LayoutEngineId("test"),
+            seed = null,
+            canvas = Size(width = 600f, height = 400f),
+            nodes = mapOf(NodeId("hub") to NodeLayout(bounds = crowdedHub), NodeId("child") to NodeLayout(bounds = crowdedChild)),
+            edges =
+                mapOf(
+                    EdgeId("r1") to EdgeRoute.Direct(source = Point(270f, 120f), target = Point(270f, 260f)),
+                    EdgeId("r2") to EdgeRoute.Direct(source = Point(300f, 120f), target = Point(300f, 260f)),
+                ),
+            groups = emptyMap(),
+        )
+
+    fun renderCrowded(notation: ErmNotation = ErmNotation.MARTIN): String {
+        val model = crowdedModel()
+        return KumlLatexRenderer.toLatex(
+            model = model,
+            diagram = model.diagrams.first(),
+            layoutResult = crowdedLayout(),
+            notation = notation,
+            options = LatexRenderOptions(),
+        )
+    }
+
     fun renderSelfReferenceRightBusy(notation: ErmNotation): String {
         val model = selfReferenceRightBusyModel()
         return KumlLatexRenderer.toLatex(

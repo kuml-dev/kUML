@@ -94,42 +94,50 @@ class LatexStandaloneAllFamiliesTest :
             val mode = if (Pdflatex.required) "kuml.latex.require=true, the compile tests will FAIL" else "the compile tests are skipped"
             println("[LatexStandaloneAllFamiliesTest] pdflatex not found on PATH or /Library/TeX/texbin: $mode")
         }
+
+        fun compiles(family: String) {
+            val pdflatex = Pdflatex.requireExecutable().absolutePath
+            val dir = Files.createTempDirectory("kuml-latex-pdflatex")
+            try {
+                val tex = render(family, standalone = true, dir = dir)
+                val file = dir.resolve("$family.tex")
+                Files.writeString(file, tex)
+                val proc =
+                    ProcessBuilder(pdflatex, "-interaction=nonstopmode", "-halt-on-error", file.fileName.toString())
+                        .directory(dir.toFile())
+                        .redirectErrorStream(true)
+                        .start()
+                val log = proc.inputStream.bufferedReader().readText()
+                val finished = proc.waitFor(120, TimeUnit.SECONDS)
+                if (!finished) proc.destroyForcibly()
+                check(finished) { "pdflatex timed out for $family" }
+                check(proc.exitValue() == 0) { "pdflatex failed for $family:\n${log.takeLast(2000)}" }
+                check(Files.exists(dir.resolve("$family.pdf"))) { "no PDF produced for $family" }
+                // A bitmap font fallback (Metafont) means a missing Type 1 font; it fails on TeX Live without cm-super.
+                check(!log.contains("mktexpk")) { "pdflatex generated bitmap fonts (mktexpk) for $family:\n${log.takeLast(2000)}" }
+                // Optional: keep the PDFs for a visual check (KUML_LATEX_KEEP_DIR=/some/dir).
+                System.getenv("KUML_LATEX_KEEP_DIR")?.takeIf { it.isNotBlank() }?.let { keep ->
+                    Files.createDirectories(Path.of(keep))
+                    Files.copy(
+                        dir.resolve("$family.pdf"),
+                        Path.of(keep, "$family.pdf"),
+                        java.nio.file.StandardCopyOption.REPLACE_EXISTING,
+                    )
+                }
+            } finally {
+                dir.toFile().deleteRecursively()
+            }
+        }
+
         for (family in FAMILIES) {
             test("pdflatex compiles the standalone document for $family")
-                .config(enabled = Pdflatex.enabled, timeout = 300.seconds) {
-                    val pdflatex = Pdflatex.requireExecutable().absolutePath
-                    val dir = Files.createTempDirectory("kuml-latex-pdflatex")
-                    try {
-                        val tex = render(family, standalone = true, dir = dir)
-                        val file = dir.resolve("$family.tex")
-                        Files.writeString(file, tex)
-                        val proc =
-                            ProcessBuilder(pdflatex, "-interaction=nonstopmode", "-halt-on-error", file.fileName.toString())
-                                .directory(dir.toFile())
-                                .redirectErrorStream(true)
-                                .start()
-                        val log = proc.inputStream.bufferedReader().readText()
-                        val finished = proc.waitFor(120, TimeUnit.SECONDS)
-                        if (!finished) proc.destroyForcibly()
-                        check(finished) { "pdflatex timed out for $family" }
-                        check(proc.exitValue() == 0) { "pdflatex failed for $family:\n${log.takeLast(2000)}" }
-                        check(Files.exists(dir.resolve("$family.pdf"))) { "no PDF produced for $family" }
-                        // A bitmap font fallback (Metafont) means a missing Type 1 font; it fails on TeX Live without cm-super.
-                        check(!log.contains("mktexpk")) { "pdflatex generated bitmap fonts (mktexpk) for $family:\n${log.takeLast(2000)}" }
-                        // Optional: keep the PDFs for a visual check (KUML_LATEX_KEEP_DIR=/some/dir).
-                        System.getenv("KUML_LATEX_KEEP_DIR")?.takeIf { it.isNotBlank() }?.let { keep ->
-                            Files.createDirectories(Path.of(keep))
-                            Files.copy(
-                                dir.resolve("$family.pdf"),
-                                Path.of(keep, "$family.pdf"),
-                                java.nio.file.StandardCopyOption.REPLACE_EXISTING,
-                            )
-                        }
-                    } finally {
-                        dir.toFile().deleteRecursively()
-                    }
-                }
+                .config(enabled = Pdflatex.enabled, timeout = 300.seconds) { compiles(family) }
         }
+
+        // Nacharbeit 130: a crowded ERM diagram (planned name and role labels) must still compile. Deliberately not part of
+        // FAMILIES, so the loops above do not also add the two non-compile tests for it.
+        test("pdflatex compiles ERM Martin with crowded edge labels")
+            .config(enabled = Pdflatex.enabled, timeout = 300.seconds) { compiles("erm-martin-crowded") }
     }) {
     companion object {
         private val FAMILIES =

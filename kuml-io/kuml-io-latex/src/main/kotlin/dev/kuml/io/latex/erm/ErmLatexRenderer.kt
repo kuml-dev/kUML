@@ -24,9 +24,12 @@ import dev.kuml.layout.EdgeRoute
 import dev.kuml.layout.LayoutResult
 import dev.kuml.layout.NodeId
 import dev.kuml.layout.NodeLayout
+import dev.kuml.layout.Point
 import dev.kuml.layout.bridge.SelfLoopRouter
 import dev.kuml.layout.bridge.SelfLoopSide
 import dev.kuml.layout.bridge.erm.ErmIdef1xLayoutBridge
+import dev.kuml.layout.bridge.label.ErmLabelKeys
+import dev.kuml.layout.bridge.label.PlacedLabel
 import dev.kuml.layout.bridge.erm.ErmContentSizeProvider.Companion as Sizing
 
 /**
@@ -96,6 +99,8 @@ internal object ErmLatexRenderer {
         val linkIds = model.noteLinks.map { it.id }.toSet()
         // Nacharbeit 129: one self-loop side decision for the layout, the same planner the SVG renderer uses.
         val selfLoopPlan = SelfLoopRouter.planAll(layout = layout, elementLookup = relationships::get)
+        // Nacharbeit 130: names and role labels are placed by the SVG renderer's label planner, not at fixed offsets.
+        val labelPlan = ErmLatexLabelPlan.compute(layout = layout, relationships = relationships, selfLoopPlan = selfLoopPlan)
         for ((edgeId, route) in layout.edges) {
             if (edgeId.value in linkIds) {
                 NoteTikz.renderAnchor(route = route, style = NoteTikzAnchor.DASHED, options = options, out = out)
@@ -135,6 +140,7 @@ internal object ErmLatexRenderer {
                 out = out,
                 selfLoopNode = selfLoopNode,
                 selfLoopSide = SelfLoopRouter.sideOf(selfLoopPlan, edgeId.value),
+                planned = labelPlan.placed[edgeId.value],
             )
         }
         // A note link the layout carries no route for still gets a line between the two named nodes.
@@ -315,7 +321,7 @@ internal object ErmLatexRenderer {
         }
     }
 
-    private fun renderRelationship(
+    internal fun renderRelationship(
         rel: ErmRelationship,
         route: EdgeRoute,
         notation: ErmNotation,
@@ -323,6 +329,7 @@ internal object ErmLatexRenderer {
         out: StringBuilder,
         selfLoopNode: NodeLayout? = null,
         selfLoopSide: SelfLoopSide = SelfLoopSide.RIGHT,
+        planned: Map<String, PlacedLabel>? = null,
     ) {
         val dashed = rel.kind == RelationshipKind.NON_IDENTIFYING
         UmlEdgeLatexRenderer.render(
@@ -365,7 +372,14 @@ internal object ErmLatexRenderer {
             )
             return
         }
-        if (name != null) {
+        val plannedName = planned?.get(ErmLabelKeys.CENTER)
+        if (name != null && plannedName != null) {
+            val c = center(plannedName)
+            out.appendLine(
+                "${options.indent}\\node[kuml-feature, fill=white, inner sep=1pt, anchor=center] " +
+                    "at ${pt(c.x, c.y)} {${escapeLatex(name)}};",
+            )
+        } else if (name != null) {
             val mid = routeMidPoint(route)
             if (mid != null) {
                 out.appendLine(
@@ -374,9 +388,26 @@ internal object ErmLatexRenderer {
                 )
             }
         }
-        roleLabel(role = rel.sourceRole, anchor = route.source, dir = dirs.source, options = options, out = out)
-        roleLabel(role = rel.targetRole, anchor = route.target, dir = dirs.target, options = options, out = out)
+        roleLabel(
+            role = rel.sourceRole,
+            anchor = route.source,
+            dir = dirs.source,
+            planned = planned?.get(ErmLabelKeys.SOURCE_ROLE),
+            options = options,
+            out = out,
+        )
+        roleLabel(
+            role = rel.targetRole,
+            anchor = route.target,
+            dir = dirs.target,
+            planned = planned?.get(ErmLabelKeys.TARGET_ROLE),
+            options = options,
+            out = out,
+        )
     }
+
+    private fun center(label: PlacedLabel): Point =
+        Point(x = label.rect.origin.x + label.rect.size.width / 2f, y = label.rect.origin.y + label.rect.size.height / 2f)
 
     /**
      * Labels of a self-reference (Nacharbeit 127), laid out for the right-hand loop of [SelfLoopRouter]: the name to the
@@ -426,12 +457,21 @@ internal object ErmLatexRenderer {
 
     private fun roleLabel(
         role: String?,
-        anchor: dev.kuml.layout.Point,
+        anchor: Point,
         dir: Pair<Float, Float>,
+        planned: PlacedLabel?,
         options: LatexRenderOptions,
         out: StringBuilder,
     ) {
         val text = role?.takeIf { it.isNotBlank() } ?: return
+        if (planned != null) {
+            val c = center(planned)
+            out.appendLine(
+                "${options.indent}\\node[kuml-feature, font=\\sffamily\\scriptsize, fill=white, inner sep=0.5pt, anchor=center] " +
+                    "at ${pt(c.x, c.y)} {${escapeLatex(text)}};",
+            )
+            return
+        }
         val x = anchor.x + dir.first * ROLE_ALONG + (-dir.second) * ROLE_ASIDE
         val y = anchor.y + dir.second * ROLE_ALONG + dir.first * ROLE_ASIDE
         out.appendLine(

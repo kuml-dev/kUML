@@ -1,33 +1,31 @@
-package dev.kuml.io.svg.erm
+package dev.kuml.layout.bridge.label
 
-import dev.kuml.io.svg.EdgeLabelGeometry
 import dev.kuml.layout.EdgeRoute
 import dev.kuml.layout.Point
 import dev.kuml.layout.Rect
 import dev.kuml.layout.Size
-import dev.kuml.layout.bridge.label.EdgeCandidateMode
-import dev.kuml.layout.bridge.label.LabelCostModel
-import dev.kuml.layout.bridge.label.LabelEnd
-import dev.kuml.layout.bridge.label.LabelPlacer
-import dev.kuml.layout.bridge.label.LabelRequest
-import dev.kuml.layout.bridge.label.LabelRole
-import dev.kuml.layout.bridge.label.PlacedLabel
 import dev.kuml.layout.bridge.note.ObstacleIndex
 import dev.kuml.layout.bridge.note.ObstacleKind
 import kotlin.math.abs
+import kotlin.math.sqrt
 
 /** The texts an ERM relationship edge carries as labels (null = none). */
-internal data class ErmEdgeLabelSpec(
+public data class ErmEdgeLabelSpec(
     val name: String?,
     val sourceRole: String?,
     val targetRole: String?,
 )
 
 /** Keys of the labels one ERM edge carries in a label plan. */
-internal object ErmLabelKeys {
-    const val CENTER: String = "center"
-    const val SOURCE_ROLE: String = "srcRole"
-    const val TARGET_ROLE: String = "tgtRole"
+public object ErmLabelKeys {
+    /** Relationship name label. */
+    public const val CENTER: String = "center"
+
+    /** Source-end role label. */
+    public const val SOURCE_ROLE: String = "srcRole"
+
+    /** Target-end role label. */
+    public const val TARGET_ROLE: String = "tgtRole"
 }
 
 /**
@@ -36,7 +34,7 @@ internal object ErmLabelKeys {
  * Everything is in drawn coordinates (canvas padding applied) and the plan is built once per diagram, in the order
  * nodes, routes, glyphs, plan, drawing.
  */
-internal object ErmEdgeLabelPlan {
+public object ErmEdgeLabelPlan {
     private const val CHAR_PX = 6.6f
     private const val LINE_PX = 15f
     private const val PAD_PX = 8f
@@ -66,12 +64,14 @@ internal object ErmEdgeLabelPlan {
      * @param routes drawn routes by relationship id (all edges of the diagram, note links included, act as foreign lines)
      * @param nodes drawn node rectangles by id
      * @param labels relationship ids with their label texts
+     * @param fixedObstacles extra rectangles the labels must avoid and that are not moved (e.g. self-loop labels a renderer lays out itself)
      * @return per relationship id: label key to placed label
      */
-    fun compute(
+    public fun compute(
         routes: Map<String, EdgeRoute>,
         nodes: Map<String, Rect>,
         labels: Map<String, ErmEdgeLabelSpec>,
+        fixedObstacles: List<Rect> = emptyList(),
     ): Map<String, Map<String, PlacedLabel>> {
         if (labels.values.none { !it.name.isNullOrBlank() || it.sourceRole != null || it.targetRole != null }) return emptyMap()
         val index = ObstacleIndex()
@@ -83,8 +83,8 @@ internal object ErmEdgeLabelPlan {
             val route = routes[id] ?: continue
             val pts = polylines.getValue(id)
             if (pts.size < 2) continue
-            val srcDir = EdgeLabelGeometry.sourceSegmentTangent(route)
-            val tgtInto = EdgeLabelGeometry.targetSegmentTangent(route)
+            val srcDir = sourceTangent(route)
+            val tgtInto = targetTangent(route)
             val tgtDir = -tgtInto.first to -tgtInto.second
             index.addRect(kind = ObstacleKind.MULTIPLICITY, r = glyphRect(anchor = route.source, dir = srcDir), ownerId = id)
             index.addRect(kind = ObstacleKind.MULTIPLICITY, r = glyphRect(anchor = route.target, dir = tgtDir), ownerId = id)
@@ -108,6 +108,7 @@ internal object ErmEdgeLabelPlan {
             }
         }
         if (requests.isEmpty()) return emptyMap()
+        for ((i, rect) in fixedObstacles.withIndex()) index.addRect(kind = ObstacleKind.ROLE, r = rect, ownerId = "fixed#$i")
         val placed = LabelPlacer.place(requests = requests, index = index, costs = ERM_COSTS)
         val byEdge = LinkedHashMap<String, MutableMap<String, PlacedLabel>>()
         for ((id, label) in placed) {
@@ -118,7 +119,7 @@ internal object ErmEdgeLabelPlan {
     }
 
     /** The box a cardinality glyph at [anchor], extending along the unit vector [dir] away from the entity, occupies. */
-    fun glyphRect(
+    public fun glyphRect(
         anchor: Point,
         dir: Pair<Float, Float>,
     ): Rect {
@@ -142,6 +143,67 @@ internal object ErmEdgeLabelPlan {
         val left = xs.min()
         val top = ys.min()
         return Rect(origin = Point(x = left, y = top), size = Size(width = abs(xs.max() - left), height = abs(ys.max() - top)))
+    }
+
+    /**
+     * Unit tangent of the first polyline segment (source end). A copy of the SVG module's `EdgeLabelGeometry.sourceSegmentTangent`
+     * (that module depends on this one); a drift test in the SVG module keeps both equal.
+     */
+    public fun sourceTangent(route: EdgeRoute): Pair<Float, Float> {
+        val poly = tangentPolylineOf(route)
+        return tangentOfSegment(a = poly.first(), b = if (poly.size < 2) poly.first() else poly[1])
+    }
+
+    /** Unit tangent of the last polyline segment (into the target); see [sourceTangent]. */
+    public fun targetTangent(route: EdgeRoute): Pair<Float, Float> {
+        val poly = tangentPolylineOf(route)
+        return if (poly.size <
+            2
+        ) {
+            tangentOfSegment(a = poly.first(), b = poly.first())
+        } else {
+            tangentOfSegment(a = poly[poly.size - 2], b = poly.last())
+        }
+    }
+
+    private fun tangentOfSegment(
+        a: Point,
+        b: Point,
+    ): Pair<Float, Float> {
+        val dx = b.x - a.x
+        val dy = b.y - a.y
+        val len = sqrt(dx * dx + dy * dy)
+        return if (len < 0.01f) 1f to 0f else (dx / len) to (dy / len)
+    }
+
+    private fun tangentPolylineOf(route: EdgeRoute): List<Point> =
+        if (route is EdgeRoute.Bezier) bezierSamples(route) else polylineOf(route)
+
+    private fun bezierSamples(route: EdgeRoute.Bezier): List<Point> {
+        val src = route.source
+        val tgt = route.target
+        val cp = route.controlPoints
+        return when (cp.size) {
+            0 -> listOf(src, tgt)
+            1 ->
+                (0..16).map { i ->
+                    val t = i / 16f
+                    val one = 1f - t
+                    Point(
+                        x = one * one * src.x + 2f * one * t * cp[0].x + t * t * tgt.x,
+                        y = one * one * src.y + 2f * one * t * cp[0].y + t * t * tgt.y,
+                    )
+                }
+            else ->
+                (0..16).map { i ->
+                    val t = i / 16f
+                    val one = 1f - t
+                    Point(
+                        x = one * one * one * src.x + 3f * one * one * t * cp[0].x + 3f * one * t * t * cp[1].x + t * t * t * tgt.x,
+                        y = one * one * one * src.y + 3f * one * one * t * cp[0].y + 3f * one * t * t * cp[1].y + t * t * t * tgt.y,
+                    )
+                }
+        }
     }
 
     private fun role(

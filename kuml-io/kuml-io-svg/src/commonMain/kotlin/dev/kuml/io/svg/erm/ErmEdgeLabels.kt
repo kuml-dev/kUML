@@ -5,6 +5,7 @@ import dev.kuml.io.svg.SvgBuilder
 import dev.kuml.io.svg.renderEdgeLabelWithHalo
 import dev.kuml.layout.EdgeRoute
 import dev.kuml.layout.Point
+import dev.kuml.layout.bridge.label.ErmLabelKeys
 import dev.kuml.layout.bridge.label.PlacedLabel
 import kotlin.math.abs
 import kotlin.math.sqrt

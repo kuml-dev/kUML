@@ -4,6 +4,9 @@ import dev.kuml.layout.EdgeRoute
 import dev.kuml.layout.Point
 import dev.kuml.layout.Rect
 import dev.kuml.layout.Size
+import dev.kuml.layout.bridge.label.ErmEdgeLabelPlan
+import dev.kuml.layout.bridge.label.ErmEdgeLabelSpec
+import dev.kuml.layout.bridge.label.ErmLabelKeys
 import dev.kuml.layout.bridge.label.LabelPlacer
 import io.kotest.core.spec.style.StringSpec
 import io.kotest.matchers.shouldBe

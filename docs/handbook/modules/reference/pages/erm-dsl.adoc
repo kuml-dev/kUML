@@ -253,7 +253,7 @@ and `NEAR` never warn. In Chen notation the note is placed relative to the entit
 xref:uml-dsl.adoc#note-placement-hint[Note placement hint].
 A hinted note also avoids the (estimated) name label at the centre of a relationship edge in Martin, Bachman and IDEF1X notation;
 it also avoids the role labels and the cardinality glyphs at the relationship ends (Martin, Bachman, IDEF1X). Chen notation,
-the IDEF1X cardinality letters and the LaTeX output do not avoid end labels yet, and a note without a hint still ignores labels.
+the IDEF1X cardinality letters and hinted notes in the LaTeX output do not avoid end labels yet, and a note without a hint still ignores labels.
 
 NOTE: LaTeX output exists for the Martin, Bachman and IDEF1X notations (see <<erm-latex-export,LaTeX export>>); there, placement hints are evaluated as in SVG and PNG. In Chen notation placement hints apply to SVG and PNG only.
 
@@ -286,9 +286,10 @@ stops with `ERM notation CHEN is not supported in LaTeX yet (supported: MARTIN, 
 export reports the script as `SKIP`. The check uses the effective notation, so `--notation martin`, `--notation bachman`
 or `--notation idef1x` makes a Chen diagram exportable and `--notation chen` makes any other diagram fail.
 
-Limits: relationship names and role labels sit at fixed positions (the middle of the route, a fixed distance from the
-end) without the collision planning of the SVG output (this includes the IDEF1X cardinality letters); self-referencing relationships use the same right-hand loop as the SVG output, with the role labels above and below the loop ends and the name to its right; fonts
-differ from the SVG, so text width is not identical. Compiled and checked with pdflatex on macOS only.
+Limits: relationship names and role labels use the same collision planning as the SVG output (the SVG text metrics serve as
+conservative boxes, so a label may sit slightly further from the line than needed); the IDEF1X letter stays beside the dot and the other
+labels avoid it; self-referencing relationships keep their own label layout (role labels above and below the loop ends, the name to
+its right, as in the SVG output) and the other labels avoid it; fonts differ from the SVG, so text width is not identical. Compiled and checked with pdflatex on macOS only.
 
 == Full example
 

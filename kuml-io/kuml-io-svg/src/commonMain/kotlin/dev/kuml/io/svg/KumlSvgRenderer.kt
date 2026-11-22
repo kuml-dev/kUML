@@ -5163,7 +5163,7 @@ public object KumlSvgRenderer {
     ): Map<String, Map<String, dev.kuml.layout.bridge.label.PlacedLabel>> {
         val nodeLookup: (String) -> dev.kuml.layout.NodeLayout? = { id -> layoutResult.nodes[NodeId(id)] }
         val routes = LinkedHashMap<String, EdgeRoute>()
-        val labels = LinkedHashMap<String, dev.kuml.io.svg.erm.ErmEdgeLabelSpec>()
+        val labels = LinkedHashMap<String, dev.kuml.layout.bridge.label.ErmEdgeLabelSpec>()
         for ((edgeId, route) in layoutResult.edges) {
             val rel = relationshipsById[edgeId.value]
             val routed =
@@ -5181,7 +5181,7 @@ public object KumlSvgRenderer {
             routes[edgeId.value] = shiftRoute(route = routed, dx = padding)
             if (rel != null) {
                 labels[edgeId.value] =
-                    dev.kuml.io.svg.erm
+                    dev.kuml.layout.bridge.label
                         .ErmEdgeLabelSpec(name = rel.name, sourceRole = rel.sourceRole, targetRole = rel.targetRole)
             }
         }
@@ -5190,7 +5190,7 @@ public object KumlSvgRenderer {
                 id.value to
                     nl.bounds.copy(origin = nl.bounds.origin.copy(x = nl.bounds.origin.x + padding, y = nl.bounds.origin.y + padding))
             }
-        return dev.kuml.io.svg.erm.ErmEdgeLabelPlan
+        return dev.kuml.layout.bridge.label.ErmEdgeLabelPlan
             .compute(routes = routes, nodes = nodes, labels = labels)
     }
 
@@ -5213,7 +5213,7 @@ public object KumlSvgRenderer {
     /**
      * The rectangles of the labels at the relationship ends in layout coordinates (no canvas padding), by relationship id
      * (Nacharbeit 124): the planned role labels, and the box of the cardinality glyph at each end. The glyph box is taken
-     * straight from [dev.kuml.io.svg.erm.ErmEdgeLabelPlan.glyphRect] because the plan does not return glyphs (and returns
+     * straight from [dev.kuml.layout.bridge.label.ErmEdgeLabelPlan.glyphRect] because the plan does not return glyphs (and returns
      * nothing at all for a relationship without name or role). Note links have no relationship and yield nothing.
      */
     internal fun ermEndLabelRects(
@@ -5241,17 +5241,17 @@ public object KumlSvgRenderer {
                     .targetSegmentTangent(routed)
             val list = out.getOrPut(edgeId.value) { ArrayList() }
             list +=
-                dev.kuml.io.svg.erm.ErmEdgeLabelPlan
+                dev.kuml.layout.bridge.label.ErmEdgeLabelPlan
                     .glyphRect(anchor = routed.source, dir = srcDir)
             list +=
-                dev.kuml.io.svg.erm.ErmEdgeLabelPlan
+                dev.kuml.layout.bridge.label.ErmEdgeLabelPlan
                     .glyphRect(anchor = routed.target, dir = -tgtInto.first to -tgtInto.second)
         }
         val plan =
             ermLabelPlan(layoutResult = layoutResult, relationshipsById = relationshipsById, padding = 0f, selfLoopPlan = selfLoopPlan)
         for ((edgeId, byKey) in plan) {
             val list = out.getOrPut(edgeId) { ArrayList() }
-            byKey.filterKeys { it != dev.kuml.io.svg.erm.ErmLabelKeys.CENTER }.values.forEach { list += it.rect }
+            byKey.filterKeys { it != dev.kuml.layout.bridge.label.ErmLabelKeys.CENTER }.values.forEach { list += it.rect }
         }
         return out
     }
