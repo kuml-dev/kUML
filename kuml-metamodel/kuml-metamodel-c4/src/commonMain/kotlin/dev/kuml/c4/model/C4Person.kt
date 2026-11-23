@@ -11,6 +11,7 @@ import kotlinx.serialization.Serializable
  * @property description Optional description
  * @property external True if this person is external to the system
  * @property location Optional location information
+ * @property typeLabel Optional override of the bracketed type tag (e.g. `Dokument` renders `[Dokument]`); null keeps the derived tag
  * @property metadata Arbitrary additional metadata
  */
 @Serializable
@@ -20,5 +21,6 @@ data class C4Person(
     override val description: String? = null,
     val external: Boolean = false,
     val location: String? = null,
+    val typeLabel: String? = null,
     override val metadata: Map<String, KumlMetaValue> = emptyMap(),
 ) : C4Element

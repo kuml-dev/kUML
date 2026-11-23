@@ -8,8 +8,25 @@ package dev.kuml.c4.model
  * - [C4Container] -> `[Container: <technology>]`, [C4Component] -> `[Component: <technology>]`; without technology the
  *   colon is left out
  * - an external person or system gets the prefix `External `, e.g. `[External Software System]`
+ * - a non-blank `typeLabel` on a [C4Person] or [C4SoftwareSystem] replaces the derived tag completely
+ *   (`typeLabel = "Dokument"` -> `[Dokument]`), trimmed and capped at [C4_TYPE_LABEL_MAX_LENGTH] characters
  */
-fun c4TypeTag(element: C4Element): String =
+fun c4TypeTag(element: C4Element): String {
+    customTypeLabel(element)?.let { return "[$it]" }
+    return derivedTypeTag(element)
+}
+
+/** Maximum length of a custom `typeLabel`; longer labels are cut (DoS/layout guard). */
+const val C4_TYPE_LABEL_MAX_LENGTH: Int = 80
+
+private fun customTypeLabel(element: C4Element): String? =
+    when (element) {
+        is C4Person -> element.typeLabel
+        is C4SoftwareSystem -> element.typeLabel
+        else -> null
+    }?.trim()?.takeIf { it.isNotEmpty() }?.take(C4_TYPE_LABEL_MAX_LENGTH)
+
+private fun derivedTypeTag(element: C4Element): String =
     when (element) {
         is C4Person -> "[${externalPrefix(element.external)}Person]"
         is C4SoftwareSystem -> "[${externalPrefix(element.external)}Software System]"
@@ -18,6 +35,9 @@ fun c4TypeTag(element: C4Element): String =
         is C4DeploymentNode -> bracket(kind = "Deployment Node", technology = element.technology)
         else -> "[${element.name}]"
     }
+
+/** `true` when [element] carries a non-blank custom `typeLabel` (see [c4TypeTag]). */
+fun c4HasCustomTypeLabel(element: C4Element): Boolean = customTypeLabel(element) != null
 
 /** `true` when [element] is an external person or system. */
 fun c4IsExternal(element: C4Element): Boolean =

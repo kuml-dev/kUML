@@ -11,6 +11,7 @@ import kotlinx.serialization.Serializable
  * @property description Optional description
  * @property external True if this system is external to the context
  * @property location Optional location information
+ * @property typeLabel Optional override of the bracketed type tag (e.g. `Dokument` renders `[Dokument]`); null keeps the derived tag
  * @property containers List of container element IDs that belong to this system
  * @property metadata Arbitrary additional metadata
  */
@@ -21,6 +22,7 @@ data class C4SoftwareSystem(
     override val description: String? = null,
     val external: Boolean = false,
     val location: String? = null,
+    val typeLabel: String? = null,
     val containers: List<ElementId> = emptyList(),
     override val metadata: Map<String, KumlMetaValue> = emptyMap(),
 ) : C4Element

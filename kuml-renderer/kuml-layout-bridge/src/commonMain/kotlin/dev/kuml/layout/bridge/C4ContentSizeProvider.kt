@@ -8,6 +8,7 @@ import dev.kuml.c4.model.C4Model
 import dev.kuml.c4.model.C4Person
 import dev.kuml.c4.model.C4Relationship
 import dev.kuml.c4.model.C4SoftwareSystem
+import dev.kuml.c4.model.c4HasCustomTypeLabel
 import dev.kuml.c4.model.c4TypeTag
 import dev.kuml.layout.LayoutDirection
 import dev.kuml.layout.Size
@@ -189,8 +190,9 @@ public class C4ContentSizeProvider
          * `kuml-io-svg`.
          */
         private fun personSize(p: C4Person): Size {
-            val tagW = if (p.external) estimateWidth(text = c4TypeTag(p), charPx = STEREO_CHAR_PX) else 0f
-            val tagH = if (p.external) PERSON_EXTERNAL_TAG_H else 0f
+            val showTag = p.external || c4HasCustomTypeLabel(p)
+            val tagW = if (showTag) estimateWidth(text = c4TypeTag(p), charPx = STEREO_CHAR_PX) else 0f
+            val tagH = if (showTag) PERSON_EXTERNAL_TAG_H else 0f
             val nameW = maxOf(estimateWidth(text = p.name, charPx = TITLE_CHAR_PX), tagW)
             val descSingleW = p.description?.let { estimateWidth(text = it, charPx = DESC_CHAR_PX) } ?: 0f
             val descCappedW = descSingleW.coerceAtMost(DESC_WRAP_MAX_W - 2 * H_PAD)

@@ -1,6 +1,7 @@
 package dev.kuml.io.svg.c4
 
 import dev.kuml.c4.model.C4Person
+import dev.kuml.c4.model.c4HasCustomTypeLabel
 import dev.kuml.c4.model.c4TypeTag
 import dev.kuml.io.svg.SvgBuilder
 import dev.kuml.io.svg.fmt2
@@ -26,7 +27,9 @@ internal fun renderC4Person(
     val y = layout.bounds.origin.y
     val w = layout.bounds.size.width
     val ext = element.external
-    val tagShift = if (ext) C4_EXTERNAL_TAG_H else 0f
+    // The tag line is drawn for external persons and whenever a custom typeLabel is set.
+    val showTag = ext || c4HasCustomTypeLabel(element)
+    val tagShift = if (showTag) C4_EXTERNAL_TAG_H else 0f
 
     builder.tag(
         name = "g",
@@ -71,12 +74,12 @@ internal fun renderC4Person(
                     "class" to if (ext) "kuml-person-external" else "kuml-class",
                 ),
         )
-        if (ext) {
+        if (showTag) {
             tag(
                 name = "text",
                 attrs =
                     mapOf(
-                        "class" to "kuml-on-external-tag",
+                        "class" to if (ext) "kuml-on-external-tag" else "kuml-stereotype",
                         "x" to fmt(cx),
                         "y" to fmt(boxY + 14f),
                         "text-anchor" to "middle",

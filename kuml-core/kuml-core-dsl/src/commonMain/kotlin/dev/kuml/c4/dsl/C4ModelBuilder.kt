@@ -97,6 +97,7 @@ class C4ModelBuilder(
                 description = scope.description,
                 external = scope.external,
                 location = scope.location,
+                typeLabel = scope.typeLabel,
                 metadata = scope.layoutHintsBuilder.toMetadata(),
             )
         addElement(person)
@@ -126,6 +127,7 @@ class C4ModelBuilder(
                 description = scope.description,
                 external = scope.external,
                 location = scope.location,
+                typeLabel = scope.typeLabel,
                 containers = containerIds,
                 metadata = scope.layoutHintsBuilder.toMetadata(),
             )
@@ -405,6 +407,7 @@ class C4ModelBuilder(
 private class PersonScopeImpl : PersonScope {
     override var description: String? = null
     override var external: Boolean = false
+    override var typeLabel: String? = null
     override var location: String? = null
     override val layoutHintsBuilder: LayoutHintsBuilder = LayoutHintsBuilder()
 }
@@ -418,6 +421,7 @@ class SoftwareSystemScopeImpl(
 ) : SoftwareSystemScope {
     override var description: String? = null
     override var external: Boolean = false
+    override var typeLabel: String? = null
     override var location: String? = null
     override val layoutHintsBuilder: LayoutHintsBuilder = LayoutHintsBuilder()
 

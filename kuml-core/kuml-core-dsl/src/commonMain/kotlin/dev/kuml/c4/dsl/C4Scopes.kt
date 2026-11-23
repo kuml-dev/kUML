@@ -46,6 +46,9 @@ interface PersonScope : LayoutHintsScope {
     var description: String?
     var external: Boolean
     var location: String?
+
+    /** Overrides the bracketed type tag, e.g. `typeLabel = "Dokument"` renders `[Dokument]`; null keeps `[Person]`/`[Software System]`. */
+    var typeLabel: String?
 }
 
 /**
@@ -65,6 +68,9 @@ interface SoftwareSystemScope :
     var description: String?
     var external: Boolean
     var location: String?
+
+    /** Overrides the bracketed type tag, e.g. `typeLabel = "Dokument"` renders `[Dokument]`; null keeps `[Person]`/`[Software System]`. */
+    var typeLabel: String?
     val systemId: String
 
     fun container(

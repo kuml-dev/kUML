@@ -765,6 +765,10 @@ public object KumlSvgRenderer {
         theme: KumlTheme = PlainTheme(),
         options: SvgRenderOptions = SvgRenderOptions.DEFAULT,
     ): String {
+        // PAL wave E2 (16b): a C4 canvas keeps at least 24 px between the content (notes included) and the viewBox edge.
+        @Suppress("NAME_SHADOWING")
+        val options =
+            if (options.paddingPx < C4_CANVAS_PADDING_PX) options.copy(paddingPx = C4_CANVAS_PADDING_PX) else options
         val c4TypeLabel =
             when (diagram) {
                 is SystemContextDiagram -> "system context"
@@ -1267,6 +1271,9 @@ public object KumlSvgRenderer {
             }
         }
     }
+
+    /** Minimum canvas padding of C4 diagrams (PAL wave E2, 16b). */
+    private const val C4_CANVAS_PADDING_PX: Float = 24f
 
     /**
      * Clearance kept between a state-machine transition label's estimated
@@ -6860,22 +6867,71 @@ public object KumlSvgRenderer {
 
         var layout = layoutResult
         var plan = planFor(layout)
-        if (plan.placed.isEmpty()) return layout to plan
-        val rects = plan.placed.values.map { it.rect }
-        val dx = maxOf(0f, -rects.minOf { it.origin.x })
-        val dy = maxOf(0f, -rects.minOf { it.origin.y })
-        if (dx > 0f || dy > 0f) {
-            layout = c4ShiftLayout(layoutResult = layout, dx = dx, dy = dy)
+        if (plan.placed.isNotEmpty()) {
+            val rects = plan.placed.values.map { it.rect }
+            val dx = maxOf(0f, -rects.minOf { it.origin.x })
+            val dy = maxOf(0f, -rects.minOf { it.origin.y })
+            if (dx > 0f || dy > 0f) {
+                layout = c4ShiftLayout(layoutResult = layout, dx = dx, dy = dy)
+                plan = planFor(layout)
+            }
+            val maxRight = plan.placed.values.maxOf { it.rect.origin.x + it.rect.size.width }
+            val maxBottom = plan.placed.values.maxOf { it.rect.origin.y + it.rect.size.height }
+            val growW = maxOf(0f, maxRight - layout.canvas.width)
+            val growH = maxOf(0f, maxBottom - layout.canvas.height)
+            if (growW > 0f || growH > 0f) {
+                layout =
+                    layout.copy(canvas = layout.canvas.copy(width = layout.canvas.width + growW, height = layout.canvas.height + growH))
+            }
+        }
+        // PAL wave E2 (16b): the canvas is the tight content box (nodes, notes, groups, edges, planned labels); the
+        // renderer padding then is the one and only outer margin on every side.
+        val box = c4ContentBox(layout = layout, plan = plan)
+        if (box != null && (box[0] != 0f || box[1] != 0f || box[2] != layout.canvas.width || box[3] != layout.canvas.height)) {
+            layout = c4ShiftLayout(layoutResult = layout, dx = -box[0], dy = -box[1])
+            layout = layout.copy(canvas = Size(width = box[2] - box[0], height = box[3] - box[1]))
             plan = planFor(layout)
         }
-        val maxRight = plan.placed.values.maxOf { it.rect.origin.x + it.rect.size.width }
-        val maxBottom = plan.placed.values.maxOf { it.rect.origin.y + it.rect.size.height }
-        val growW = maxOf(0f, maxRight - layout.canvas.width)
-        val growH = maxOf(0f, maxBottom - layout.canvas.height)
-        if (growW > 0f || growH > 0f) {
-            layout = layout.copy(canvas = layout.canvas.copy(width = layout.canvas.width + growW, height = layout.canvas.height + growH))
-        }
         return layout to plan
+    }
+
+    /** `[minX, minY, maxX, maxY]` of everything a C4 canvas has to hold, or null for an empty layout. */
+    private fun c4ContentBox(
+        layout: LayoutResult,
+        plan: dev.kuml.io.svg.c4.C4LabelPlan,
+    ): FloatArray? {
+        var x0 = Float.MAX_VALUE
+        var y0 = Float.MAX_VALUE
+        var x1 = -Float.MAX_VALUE
+        var y1 = -Float.MAX_VALUE
+
+        fun add(
+            x: Float,
+            y: Float,
+        ) {
+            x0 = minOf(x0, x)
+            y0 = minOf(y0, y)
+            x1 = maxOf(x1, x)
+            y1 = maxOf(y1, y)
+        }
+
+        fun addRect(r: dev.kuml.layout.Rect) {
+            add(x = r.origin.x, y = r.origin.y)
+            add(x = r.origin.x + r.size.width, y = r.origin.y + r.size.height)
+        }
+        layout.nodes.values.forEach { addRect(it.bounds) }
+        layout.groups.values.forEach { addRect(it.bounds) }
+        plan.placed.values.forEach { addRect(it.rect) }
+        for (route in layout.edges.values) {
+            add(x = route.source.x, y = route.source.y)
+            add(x = route.target.x, y = route.target.y)
+            when (route) {
+                is dev.kuml.layout.EdgeRoute.OrthogonalRounded -> route.waypoints.forEach { add(x = it.x, y = it.y) }
+                is dev.kuml.layout.EdgeRoute.TreeRounded -> route.waypoints.forEach { add(x = it.x, y = it.y) }
+                else -> Unit
+            }
+        }
+        return if (x0 > x1) null else floatArrayOf(x0, y0, x1, y1)
     }
 
     private fun c4ShiftLayout(

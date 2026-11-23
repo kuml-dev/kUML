@@ -324,6 +324,7 @@ public object C4DslPrinter {
         val inner = StringBuilder()
         p.description?.let { inner.appendLine("        description = ${quote(it)}") }
         if (p.external) inner.appendLine("        external = true")
+        p.typeLabel?.let { inner.appendLine("        typeLabel = ${quote(it)}") }
         p.location?.let { inner.appendLine("        location = ${quote(it)}") }
         printLayoutHints(sb = inner, metadata = p.metadata, indent = "        ")
         if (inner.isBlank()) {
@@ -345,6 +346,7 @@ public object C4DslPrinter {
         sb.appendLine("    val $varName = softwareSystem(${quote(s.name)}) {")
         s.description?.let { sb.appendLine("        description = ${quote(it)}") }
         if (s.external) sb.appendLine("        external = true")
+        s.typeLabel?.let { sb.appendLine("        typeLabel = ${quote(it)}") }
         s.location?.let { sb.appendLine("        location = ${quote(it)}") }
         val containers = s.containers.mapNotNull { elementById[it] as? C4Container }
         for (c in containers) printContainer(sb = sb, indent = "        ", c = c, elementById = elementById, ctx = ctx)
