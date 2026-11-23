@@ -154,6 +154,15 @@ object LayoutCodes {
      * cannot route it); the boundary keeps the diagram direction (Nacharbeit 106).
      */
     const val BOUNDARY_DIRECTION_IGNORED = "KUML-LAYOUT-W009"
+
+    /**
+     * Requirement group grid: a `sameLayer` entry names ids that are not top-level groups (elements or nested groups); the grid
+     * only places whole top-level groups in a row, so the entry is ignored (PAL Welle C2).
+     */
+    const val SAME_LAYER_ACROSS_GROUPS_IGNORED = "KUML-LAYOUT-W010"
+
+    /** Requirement group grid: a `first()` / `last()` pin names a nested group; only top-level groups can be pinned (PAL Welle C2). */
+    const val FIRST_LAST_NESTED_GROUP_IGNORED = "KUML-LAYOUT-W011"
     const val OUT_OF_RANGE = "KUML-LAYOUT-E001"
 
     /** Informational: a `sameLayer` of groups widens its row beyond the column count (wave 2E-a). Not an error. */

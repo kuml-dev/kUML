@@ -34,7 +34,10 @@ import kotlin.math.max
  *  1. every group packs its cards (in declaration order) followed by its child groups row by row into a grid of its own -
  *     `wrapColumns` works on every level and the `include` order is the reading order;
  *  2. the top-level groups (and one implicit cell for ungrouped cards) become the cells of a grid - column count from
- *     `wrapColumns`, otherwise chosen so that the canvas gets close to the aspect target, `sameLayer` groups share a row;
+ *     `wrapColumns`, otherwise chosen so that the canvas gets close to the aspect target (`aspectRatio`, `maxWidth` or a
+ *     `sameLayer` of groups count as such a diagram setting); without any diagram setting (only group-local `wrapColumns`)
+ *     the top-level groups stand in one column in declaration order; `sameLayer` groups share a row, `first` / `last`
+ *     pin top-level groups to the first / last cells;
  *  3. ungrouped blocks stand on a **rail** next to the grid, each at the mean position of the requirements it satisfies;
  *  4. all edges are routed around the final cards (orthogonal, obstacle aware, inside the content box).
  *
@@ -62,7 +65,9 @@ internal object ReqGroupGrid {
         return spec.wrapColumns != null ||
             spec.aspectRatio != null ||
             spec.maxWidth != null ||
-            spec.sameLayer.any { g -> g.any { it in groupIds } }
+            spec.sameLayer.any { g -> g.any { it in groupIds } } ||
+            // PAL Welle C2: first() / last() of groups only act in the grid.
+            (spec.first + spec.last).any { it in groupIds }
     }
 
     /** Result of [pack]. */
@@ -203,12 +208,52 @@ internal object ReqGroupGrid {
         val ctx = Ctx(graph = graph, spec = spec, flipRows = flipRows, flipCols = flipCols)
 
         val topGroups = graph.groups.filter { it.parent == null || graph.groups.none { p -> p.id == it.parent } }
-        val cells = ArrayList<Cell>()
-        for (g in topGroups) cells += Cell(group = g, packed = ctx.packGroup(g))
+        val declared = ArrayList<Cell>()
+        for (g in topGroups) declared += Cell(group = g, packed = ctx.packGroup(g))
         val looseCards = graph.nodes.filter { it.groupId == null && !it.hints.rail }
         if (looseCards.isNotEmpty()) {
             val loose = ctx.packFlat(cards = looseCards, children = emptyList())
-            if (loose.size.width > 0f) cells += Cell(group = null, packed = loose)
+            if (loose.size.width > 0f) declared += Cell(group = null, packed = loose)
+        }
+
+        // PAL Welle C2: first() / last() pin top-level groups to the first / last grid cells (declaration order inside each part).
+        val topIds = topGroups.map { it.id.value }.toSet()
+        val allGroupIds = graph.groups.map { it.id.value }.toSet()
+        val nestedPins = (spec.first + spec.last).filter { it in allGroupIds && it !in topIds }
+        if (nestedPins.isNotEmpty()) {
+            findings +=
+                LayoutSpecFinding(
+                    code = LayoutCodes.FIRST_LAST_NESTED_GROUP_IGNORED,
+                    message =
+                        "layout.first / layout.last: ${nestedPins.joinToString()} is a nested group; only top-level groups can be " +
+                            "pinned to the first or last grid cell, the pin was ignored.",
+                )
+        }
+        val firstSet = spec.first.filter { it in topIds }.toSet()
+        val lastSet = spec.last.filter { it in topIds && it !in firstSet }.toSet()
+
+        fun part(cell: Cell): Int =
+            when (cell.group?.id?.value) {
+                in firstSet -> 0
+                in lastSet -> 2
+                else -> 1
+            }
+        val cells = declared.sortedBy { part(it) }
+
+        val ignoredLayerIds =
+            spec.sameLayer
+                .take(LayoutLimits.GROUPS)
+                .flatten()
+                .filter { it !in topIds }
+                .distinct()
+        if (ignoredLayerIds.isNotEmpty()) {
+            findings +=
+                LayoutSpecFinding(
+                    code = LayoutCodes.SAME_LAYER_ACROSS_GROUPS_IGNORED,
+                    message =
+                        "layout.sameLayer: ${ignoredLayerIds.joinToString()} is not a top-level group; with a group grid sameLayer " +
+                            "only places whole top-level groups in one row (use sameLayer(group, group)), the entry was ignored.",
+                )
         }
 
         val sizes = cells.map { it.packed.size }
@@ -231,7 +276,10 @@ internal object ReqGroupGrid {
             } else {
                 Size(width = railNodes.maxOf { it.intrinsicSize.width } + LayoutLimits.RAIL_GAP_PX, height = 0f)
             }
-        val cols = chooseColumns(cells = sizes, spec = spec, extra = railExtra)
+        // PAL Welle C2: without a diagram-level setting the top-level groups stand in one column in declaration order; a group-local
+        // wrapColumns must not change the top-level placement through the cell sizes.
+        val diagramSetting = spec.wrapColumns != null || spec.aspectRatio != null || spec.maxWidth != null || rows.isNotEmpty()
+        val cols = if (diagramSetting) chooseColumns(cells = sizes, spec = spec, extra = railExtra) else 1
         val packing =
             pack(cells = sizes, cols = cols, sameLayerRows = rows, flipRows = flipRows, flipCols = flipCols)
         if (packing.widened) {

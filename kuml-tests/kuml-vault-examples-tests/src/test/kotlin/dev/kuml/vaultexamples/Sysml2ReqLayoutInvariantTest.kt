@@ -37,7 +37,7 @@ class Sysml2ReqLayoutInvariantTest :
             return r.svg!!
         }
 
-        val fixtures = listOf("req-grid", "req-grid-subject", "req-grid-right", "req-grid-aspect")
+        val fixtures = listOf("req-grid", "req-grid-subject", "req-grid-right", "req-grid-aspect", "req-nested-wrap")
         val svgs = HashMap<String, String>()
 
         fun resourceScript(path: String): String =
@@ -103,17 +103,90 @@ class Sysml2ReqLayoutInvariantTest :
             (w / h).shouldBeBetween(0.6, 2.4, 0.0)
         }
 
-        test("right: the grid is transposed (A C / B D), the frames stand below each other") {
+        test("right: row-major like down (A B / C D), the frames stand in two rows") {
             val svg = svgOf("req-grid-right")
             val f = frames(svg)
             val t = top.map { f.getValue(it) }
             clusters(t.map { it.x }).size shouldBe 2
             clusters(t.map { it.y }).size shouldBe 2
-            (abs(t[0].x - t[1].x) < 8.0) shouldBe true
-            (abs(t[2].x - t[3].x) < 8.0) shouldBe true
-            (abs(t[0].y - t[2].y) < 8.0) shouldBe true
-            (t[0].y < t[1].y) shouldBe true
-            (t[0].x < t[2].x) shouldBe true
+            (abs(t[0].x - t[2].x) < 8.0) shouldBe true
+            (abs(t[1].x - t[3].x) < 8.0) shouldBe true
+            (abs(t[0].y - t[1].y) < 8.0) shouldBe true
+            (abs(t[2].y - t[3].y) < 8.0) shouldBe true
+            (t[0].x < t[1].x) shouldBe true
+            (t[0].y < t[2].y) shouldBe true
+        }
+
+        test("nested wrapColumns 2 / 3 / 5 do not change the column of the top-level groups (one column, declaration order)") {
+            val base = fixture("req-nested-wrap")
+            val tops = listOf("group:Overview", "group:Mechanics", "group:Service")
+            val placements =
+                listOf(2, 3, 5).map { cols ->
+                    val svg = render(base.replace("wrapColumns = 3", "wrapColumns = $cols"))
+                    frames(svg).let { f -> tops.map { f.getValue(it) } }
+                }
+            for (p in placements) {
+                (abs(p[0].x - p[1].x) < 8.0 && abs(p[1].x - p[2].x) < 8.0) shouldBe true
+                (p[0].bottom < p[1].y && p[1].bottom < p[2].y) shouldBe true
+            }
+            placements.map { p -> p.map { it.x } }.distinct().size shouldBe 1
+        }
+
+        test("no edge segment runs along a group frame") {
+            // Known open (PAL Welle C2): segments that are boxed in - they lie in a gutter between two frames (or between a rail
+            // block and a frame) that is too narrow for 12 px to both, or in a corridor already filled with other edges at the
+            // 10 px pitch. No nudge can move them; the router would need frame gates (open item). Every other segment of the
+            // fixtures is checked, and the label test below holds for all of them.
+            val knownOpen =
+                mapOf(
+                    "req-grid" to setOf("satisfy:Platform::Audit"),
+                    "req-grid-aspect" to setOf("satisfy:Platform::Audit"),
+                    "req-grid-subject" to setOf("satisfy:Platform::LocalDeadline"),
+                    "req-grid-right" to
+                        setOf(
+                            "satisfy:Platform::Boot",
+                            "satisfy:Platform::Update",
+                            "satisfy:Platform::Rollback",
+                            "satisfy:Platform::Logging",
+                            "satisfy:Platform::Backup",
+                            "satisfy:SensorUnit::Watchdog",
+                            "satisfy:SensorUnit::SampleRate",
+                        ),
+                    "req-nested-wrap" to setOf("satisfy:Plant::EndOne", "contains:Top::LowTwo"),
+                )
+            val all = ArrayList<String>()
+            for (name in fixtures) {
+                val svg = svgOf(name)
+                val fs = frames(svg).values
+                val bad = ArrayList<String>()
+                for ((id, pts) in SvgGeometry.edgePolylines(svg)) {
+                    if (id in knownOpen[name].orEmpty()) continue
+                    for (i in 0 until pts.size - 1) {
+                        val (x0, y0) = pts[i]
+                        val (x1, y1) = pts[i + 1]
+                        for (f in fs) {
+                            if (abs(y0 - y1) < 0.6 && abs(x0 - x1) > 1.0) {
+                                val overlap = min(max(x0, x1), f.right) - max(min(x0, x1), f.x)
+                                if (overlap > 20.0 &&
+                                    (abs(y0 - f.y) < 12.0 || abs(y0 - f.bottom) < 12.0)
+                                ) {
+                                    bad += "$name: $id horizontal at $y0"
+                                }
+                            }
+                            if (abs(x0 - x1) < 0.6 && abs(y0 - y1) > 1.0) {
+                                val overlap = min(max(y0, y1), f.bottom) - max(min(y0, y1), f.y)
+                                if (overlap > 20.0 &&
+                                    (abs(x0 - f.x) < 12.0 || abs(x0 - f.right) < 12.0)
+                                ) {
+                                    bad += "$name: $id vertical at $x0"
+                                }
+                            }
+                        }
+                    }
+                }
+                all += bad
+            }
+            all.joinToString(" | ") shouldBe ""
         }
 
         test("aspectRatio only: the column count is chosen automatically and the canvas ratio is close to the target") {
@@ -205,6 +278,7 @@ class Sysml2ReqLayoutInvariantTest :
                                 it.baseName.startsWith("52") ||
                                 it.baseName.startsWith("60")
                         }.associate { it.baseName to it.kumlScript }
+            val all = ArrayList<String>()
             for ((name, script) in scripts) {
                 val svg = svgs.getOrPut(name) { render(script) }
                 SampleOutput.write("sysml2-e2a/inv-$name.svg".replace(" ", "_").replace("–", "-"), svg)
@@ -237,8 +311,9 @@ class Sysml2ReqLayoutInvariantTest :
                         if (min(a.hi, b.hi) - max(a.lo, b.lo) > 100.0) bad += "$name: ${a.edge} / ${b.edge} at ${a.c}/${b.c}"
                     }
                 }
-                bad.shouldBeEmpty()
+                all += bad
             }
+            all.joinToString(" | ") shouldBe ""
         }
 
         test("no edge label touches a card or a group frame outline") {

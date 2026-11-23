@@ -153,6 +153,11 @@ class Sysml2LayoutBuilder internal constructor() : LayoutSpecBuilder() {
         addFirst(elements.map { it.id })
     }
 
+    /** Requirement diagrams: pins the given top-level groups to the first grid cells. */
+    fun first(vararg groups: dev.kuml.sysml2.RequirementGroup) {
+        addFirst(groups.map { it.id })
+    }
+
     fun firstById(vararg ids: String) {
         addFirst(ids.toList())
     }
@@ -160,6 +165,11 @@ class Sysml2LayoutBuilder internal constructor() : LayoutSpecBuilder() {
     /** Pins the given elements to the last layer. */
     fun last(vararg elements: Sysml2Element) {
         addLast(elements.map { it.id })
+    }
+
+    /** Requirement diagrams: pins the given top-level groups to the last grid cells. */
+    fun last(vararg groups: dev.kuml.sysml2.RequirementGroup) {
+        addLast(groups.map { it.id })
     }
 
     fun lastById(vararg ids: String) {

@@ -137,4 +137,75 @@ class ReqEdgeBandsTest :
             (ys.first() >= 8f && ys.last() <= 192f) shouldBe true
             out.values.forEach { isOrthogonal(it) shouldBe true }
         }
+
+        test("frame clearance: a segment 3 px beside a group frame edge moves to at least 16 px; a perpendicular crossing stays") {
+            val frame = Rect(origin = Point(x = 150f, y = 200f), size = Size(width = 300f, height = 200f))
+            val l = Rect(origin = Point(x = 0f, y = 100f), size = Size(width = 60f, height = 40f))
+            val r = Rect(origin = Point(x = 600f, y = 100f), size = Size(width = 60f, height = 40f))
+            val e = listOf(Triple("a", "L", "R"))
+            val b = mapOf("L" to l, "R" to r)
+            // down from L, along y = 203 (3 px inside the frame top edge y = 200), up into R; the first leg crosses nothing.
+            val routes =
+                mapOf(
+                    "a" to route(Point(x = 30f, y = 140f), Point(x = 30f, y = 203f), Point(x = 630f, y = 203f), Point(x = 630f, y = 140f)),
+                )
+
+            fun run() =
+                ReqEdgeBands.nudge(routes = routes, ends = e, boxes = b, canvas = canvas.copy(height = 700f), frames = listOf(frame))
+            val out = run()
+            val ys =
+                out
+                    .getValue("a")
+                    .polylinePoints()
+                    .filter { it.y > 150f }
+                    .map { it.y }
+                    .distinct()
+            ys.size shouldBe 1
+            (abs(ys.single() - 200f) >= ReqEdgeBands.FRAME_CLEAR_PX - 0.01f) shouldBe true
+            isOrthogonal(out.getValue("a")) shouldBe true
+            run().getValue("a").polylinePoints() shouldBe out.getValue("a").polylinePoints()
+        }
+
+        test("frame clearance: a vertical segment that crosses the frame edge perpendicular is not touched") {
+            val frame = Rect(origin = Point(x = 150f, y = 200f), size = Size(width = 300f, height = 200f))
+            val l = Rect(origin = Point(x = 250f, y = 20f), size = Size(width = 60f, height = 40f))
+            val r = Rect(origin = Point(x = 250f, y = 500f), size = Size(width = 60f, height = 40f))
+            val routes = mapOf("a" to route(Point(x = 280f, y = 60f), Point(x = 280f, y = 500f)))
+            val out =
+                ReqEdgeBands.nudge(
+                    routes = routes,
+                    ends = listOf(Triple("a", "L", "R")),
+                    boxes = mapOf("L" to l, "R" to r),
+                    canvas = Size(width = 800f, height = 700f),
+                    frames = listOf(frame),
+                )
+            out.getValue("a").polylinePoints() shouldBe routes.getValue("a").polylinePoints()
+        }
+
+        test("segment cap: above MAX_SEGMENTS neither the nudge nor the frame phase runs") {
+            val n = ReqEdgeBands.MAX_SEGMENTS / 3 + 10
+            val routes = LinkedHashMap<String, EdgeRoute>()
+            val e = ArrayList<Triple<String, String, String>>()
+            for (i in 0 until n) {
+                // 3 segments each, parallel to and 2 px from the frame edge at y = 200 for the first edge
+                routes["e$i"] =
+                    route(
+                        Point(x = 10f, y = 200f + (i % 2)),
+                        Point(x = 20f, y = 200f + (i % 2)),
+                        Point(x = 20f, y = 300f),
+                        Point(x = 30f, y = 300f),
+                    )
+                e += Triple("e$i", "L", "R")
+            }
+            val frame = Rect(origin = Point(x = 5f, y = 200f), size = Size(width = 300f, height = 200f))
+            val out =
+                ReqEdgeBands.nudge(
+                    routes = routes,
+                    ends = e,
+                    boxes = mapOf("L" to left, "R" to right),
+                    canvas = Size(width = 800f, height = 700f),
+                    frames = listOf(frame),
+                )
+            out shouldBe routes
+        }
     })

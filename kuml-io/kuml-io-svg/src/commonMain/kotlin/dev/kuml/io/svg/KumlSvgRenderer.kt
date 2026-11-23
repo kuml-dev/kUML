@@ -7545,6 +7545,11 @@ private fun frameStrips(frame: dev.kuml.layout.Rect): List<dev.kuml.layout.Rect>
     val h = frame.size.height
     val d = 6f
     return listOf(
+        // PAL Welle C2: the top outline itself counts twice (header band + this strip), see Sysml2LabelPlacement.
+        dev.kuml.layout.Rect(
+            origin = dev.kuml.layout.Point(x = x - d, y = y - 3f),
+            size = dev.kuml.layout.Size(width = w + 2 * d, height = 6f),
+        ),
         dev.kuml.layout.Rect(
             origin = dev.kuml.layout.Point(x = x - d, y = y - d),
             size =

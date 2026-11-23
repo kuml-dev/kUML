@@ -21,7 +21,8 @@ internal data class LabelRequest(
  * box, which gets an opaque backdrop). The longest segments are tried first; on a collision the
  * label slides along the segment by `+-(labelW + 8)`, and finally moves to the next segment.
  * A candidate is rejected in favour of a cheaper one if it touches another edge, a node, or an
- * already placed label; hard obstacles (wave 2E-a: group frame strips) cost a lot, but a label is never dropped. Geometry is font independent (callers pass estimated widths).
+ * already placed label; hard obstacles (wave 2E-a: group frame strips) cost a lot per obstacle touched (PAL Welle C2: a label on the
+ * frame outline inside the header band touches two of them and loses against one that only touches the band), but a label is never dropped. Geometry is font independent (callers pass estimated widths).
  */
 internal object Sysml2LabelPlacement {
     private const val GAP = 8f
@@ -65,7 +66,7 @@ internal object Sysml2LabelPlacement {
                     if (++iter > MAX_ITER) break
                     val cost =
                         costSourceEnd(r = c, req = req, segs = segs, obstacles = obstacles, placed = placed.values) +
-                            (if (hardObstacles.any { overlaps(a = c, b = it) }) HARD_COST else 0f)
+                            (HARD_COST * hardObstacles.count { overlaps(a = c, b = it) })
                     if (cost < bestCost) {
                         bestCost = cost
                         best = c
@@ -78,7 +79,7 @@ internal object Sysml2LabelPlacement {
                     val cost =
                         cost(r = c, ownId = req.id, segs = segs, obstacles = obstacles, placed = placed.values) +
                             (if (isAxis(seg)) 0f else 0.5f) +
-                            (if (hardObstacles.any { overlaps(a = c, b = it) }) HARD_COST else 0f)
+                            (HARD_COST * hardObstacles.count { overlaps(a = c, b = it) })
                     if (cost < bestCost) {
                         bestCost = cost
                         best = c

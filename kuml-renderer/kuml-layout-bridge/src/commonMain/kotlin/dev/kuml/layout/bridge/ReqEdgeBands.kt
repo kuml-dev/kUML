@@ -21,7 +21,11 @@ import kotlin.math.min
  *     moved apart to a 10 px pitch around their median (at most three passes). A move that would run into a card, leave
  *     the canvas or fold a neighbouring segment is skipped.
  *
- * Deterministic: edges are processed in id order, ties break on the segment index.
+ *  3. frame clearance (PAL Welle C2): a segment that runs parallel to a group frame edge closer than [FRAME_CLEAR_PX] over
+ *     a common stretch is moved to that distance (preferably on the side it already lies on), so that edges and their
+ *     labels neither hug nor lie on a frame outline. Perpendicular crossings of a frame are left alone.
+ *
+ * Deterministic: edges are processed in id order, frames in group-id order, ties break on the segment index.
  */
 internal object ReqEdgeBands {
     const val MIN_END_GAP_PX = 12f
@@ -29,7 +33,17 @@ internal object ReqEdgeBands {
     const val TRIGGER_PX = 8f
     const val PITCH_PX = 10f
     const val MAX_PASSES = 3
+
+    /** Target distance of a parallel segment to a group frame edge: 6 px label band + 8 px half label height + 2 px. */
+    const val FRAME_CLEAR_PX = 16f
+
+    /**
+     * Distance below which a parallel segment counts as running along a frame edge. A 40 px gutter between two frames then
+     * still leaves room for two edges at the 10 px pitch; with [FRAME_CLEAR_PX] it would hold only one.
+     */
+    const val FRAME_MIN_PX = 12f
     const val MAX_SEGMENTS = 4000
+    private const val FRAME_ROUNDS = 3
     private const val MIN_SEGMENT_PX = 6f
     private const val MIN_OVERLAP_PX = 2f
     private const val SHRINK_PX = 1f
@@ -45,7 +59,18 @@ internal object ReqEdgeBands {
         val boxes = result.nodes.entries.associate { it.key.value to it.value.bounds }
         val routes = result.edges.entries.associateTo(LinkedHashMap()) { it.key.value to it.value }
         val spread = spreadEndpoints(routes = routes, ends = ends, boxes = boxes)
-        val nudged = nudge(routes = spread.mapValues { cleaned(it.value) }, ends = ends, boxes = boxes, canvas = result.canvas)
+        val frames =
+            result.groups.entries
+                .sortedBy { it.key.value }
+                .map { it.value.bounds }
+        val nudged =
+            nudge(
+                routes = spread.mapValues { cleaned(it.value) },
+                ends = ends,
+                boxes = boxes,
+                canvas = result.canvas,
+                frames = frames,
+            )
         val out = LinkedHashMap<EdgeId, EdgeRoute>()
         for (id in result.edges.keys) out[id] = nudged.getValue(id.value)
         return result.copy(edges = out)
@@ -76,6 +101,7 @@ internal object ReqEdgeBands {
         canvas: Size,
         trigger: Float = TRIGGER_PX,
         pitch: Float = PITCH_PX,
+        frames: List<Rect> = emptyList(),
     ): Map<String, EdgeRoute> {
         val endsOf = ends.associate { it.first to (it.second to it.third) }
         val ids = routes.keys.sorted()
@@ -87,10 +113,12 @@ internal object ReqEdgeBands {
         }
         val solid = boxes.entries.sortedBy { it.key }.map { it.value }
         var moved = false
+        var overLimit = false
         for (pass in 0 until MAX_PASSES) {
             val segs = collect(pts)
             if (segs.size > MAX_SEGMENTS) {
                 logger.debug { "requirement edge nudging skipped: ${segs.size} segments" }
+                overLimit = true
                 break
             }
             var movedInPass = false
@@ -140,10 +168,155 @@ internal object ReqEdgeBands {
             if (!movedInPass) break
             moved = true
         }
+        // Frame phase last: the clusters are settled, so a segment only moves to a place that is free of other edges.
+        if (frames.isNotEmpty() && !overLimit) {
+            for (round in 0 until FRAME_ROUNDS) {
+                val frameSegs = collect(pts)
+                // The frame phase is quadratic in the segment count; the same cap as the cluster phase applies.
+                if (frameSegs.size > MAX_SEGMENTS) break
+                if (!clearFrames(
+                        pts = pts,
+                        segs = frameSegs,
+                        endsOf = endsOf,
+                        boxes = boxes,
+                        solid = solid,
+                        canvas = canvas,
+                        frames = frames,
+                    )
+                ) {
+                    break
+                }
+                moved = true
+            }
+        }
         if (!moved) return routes
         val out = LinkedHashMap<String, EdgeRoute>()
         for ((id, r) in routes) out[id] = pts[id]?.let { rebuild(route = r, pts = it) } ?: r
         return out
+    }
+
+    /**
+     * Frame phase: moves every segment that runs parallel to a frame edge closer than [FRAME_CLEAR_PX] to that distance.
+     * Returns whether anything moved. A segment that cannot move (card, canvas, neighbour length) stays; that is logged.
+     */
+    private fun clearFrames(
+        pts: MutableMap<String, MutableList<Point>>,
+        segs: List<Seg>,
+        endsOf: Map<String, Pair<String, String>>,
+        boxes: Map<String, Rect>,
+        solid: List<Rect>,
+        canvas: Size,
+        frames: List<Rect>,
+    ): Boolean {
+        var moved = false
+        for (seg in segs) {
+            val list = pts[seg.edge] ?: continue
+            val current = liveCoord(list = list, seg = seg) ?: continue
+            if (frameClear(
+                    coord = current,
+                    horizontal = seg.horizontal,
+                    lo = seg.lo,
+                    hi = seg.hi,
+                    frames = frames,
+                    clear = FRAME_MIN_PX,
+                )
+            ) {
+                continue
+            }
+            val targets = ArrayList<Float>()
+            for (f in frames) {
+                val (a, b, from, to) = frameLines(frame = f, horizontal = seg.horizontal)
+                if (min(seg.hi, to) - max(seg.lo, from) <= MIN_OVERLAP_PX) continue
+                for (line in listOf(a, b)) {
+                    if (abs(current - line) >= FRAME_MIN_PX) continue
+                    // The side the segment already lies on first; further out in pitch steps if the nearer line is taken.
+                    val sides = if (current >= line) listOf(1f, -1f) else listOf(-1f, 1f)
+                    for (k in 0..3) for (side in sides) targets += line + side * (FRAME_CLEAR_PX + k * PITCH_PX)
+                }
+            }
+            val (srcId, tgtId) = endsOf[seg.edge] ?: ("" to "")
+            var done = false
+            val others = collect(pts).filter { it.edge != seg.edge && it.horizontal == seg.horizontal }
+            // A target that does not land next to a segment of another edge; if there is none the segment stays (the cluster
+            // pass keeps what it has rather than piling edges up on one coordinate).
+            for (t in targets) {
+                if (!frameClear(
+                        coord = t,
+                        horizontal = seg.horizontal,
+                        lo = seg.lo,
+                        hi = seg.hi,
+                        frames = frames,
+                        clear = FRAME_MIN_PX,
+                    )
+                ) {
+                    continue
+                }
+                if (others.any { o -> min(seg.hi, o.hi) - max(seg.lo, o.lo) > MIN_OVERLAP_PX && abs(o.coord - t) < TRIGGER_PX }) continue
+                if (tryMove(
+                        list = list,
+                        seg = seg,
+                        target = t,
+                        sourceBox = boxes[srcId],
+                        targetBox = boxes[tgtId],
+                        solid = solid,
+                        canvas = canvas,
+                    )
+                ) {
+                    moved = true
+                    done = true
+                    break
+                }
+            }
+            if (!done) logger.debug { "requirement edge ${seg.edge} stays close to a group frame (segment ${seg.index})" }
+        }
+        return moved
+    }
+
+    private data class FrameLines(
+        val a: Float,
+        val b: Float,
+        val from: Float,
+        val to: Float,
+    )
+
+    /** The two frame edges parallel to a segment of the given orientation and the frame's extent along them. */
+    private fun frameLines(
+        frame: Rect,
+        horizontal: Boolean,
+    ): FrameLines =
+        if (horizontal) {
+            FrameLines(
+                a = frame.origin.y,
+                b = frame.origin.y + frame.size.height,
+                from = frame.origin.x,
+                to =
+                    frame.origin.x + frame.size.width,
+            )
+        } else {
+            FrameLines(
+                a = frame.origin.x,
+                b = frame.origin.x + frame.size.width,
+                from = frame.origin.y,
+                to =
+                    frame.origin.y + frame.size.height,
+            )
+        }
+
+    /** True if a segment at [coord] spanning [lo]..[hi] keeps [clear] to every parallel frame edge it runs alongside. */
+    private fun frameClear(
+        coord: Float,
+        horizontal: Boolean,
+        lo: Float,
+        hi: Float,
+        frames: List<Rect>,
+        clear: Float = FRAME_MIN_PX,
+    ): Boolean {
+        for (f in frames) {
+            val l = frameLines(frame = f, horizontal = horizontal)
+            if (min(hi, l.to) - max(lo, l.from) <= MIN_OVERLAP_PX) continue
+            if (abs(coord - l.a) < clear - 0.01f || abs(coord - l.b) < clear - 0.01f) return false
+        }
+        return true
     }
 
     /** The route without duplicate and collinear interior points (jogs of the endpoint spread leave some behind). */
