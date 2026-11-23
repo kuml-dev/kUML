@@ -1157,6 +1157,7 @@ internal object RenderPipeline {
                             width = width,
                             output = output,
                             watermark = watermark,
+                            paddingPx = 64f,
                         )
                     else -> throw ScriptEvaluationException(message = "Unsupported format: $format")
                 }
@@ -1241,6 +1242,7 @@ internal object RenderPipeline {
                             width = width,
                             output = output,
                             watermark = watermark,
+                            paddingPx = 64f,
                         )
                     else -> throw ScriptEvaluationException(message = "Unsupported format: $format")
                 }
@@ -1384,6 +1386,7 @@ internal object RenderPipeline {
                             width = width,
                             output = output,
                             watermark = watermark,
+                            paddingPx = 64f,
                         )
                     else -> throw ScriptEvaluationException(message = "Unsupported format: $format")
                 }
@@ -1532,6 +1535,7 @@ internal object RenderPipeline {
                             width = width,
                             output = output,
                             watermark = watermark,
+                            paddingPx = 64f,
                         )
                     else -> throw ScriptEvaluationException(message = "Unsupported format: $format")
                 }
@@ -1552,6 +1556,9 @@ internal object RenderPipeline {
         width: Int,
         output: Path,
         watermark: Boolean = false,
+        // PAL Welle D (Punkt 11): must equal the padding of the SVG branch of the same diagram type, otherwise the PNG
+        // is rasterised from a different SVG (different canvas, aspect ratio) than the file `--format svg` writes.
+        paddingPx: Float = SvgRenderOptions.DEFAULT.paddingPx,
     ) {
         val pngBytes =
             KumlPngRenderer.toPng(
@@ -1560,7 +1567,7 @@ internal object RenderPipeline {
                 layoutResult = layoutResult,
                 theme = theme,
                 options = PngRenderOptions(widthPx = width),
-                svgOptions = SvgRenderOptions(watermark = watermark),
+                svgOptions = SvgRenderOptions(paddingPx = paddingPx, watermark = watermark),
             )
         writeBinary(out = output, bytes = pngBytes)
     }
