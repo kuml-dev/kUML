@@ -75,14 +75,13 @@ internal object ReqGroupGrid {
 
     /**
      * Row-major packing of [cells] into [cols] columns, aligned top-left, with a gutter of [LayoutLimits.GRID_GUTTER_PX].
-     * [horizontal] transposes the grid (cells are filled column by column, [cols] then counts rows). Cells listed
-     * together in [sameLayerRows] start a new row together; if that row is longer than [cols] it simply gets wider.
-     * [flipRows] / [flipCols] mirror the grid for the Up / Left flow.
+     * The reading order is always row by row (declaration order, left to right, top to bottom) - the flow direction never
+     * transposes the grid (PAL Welle C). Cells listed together in [sameLayerRows] start a new row together; if that row is
+     * longer than [cols] it simply gets wider. [flipRows] / [flipCols] mirror the grid for the Up / Left flow.
      */
     fun pack(
         cells: List<Size>,
         cols: Int,
-        horizontal: Boolean,
         sameLayerRows: List<List<Int>>,
         flipRows: Boolean = false,
         flipCols: Boolean = false,
@@ -121,12 +120,12 @@ internal object ReqGroupGrid {
         val visual = arrayOfNulls<IntArray>(cells.size)
         val logicalRows = rows.size
         val logicalCols = rows.maxOf { it.size }
-        val visualRows = if (horizontal) logicalCols else logicalRows
-        val visualCols = if (horizontal) logicalRows else logicalCols
+        val visualRows = logicalRows
+        val visualCols = logicalCols
         for ((r, row) in rows.withIndex()) {
             for ((c, idx) in row.withIndex()) {
-                var vr = if (horizontal) c else r
-                var vc = if (horizontal) r else c
+                var vr = r
+                var vc = c
                 if (flipRows) vr = visualRows - 1 - vr
                 if (flipCols) vc = visualCols - 1 - vc
                 visual[idx] = intArrayOf(vr, vc)
@@ -161,7 +160,6 @@ internal object ReqGroupGrid {
     fun chooseColumns(
         cells: List<Size>,
         spec: LayoutSpec,
-        horizontal: Boolean,
         extra: Size = Size(width = 0f, height = 0f),
     ): Int {
         val n = cells.size
@@ -173,7 +171,7 @@ internal object ReqGroupGrid {
         var narrowest = 1
         var narrowestWidth = Float.MAX_VALUE
         for (c in 1..n) {
-            val p = pack(cells = cells, cols = c, horizontal = horizontal, sameLayerRows = emptyList())
+            val p = pack(cells = cells, cols = c, sameLayerRows = emptyList())
             if (p.size.height <= 0f) continue
             val width = p.size.width + extra.width
             val height = p.size.height + extra.height
@@ -202,7 +200,7 @@ internal object ReqGroupGrid {
         val horizontal = hints.direction == LayoutDirection.LeftToRight || hints.direction == LayoutDirection.RightToLeft
         val flipRows = hints.direction == LayoutDirection.BottomToTop
         val flipCols = hints.direction == LayoutDirection.RightToLeft
-        val ctx = Ctx(graph = graph, spec = spec, horizontal = horizontal, flipRows = flipRows, flipCols = flipCols)
+        val ctx = Ctx(graph = graph, spec = spec, flipRows = flipRows, flipCols = flipCols)
 
         val topGroups = graph.groups.filter { it.parent == null || graph.groups.none { p -> p.id == it.parent } }
         val cells = ArrayList<Cell>()
@@ -233,9 +231,9 @@ internal object ReqGroupGrid {
             } else {
                 Size(width = railNodes.maxOf { it.intrinsicSize.width } + LayoutLimits.RAIL_GAP_PX, height = 0f)
             }
-        val cols = chooseColumns(cells = sizes, spec = spec, horizontal = horizontal, extra = railExtra)
+        val cols = chooseColumns(cells = sizes, spec = spec, extra = railExtra)
         val packing =
-            pack(cells = sizes, cols = cols, horizontal = horizontal, sameLayerRows = rows, flipRows = flipRows, flipCols = flipCols)
+            pack(cells = sizes, cols = cols, sameLayerRows = rows, flipRows = flipRows, flipCols = flipCols)
         if (packing.widened) {
             findings +=
                 LayoutSpecFinding(
@@ -519,7 +517,6 @@ internal object ReqGroupGrid {
     private class Ctx(
         val graph: LayoutGraph,
         val spec: LayoutSpec,
-        val horizontal: Boolean,
         val flipRows: Boolean,
         val flipCols: Boolean,
     ) {
@@ -575,14 +572,14 @@ internal object ReqGroupGrid {
             val cols =
                 chooseColumns(
                     cells = sizes,
-                    spec = if (localColumns != null) spec.copy(wrapColumns = localColumns) else spec,
-                    horizontal = horizontal,
+                    // PAL Welle C: the diagram's wrapColumns counts for the top-level grid only; a group packs its content by its own
+                    // local value or - without one - by the aspect target.
+                    spec = spec.copy(wrapColumns = localColumns),
                 )
             val packing =
                 pack(
                     cells = sizes,
                     cols = cols,
-                    horizontal = horizontal,
                     sameLayerRows = emptyList(),
                     flipRows = flipRows,
                     flipCols = flipCols,

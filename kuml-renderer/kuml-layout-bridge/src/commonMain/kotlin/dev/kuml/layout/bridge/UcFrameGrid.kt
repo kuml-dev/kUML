@@ -140,7 +140,6 @@ internal object UcFrameGrid {
             return ReqGroupGrid.chooseColumns(
                 cells = sizes,
                 spec = spec,
-                horizontal = false,
                 extra = Size(width = actorExtraW + framePad.width, height = framePad.height),
             )
         }
@@ -152,7 +151,7 @@ internal object UcFrameGrid {
         var narrowest = 1
         var narrowestWidth = Float.MAX_VALUE
         for (c in 1..n) {
-            val pk = ReqGroupGrid.pack(cells = sizes, cols = c, horizontal = false, sameLayerRows = emptyList(), gutterY = ROW_GUTTER_PX)
+            val pk = ReqGroupGrid.pack(cells = sizes, cols = c, sameLayerRows = emptyList(), gutterY = ROW_GUTTER_PX)
             val width = pk.size.width + framePad.width + actorExtraW
             val height = max(pk.size.height + framePad.height, actorStackH)
             if (height <= 0f) continue
@@ -250,7 +249,6 @@ internal object UcFrameGrid {
                     ReqGroupGrid.pack(
                         cells = sizes,
                         cols = cols,
-                        horizontal = false,
                         sameLayerRows = emptyList(),
                         gutterY = ROW_GUTTER_PX,
                     )
@@ -285,7 +283,6 @@ internal object UcFrameGrid {
                     ReqGroupGrid.pack(
                         cells = sizes,
                         cols = cols,
-                        horizontal = false,
                         sameLayerRows = emptyList(),
                         gutterY = ROW_GUTTER_PX,
                     )
@@ -300,7 +297,6 @@ internal object UcFrameGrid {
                             it.size
                         },
                     cols = cells.size.coerceAtLeast(1),
-                    horizontal = false,
                     sameLayerRows = emptyList(),
                 )
             val bodyX0 = if (left.isEmpty()) 0f else leftW + leftGap

@@ -317,7 +317,6 @@ class UcFrameGridTest :
                 ReqGroupGrid.chooseColumns(
                     cells = List(8) { Size(width = 140f, height = 60f) },
                     spec = LayoutSpec(),
-                    horizontal = false,
                     extra = Size(width = 60f + 160f + 48f, height = 48f),
                 )
             val res = shopLayout(g, LayoutSpec(actorSide = ActorSide.Right))
