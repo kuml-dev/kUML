@@ -57,15 +57,36 @@ class StmLabelWrapTest :
             lines.joinToString("") { it.text.replace(" ", "") } shouldBe text.replace(" ", "")
         }
 
-        test("a 30 character word without a break point breaks hard, adds no hyphen and loses nothing") {
+        test("a 30 character word without a break point stays whole on a widened line") {
             val word = "abcdefghijklmnopqrstuvwxyz0123"
             val lines = wrap(part(word))
-            lines.size shouldBe 2
+            lines.size shouldBe 1
+            lines.single().text shouldBe word
+            lines.single().brokenInWord shouldBe false
+            (StmLabelWrap.boxSize(lines).width >= word.length * StmLabelWrap.CHAR_W) shouldBe true
+        }
+
+        test("a word beyond 400 px breaks hard, every non-last piece ends with a hyphen and nothing else is lost") {
+            val word = "a".repeat(70)
+            val lines = wrap(part(word))
+            (lines.size > 1) shouldBe true
             lines.forEach { (it.text.length <= maxC) shouldBe true }
-            lines.none { it.text.contains('-') } shouldBe true
-            lines.joinToString("") { it.text } shouldBe word
-            lines.first().brokenInWord shouldBe true
+            lines.dropLast(1).forEach {
+                it.text.last() shouldBe '-'
+                it.brokenInWord shouldBe true
+            }
             lines.last().brokenInWord shouldBe false
+            lines.joinToString("") { it.text }.replace("-", "") shouldBe word
+        }
+
+        test("sicherheitskritisches is never split at a narrow label width") {
+            val lines = wrap(part("T26:"), part("ANNAHME:"), part("sicherheitskritisches Ereignis"), width = 130f)
+            lines.any { it.text == "sicherheitskritisches" } shouldBe true
+            lines.none { it.brokenInWord } shouldBe true
+            lines.forEach { l ->
+                (l.text.length * StmLabelWrap.CHAR_W + 2 * StmLabelWrap.PAD <= StmLabelWrap.boxSize(lines).width + 0.5f) shouldBe
+                    true
+            }
         }
 
         test("a word with a hyphen or slash breaks there first") {

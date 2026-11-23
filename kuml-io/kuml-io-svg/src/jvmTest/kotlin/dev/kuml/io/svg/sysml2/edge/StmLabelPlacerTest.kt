@@ -63,13 +63,13 @@ class StmLabelPlacerTest :
             lines.first().text.startsWith("/ doSomethingLong") shouldBe true
         }
 
-        test("an overlong word breaks hard without an inserted hyphen") {
+        test("a word beyond 400 px breaks hard, every non-last piece ends with a hyphen") {
             val lines = StmLabelPlacer.wrap(parts = listOf(p("x".repeat(100))))
             (lines.size >= 4) shouldBe true
             lines.dropLast(1).forEach { it.brokenInWord shouldBe true }
-            lines.none { it.text.contains('-') } shouldBe true
+            lines.dropLast(1).forEach { it.text.last() shouldBe '-' }
             lines.last().brokenInWord shouldBe false
-            glued(lines) shouldBe "x".repeat(100)
+            glued(lines).replace("-", "") shouldBe "x".repeat(100)
         }
 
         test("break opportunities after comma and open parenthesis") {

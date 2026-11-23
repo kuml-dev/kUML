@@ -105,7 +105,7 @@ class StmCompositeHeaderAvoidanceTest :
             val actions =
                 Rect(
                     origin = Point(x = frame.origin.x + 4f, y = frame.origin.y + 30f),
-                    size = Size(width = w.actions, height = group.padding.top - 30f),
+                    size = Size(width = w.actions, height = group.padding.top - w.sideEntryGap - 30f),
                 )
             val edge = g.edges.first { it.target.nodeId == NodeId("Warm") }.id
             // sanity: the unprocessed route does cross the header, the processed one does not
@@ -123,7 +123,7 @@ class StmCompositeHeaderAvoidanceTest :
             after.edges.getValue(edge).source shouldBe before.edges.getValue(edge).source
         }
 
-        test("without a free x the route stays unchanged") {
+        test("without a free x the edge enters from the side below the header band, end points unchanged") {
             val src = NodeId("s")
             val child = NodeId("c")
             val graph =
@@ -138,8 +138,8 @@ class StmCompositeHeaderAvoidanceTest :
                         listOf(
                             LayoutGroup(
                                 id = GroupId("g"),
-                                padding = Insets(top = 49f, right = 16f, bottom = 16f, left = 16f),
-                                headerTextWidths = HeaderTextWidths(title = 40f, actions = 95f),
+                                padding = Insets(top = 69f, right = 16f, bottom = 16f, left = 16f),
+                                headerTextWidths = HeaderTextWidths(title = 40f, actions = 95f, sideEntryGap = 20f),
                             ),
                         ),
                 )
@@ -161,7 +161,12 @@ class StmCompositeHeaderAvoidanceTest :
                                 GroupLayout(bounds = Rect(origin = Point(x = 0f, y = 100f), size = Size(width = 100f, height = 200f))),
                         ),
                 )
-            result.avoidCompositeHeaderBand(graph = graph, direction = LayoutDirection.TopToBottom).edges.getValue(EdgeId("e")) shouldBe
-                route
+            val moved = result.avoidCompositeHeaderBand(graph = graph, direction = LayoutDirection.TopToBottom).edges.getValue(EdgeId("e"))
+            moved.source shouldBe route.source
+            (moved as EdgeRoute.OrthogonalRounded).target shouldBe route.target
+            hits(
+                pointsOf(moved),
+                headerRect(group = graph.groups.single(), frame = result.groups.getValue(GroupId("g")).bounds),
+            ).shouldBeFalse()
         }
     })

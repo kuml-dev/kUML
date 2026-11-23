@@ -6,8 +6,8 @@ import kotlin.math.floor
 
 /**
  * One wrapped line of an STM edge label: styled [parts] (a short label keeps several parts on one line, a
- * wrapped label has exactly one). [brokenInWord] marks a line that ends in the middle of a word; no character was
- * added, so the lines of a broken word concatenated give the original word.
+ * wrapped label has exactly one). [brokenInWord] marks a line that ends in the middle of a word; a hyphen
+ * ends every non-last line of a broken word.
  */
 public data class StmLabelLine(
     val parts: List<EdgeLabelPart>,
@@ -32,6 +32,9 @@ public object StmLabelWrap {
     /** Default wrap width in px (`layout { labelMaxWidth = ... }` changes it, range 120..400). */
     public const val DEFAULT_MAX_WIDTH_PX: Float = 220f
 
+    /** A single word up to this width (px) is never split; its line is widened instead. */
+    public const val WIDE_LINE_MAX_PX: Float = 400f
+
     /** DoS guard: at most this many characters of one part are processed. */
     private const val MAX_PART_CHARS = 1024
 
@@ -42,7 +45,7 @@ public object StmLabelWrap {
      * Wraps [parts] to lines of at most [maxWidthPx]. A label that fits stays on one line; otherwise every part
      * starts on its own line. Inside a part the break order is: at spaces; before `&&` and `||`; after `-`, `/` and
      * `,` (the character stays at the end of the line); after `(` only for a group that does not fit otherwise;
-     * and only for a word that is still too long hard inside the word, without an inserted character. `)`, `]`
+     * and a word up to [WIDE_LINE_MAX_PX] stays whole on a widened line; only a longer word is cut hard, each non-last piece ending with `-`. `)`, `]`
      * and `,` never start a line.
      */
     public fun wrap(
@@ -109,6 +112,11 @@ public object StmLabelWrap {
                     continue
                 }
                 if (cur.isNotEmpty()) flush()
+                if (atom.length <= maxChars(WIDE_LINE_MAX_PX)) {
+                    // A word that fits the absolute maximum is never split: its line grows beyond [maxC] instead.
+                    cur.append(atom)
+                    continue
+                }
                 val chunks = hardBreak(word = atom, maxC = maxC)
                 for (i in 0 until chunks.size - 1) lines += chunks[i] to true
                 cur.append(chunks.last())
@@ -164,9 +172,15 @@ public object StmLabelWrap {
         return out
     }
 
-    /** Last resort: cuts a word into pieces of [maxC] characters; no character is added, the pieces give the word. */
+    /**
+     * Last resort for a word longer than [WIDE_LINE_MAX_PX]: pieces of at most [maxC] characters; every piece but
+     * the last ends with a `-`.
+     */
     private fun hardBreak(
         word: String,
         maxC: Int,
-    ): List<String> = word.chunked(maxC)
+    ): List<String> {
+        val pieces = word.chunked((maxC - 1).coerceAtLeast(1))
+        return pieces.mapIndexed { i, piece -> if (i < pieces.size - 1) "$piece-" else piece }
+    }
 }

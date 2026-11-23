@@ -417,6 +417,12 @@ public object Sysml2LayoutBridge {
     /** Height of one `entry/exit/do` action line in a composite state's header strip. */
     internal const val STM_COMPOSITE_ACTION_LINE_H: Float = 13f
 
+    /** Base of the extra top padding (px) of a composite that edges from outside enter below its header (PAL wave E1). */
+    internal const val STM_COMPOSITE_SIDE_ENTRY_GAP: Float = 16f
+
+    /** Extra top padding (px) per entering edge (one lane each), capped at six lanes. */
+    internal const val STM_COMPOSITE_SIDE_ENTRY_LANE: Float = 16f
+
     /** Width of a 13 px bold title character relative to an 11 px body character (header-band edge avoidance estimate). */
     internal const val STM_COMPOSITE_TITLE_CHAR_FACTOR: Float = 1.35f
 
@@ -1767,6 +1773,33 @@ public object Sysml2LayoutBridge {
             return if (region != null) GroupId(region.id) else GroupId(parent.id)
         }
 
+        fun isInside(
+            stateId: String,
+            compositeId: String,
+        ): Boolean {
+            var cur: String? = stateId
+            var guard = 0
+            while (cur != null && guard++ < 64) {
+                if (cur == compositeId) return true
+                cur = index[cur]?.parentStateId
+            }
+            return false
+        }
+
+        val stmTransitions =
+            model.usages
+                .filterIsInstance<TransitionUsage>()
+                .filter { it.sourceStateId in visibleIds && it.targetStateId in visibleIds }
+
+        // A transition from outside into a composite's subtree runs towards the header band; such a composite gets
+        // room below the band for a side entry (PAL wave E1).
+        fun entriesFromOutside(compositeId: String): Int =
+            stmTransitions.count {
+                it.targetStateId != compositeId &&
+                    isInside(stateId = it.targetStateId, compositeId = compositeId) &&
+                    !isInside(stateId = it.sourceStateId, compositeId = compositeId)
+            }
+
         val groups = mutableListOf<LayoutGroup>()
         val groupIds = mutableSetOf<String>()
         for (s in states) {
@@ -1774,11 +1807,16 @@ public object Sysml2LayoutBridge {
             val compartment =
                 StateActionCompartment.lines(invariant = s.invariant, entry = s.entryAction, doActivity = s.doAction, exit = s.exitAction)
             val actionLines = compartment.size
+            val entries = entriesFromOutside(compositeId = s.id)
+            val sideGap = if (entries > 0) STM_COMPOSITE_SIDE_ENTRY_GAP + minOf(entries, 6) * STM_COMPOSITE_SIDE_ENTRY_LANE else 0f
             groups +=
                 LayoutGroup(
                     id = GroupId(s.id),
                     parent = containerOf(s),
-                    padding = STM_COMPOSITE_PADDING.copy(top = STM_COMPOSITE_PADDING.top + actionLines * STM_COMPOSITE_ACTION_LINE_H),
+                    padding =
+                        STM_COMPOSITE_PADDING.copy(
+                            top = STM_COMPOSITE_PADDING.top + actionLines * STM_COMPOSITE_ACTION_LINE_H + sideGap,
+                        ),
                     layoutAsCompound = true,
                     // The action lines must fit the frame's width as well (PAL wave 2D-b).
                     minSize =
@@ -1789,6 +1827,7 @@ public object Sysml2LayoutBridge {
                         HeaderTextWidths(
                             title = s.name.length * StateActionCompartment.CHAR_PX * STM_COMPOSITE_TITLE_CHAR_FACTOR,
                             actions = StateActionCompartment.width(compartment),
+                            sideEntryGap = sideGap,
                         ),
                 )
             groupIds += s.id

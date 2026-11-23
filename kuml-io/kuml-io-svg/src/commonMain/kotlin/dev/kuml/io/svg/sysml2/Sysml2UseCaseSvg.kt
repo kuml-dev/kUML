@@ -67,7 +67,9 @@ internal fun renderSysml2UseCase(
         if (extensionPoints.isNotEmpty()) {
             val lineH = dev.kuml.layout.bridge.Sysml2LayoutBridge.UC_EXTENSION_LINE_H
             val dividerY = blockTop + textBlockH + 2f
-            val half = rx * kotlin.math.sqrt(maxOf(0f, 1f - ((dividerY - ry) / ry) * ((dividerY - ry) / ry)))
+            val chord = rx * kotlin.math.sqrt(maxOf(0f, 1f - ((dividerY - ry) / ry) * ((dividerY - ry) / ry)))
+            // PAL wave E1 (15a): the divider is a short rule inside the ellipse (60 % of the chord, at least 6 px from the contour).
+            val half = minOf(0.6f * chord, maxOf(0f, chord - UC_DIVIDER_MIN_CONTOUR_GAP_PX))
             tag(
                 name = "line",
                 attrs =
@@ -77,6 +79,7 @@ internal fun renderSysml2UseCase(
                         "x2" to fmt(rx + half),
                         "y2" to fmt(dividerY),
                         "class" to "kuml-divider",
+                        "stroke-width" to "0.75",
                     ),
             )
             val lines = listOf("extension points") + extensionPoints
@@ -143,3 +146,6 @@ internal fun renderSysml2UseCase(
 }
 
 private fun fmt(v: Float): String = fmt3(v)
+
+/** Minimum distance (px) between the end of the extension-points divider and the ellipse contour. */
+private const val UC_DIVIDER_MIN_CONTOUR_GAP_PX = 6f

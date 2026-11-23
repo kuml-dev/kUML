@@ -226,6 +226,11 @@ public fun LayoutGraph.blockingEdgeInSubtree(group: LayoutGroup): EdgeId? = bloc
 public data class HeaderTextWidths(
     val title: Float,
     val actions: Float,
+    /**
+     * Extra room (px) the group reserves between its header band and the children so that edges from outside can
+     * enter from the side below the header (PAL wave E1). It is part of the group padding but not of the header.
+     */
+    val sideEntryGap: Float = 0f,
 )
 
 /**

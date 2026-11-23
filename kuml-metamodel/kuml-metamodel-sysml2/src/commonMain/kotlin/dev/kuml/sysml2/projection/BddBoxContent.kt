@@ -146,13 +146,38 @@ fun sysml2BddBoxContent(
         full += "unit = ${def.unit}"
     }
     val actions = projection?.actionsByDef?.get(def.id)?.map { "$it()" } ?: emptyList()
-    val flows = projection?.flowsByDef?.get(def.id) ?: emptyList()
+    val flows = dropFlowsRepeatingFeatures(flows = projection?.flowsByDef?.get(def.id) ?: emptyList(), featureLines = full)
     return BddBoxContent(
         featureLines = full,
         actions = actions,
         flows = flows,
         compartments = analysisCompartments(model = model, def = def, projection = projection),
     )
+}
+
+private val FLOW_SAME_NAME = Regex("""^((?:in|out|inout) )?([^\s.:]+)\.([^\s.:]+) : (.+)$""")
+
+private fun squash(line: String): String = line.trim().replace(Regex("\\s+"), " ")
+
+/**
+ * PAL wave E1 (13e): a `flows` line that only repeats a feature line is dropped. A flow line `dir p.p : T` (flow
+ * property named like its port) equals the port line `dir p : T`; a word-for-word equal line repeats it as well. A
+ * line with another type, direction or name stays. The box height is computed from this content, so layout and
+ * drawing agree and an emptied `flows` compartment is never drawn.
+ */
+internal fun dropFlowsRepeatingFeatures(
+    flows: List<String>,
+    featureLines: List<String>,
+): List<String> {
+    if (flows.isEmpty() || featureLines.isEmpty()) return flows
+    val known = featureLines.map { squash(it) }.toSet()
+    return flows.filterNot { flow ->
+        val line = squash(flow)
+        if (line in known) return@filterNot true
+        val m = FLOW_SAME_NAME.matchEntire(line) ?: return@filterNot false
+        val (dir, port, item, type) = m.destructured
+        item == port && "$dir$port : $type" in known
+    }
 }
 
 private fun nameOf(

@@ -521,7 +521,15 @@ public object LayoutSpecRunner {
             direction: LayoutDirection,
         ): LayoutResult =
             if (kind == SpecDiagramKind.SYSML2_BDD) {
-                val bus = BddGeneralizationBus.apply(result = result, graph = graph, direction = direction)
+                val aligned =
+                    if (checked?.wrapColumns !=
+                        null
+                    ) {
+                        BddRowTopAlign.apply(result = result, graph = graph, direction = direction)
+                    } else {
+                        result
+                    }
+                val bus = BddGeneralizationBus.apply(result = aligned, graph = graph, direction = direction)
                 val fanned = BddHubFan.apply(result = bus, graph = graph, direction = direction)
                 BddAllocationDocking.apply(result = fanned, graph = graph, direction = direction)
             } else {
