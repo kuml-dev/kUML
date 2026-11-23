@@ -1,5 +1,6 @@
 package dev.kuml.cli.workspace
 
+import dev.kuml.cli.NoteChecks
 import dev.kuml.cli.RenderPipeline
 import dev.kuml.cli.ScriptEvaluationException
 import dev.kuml.core.config.KumlConfig
@@ -47,6 +48,8 @@ public object WorkspaceRenderer {
         val skipped: List<String>,
         val failures: List<OkfFinding>,
         val warnings: List<OkfFinding> = emptyList(),
+        /** Declared notes (first diagram per rendered block), see [NoteChecks.NoteStats]. */
+        val noteStats: NoteChecks.NoteStats = NoteChecks.NoteStats.EMPTY,
     )
 
     /**
@@ -76,6 +79,7 @@ public object WorkspaceRenderer {
         val skipped = mutableListOf<String>()
         val failures = mutableListOf<OkfFinding>()
         val warnings = mutableListOf<OkfFinding>()
+        var noteStats = NoteChecks.NoteStats.EMPTY
 
         for (doc in documents) {
             if (doc.kumlBlocks.isEmpty()) {
@@ -110,6 +114,7 @@ public object WorkspaceRenderer {
                         }
                     rendered += outFile
                     imagePaths[idx] = "$stem.$format"
+                    if (outcome.noteKinds.isNotEmpty()) noteStats += NoteChecks.NoteStats.ofKinds(outcome.noteKinds)
                     warnings += outcome.noteFindings.map { WorkspaceBlockEvaluator.noteFinding(doc = doc, block = block, finding = it) }
                     if (outcome.diagramCount > 1) {
                         warnings +=
@@ -157,7 +162,7 @@ public object WorkspaceRenderer {
             if (mirror) mirrorDocument(outputDir = outputDir, doc = doc, imagePathsByBlockIndex = imagePaths.toList())
         }
 
-        return RenderReport(rendered = rendered, skipped = skipped, failures = failures, warnings = warnings)
+        return RenderReport(rendered = rendered, skipped = skipped, failures = failures, warnings = warnings, noteStats = noteStats)
     }
 
     /**

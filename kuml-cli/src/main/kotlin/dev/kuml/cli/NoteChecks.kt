@@ -8,12 +8,14 @@ import dev.kuml.c4.constraint.C4DuplicateRelationships
 import dev.kuml.c4.constraint.C4NearDuplicateRelationships
 import dev.kuml.core.model.note.KumlNoteCodes
 import dev.kuml.core.model.note.KumlNoteIssue
+import dev.kuml.core.model.note.NoteKind
 import dev.kuml.core.script.ExtractedDiagram
 import dev.kuml.erm.constraint.ErmNoteChecker
 import dev.kuml.layout.bridge.NoteDiagnostics
 import dev.kuml.layout.bridge.note.PlacementHintMiss
 import dev.kuml.layout.bridge.note.UndrawnNote
 import dev.kuml.sysml2.constraint.Sysml2NoteChecker
+import dev.kuml.uml.UmlComment
 
 /**
  * Structural note findings (unknown anchors, ...) plus display-limit warnings
@@ -26,6 +28,30 @@ import dev.kuml.sysml2.constraint.Sysml2NoteChecker
  * that both `render` and `validate` already consume, and the C4 findings `KUML-C4-W001` / `KUML-C4-W002` (duplicate and near-duplicate relationships).
  */
 public object NoteChecks {
+    /**
+     * Declared-note statistics: total and per [NoteKind]. Counts notes DECLARED in the first diagram of each block
+     * (not the notes that were drawn); [blocks] is the number of blocks that contributed a diagram.
+     */
+    public data class NoteStats(
+        val total: Int = 0,
+        val byKind: Map<NoteKind, Int> = emptyMap(),
+        val blocks: Int = 0,
+    ) {
+        public operator fun plus(other: NoteStats): NoteStats =
+            NoteStats(
+                total = total + other.total,
+                byKind = (byKind.keys + other.byKind.keys).associateWith { (byKind[it] ?: 0) + (other.byKind[it] ?: 0) },
+                blocks = blocks + other.blocks,
+            )
+
+        public companion object {
+            public val EMPTY: NoteStats = NoteStats()
+
+            /** Statistics of one block from its per-kind counts. */
+            public fun ofKinds(kinds: Map<NoteKind, Int>): NoteStats = NoteStats(total = kinds.values.sum(), byKind = kinds, blocks = 1)
+        }
+    }
+
     public data class Finding(
         val code: String,
         val isError: Boolean,
@@ -193,6 +219,31 @@ public object NoteChecks {
                     }
             else -> emptyList()
         }
+
+    /**
+     * Declared notes of one block, by kind. Counts the notes DECLARED in the first diagram of a block (same scope as [of]),
+     * not the notes that were drawn; C4 and Service Blueprint notes carry no kind and count as [NoteKind.NOTE].
+     */
+    public fun statsOf(extracted: ExtractedDiagram): Map<NoteKind, Int> {
+        val kinds: List<NoteKind> =
+            when (extracted) {
+                is ExtractedDiagram.Sysml2 -> extracted.model.comments.map { it.note.kind }
+                is ExtractedDiagram.Bpmn ->
+                    (
+                        extracted.model.processes.flatMap { it.textAnnotations } +
+                            extracted.model.collaborations.flatMap { it.textAnnotations }
+                    ).map { it.note.kind }
+                is ExtractedDiagram.Erm -> extracted.model.notes.map { it.note.kind }
+                is ExtractedDiagram.Uml ->
+                    extracted.diagram.elements
+                        .filterIsInstance<UmlComment>()
+                        .map { it.kind }
+                is ExtractedDiagram.C4 -> extracted.model.notes.map { NoteKind.NOTE }
+                is ExtractedDiagram.Blueprint -> extracted.model.notes.map { NoteKind.NOTE }
+                else -> emptyList()
+            }
+        return kinds.groupingBy { it }.eachCount()
+    }
 
     /** Script line of each note of [extracted] (note id to line); notes without a known line are absent. */
     private fun noteLines(extracted: ExtractedDiagram): Map<String, Int> {

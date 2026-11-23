@@ -1,5 +1,6 @@
 package dev.kuml.desktop.mcp
 
+import dev.kuml.cli.NoteChecks
 import dev.kuml.cli.workspace.WorkspaceBlockEvaluator
 import dev.kuml.cli.workspace.WorkspacePdfExport
 import dev.kuml.cli.workspace.WorkspaceRenderer
@@ -95,6 +96,12 @@ internal fun interface McpWorkspaceEvaluatePort {
         documents: List<OkfDocument>,
         strict: Boolean,
     ): List<OkfFinding>
+
+    /** Like [evaluate], plus declared-note statistics when the port can provide them (`null` otherwise). */
+    fun evaluateWithStats(
+        documents: List<OkfDocument>,
+        strict: Boolean,
+    ): Pair<List<OkfFinding>, NoteChecks.NoteStats?> = evaluate(documents = documents, strict = strict) to null
 }
 
 /** Raised by the default PDF port when `strict` is set and the export has warnings or failed diagrams (nothing is written). */
@@ -143,7 +150,20 @@ internal val DefaultWorkspaceRenderPort =
     }
 
 internal val DefaultWorkspaceEvaluatePort =
-    McpWorkspaceEvaluatePort { documents, strict -> WorkspaceBlockEvaluator.evaluateDocuments(documents = documents, strict = strict) }
+    object : McpWorkspaceEvaluatePort {
+        override fun evaluate(
+            documents: List<OkfDocument>,
+            strict: Boolean,
+        ): List<OkfFinding> = WorkspaceBlockEvaluator.evaluateDocuments(documents = documents, strict = strict)
+
+        override fun evaluateWithStats(
+            documents: List<OkfDocument>,
+            strict: Boolean,
+        ): Pair<List<OkfFinding>, NoteChecks.NoteStats?> {
+            val r = WorkspaceBlockEvaluator.evaluateDocumentsWithStats(documents = documents, strict = strict)
+            return r.findings to r.noteStats
+        }
+    }
 
 /**
  * The workspace-mode tools of the desktop MCP server: they read and edit the OKF Knowledge
@@ -246,7 +266,8 @@ internal class DesktopMcpWorkspaceTools(
             tool(
                 name = "kuml_desktop_workspace_set_document",
                 description =
-                    "Writes a document to DISK (same save gate as Ctrl+S). With baseRevision (from get_document/list_documents) it " +
+                    "Writes a document to DISK (same save gate as Ctrl+S); works for every Markdown document of the workspace, " +
+                        "including index.md, articles and glossary files. With baseRevision (from get_document/list_documents) it " +
                         "updates an existing document and fails with REVISION_CONFLICT if the file changed. Without baseRevision it " +
                         "only creates a new document (missing folders are created) and fails with REVISION_CONFLICT{reason:EXISTS} " +
                         "if the file exists. A document with unsaved editor changes is never overwritten (DOCUMENT_DIRTY). " +
@@ -304,7 +325,8 @@ internal class DesktopMcpWorkspaceTools(
                 description =
                     "Validates the documents ON DISK (unsaved editor buffers are not included, see unsavedDocuments): " +
                         "{ok, scope, errorCount, warningCount, findings:[{code,severity,path,line,message,hint}], unsavedDocuments}. " +
-                        "evaluate:true additionally EXECUTES the kuml blocks (needs a trusted workspace; may answer BUSY).",
+                        "evaluate:true additionally EXECUTES the kuml blocks (needs a trusted workspace; may answer BUSY) and adds " +
+                        "noteStats {declared, blocks, byKind} (declared notes, first diagram per block).",
                 schema =
                     schema(
                         Prop(name = "path", type = "string", description = "Validate only this document."),
@@ -367,7 +389,8 @@ internal class DesktopMcpWorkspaceTools(
                 name = "kuml_desktop_workspace_render_all",
                 description =
                     "Renders every kuml block of the workspace (as saved ON DISK) into a temporary location and reports " +
-                        "{ok, renderedCount, skippedCount, failedCount, rendered:[{path,blockIndex}], skipped, failed, warnings}. " +
+                        "{ok, renderedCount, skippedCount, failedCount, rendered:[{path,blockIndex}], skipped, failed, warnings, " +
+                        "noteStats{declared,blocks,byKind}}. " +
                         "Nothing is written into the workspace. Executes scripts (trusted workspace required); occupies the shared " +
                         "evaluation slot for up to 120 s, so other evaluating tools may answer BUSY meanwhile. Max 500 blocks.",
                 schema =
@@ -951,8 +974,12 @@ internal class DesktopMcpWorkspaceTools(
             docs = ws.documents
             findings += OkfValidator.validate(ws = ws, strictVocabulary = strictVocabulary, deferLinks = deferLinks)
         }
+        var noteStats: NoteChecks.NoteStats? = null
         if (evaluate) {
-            findings += runGated(timeoutMs = renderTimeoutMs) { evaluatePort.evaluate(documents = docs, strict = strict) }
+            val (evalFindings, stats) =
+                runGated(timeoutMs = renderTimeoutMs) { evaluatePort.evaluateWithStats(documents = docs, strict = strict) }
+            findings += evalFindings
+            noteStats = stats
         }
         val errors = findings.count { it.severity == OkfSeverity.ERROR }
         val unsaved = snap.dirtyPath?.takeIf { dp -> docs.any { it.relativePath == dp } }
@@ -963,11 +990,12 @@ internal class DesktopMcpWorkspaceTools(
             put("warningCount", findings.size - errors)
             putJsonArray("findings") { findings.forEach { addFinding(it) } }
             putJsonArray("unsavedDocuments") { unsaved?.let { add(JsonPrimitive(it.replace('\\', '/'))) } }
+            noteStats?.let { put("noteStats", noteStatsJson(it)) }
             if (!evaluate && docs.any { it.kumlBlocks.isNotEmpty() }) {
                 put(
                     "note",
                     "Diagram counts per kuml block and reqId conflicts across documents (OKF-W-009) " +
-                        "are only checked with evaluate=true (executes block code).",
+                        "are only checked with evaluate=true (executes block code); layout-dependent note hints (placement) only appear in render_all.",
                 )
             }
         }
@@ -1051,7 +1079,28 @@ internal class DesktopMcpWorkspaceTools(
         val skipped: List<String>,
         val failed: List<OkfFinding>,
         val warnings: List<OkfFinding>,
+        val noteStats: NoteChecks.NoteStats = NoteChecks.NoteStats.EMPTY,
     )
+
+    /**
+     * `{declared, byKind, blocks, scope}`: notes DECLARED in the first diagram of each block (not "drawn"; C4 and
+     * Service Blueprint notes have no kind and count as NOTE). Kinds with a count of 0 are omitted.
+     */
+    private fun noteStatsJson(stats: NoteChecks.NoteStats): JsonObject =
+        buildJsonObject {
+            put("declared", stats.total)
+            put("blocks", stats.blocks)
+            put("scope", "declared notes, first diagram per kuml block")
+            put(
+                "byKind",
+                buildJsonObject {
+                    stats.byKind.entries
+                        .filter { it.value > 0 }
+                        .sortedBy { it.key.ordinal }
+                        .forEach { (k, n) -> put(k.name, n) }
+                },
+            )
+        }
 
     private fun exportPdf(args: JsonObject): JsonObject {
         val snap = snapshot()
@@ -1284,6 +1333,7 @@ internal class DesktopMcpWorkspaceTools(
                     val skipped = mutableListOf<String>()
                     val failed = mutableListOf<OkfFinding>()
                     val warnings = mutableListOf<OkfFinding>()
+                    var noteStats = NoteChecks.NoteStats.EMPTY
                     for (doc in ws.documents) {
                         if (cancelled.get()) break
                         val report =
@@ -1298,6 +1348,7 @@ internal class DesktopMcpWorkspaceTools(
                         skipped += report.skipped
                         failed += report.failures
                         warnings += report.warnings
+                        noteStats += report.noteStats
                         val failedLines =
                             report.failures
                                 .filter { it.file == doc.relativePath }
@@ -1309,7 +1360,7 @@ internal class DesktopMcpWorkspaceTools(
                             }
                         }
                     }
-                    AllOutput(rendered = rendered, skipped = skipped, failed = failed, warnings = warnings)
+                    AllOutput(rendered = rendered, skipped = skipped, failed = failed, warnings = warnings, noteStats = noteStats)
                 } finally {
                     tmp.deleteRecursively()
                 }
@@ -1333,6 +1384,7 @@ internal class DesktopMcpWorkspaceTools(
             putJsonArray("skipped") { out.skipped.forEach { add(JsonPrimitive(it.replace('\\', '/'))) } }
             putJsonArray("failed") { out.failed.forEach { addFinding(it) } }
             putJsonArray("warnings") { out.warnings.forEach { addFinding(it) } }
+            put("noteStats", noteStatsJson(out.noteStats))
         }
     }
 

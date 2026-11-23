@@ -126,6 +126,14 @@ public object WorkspaceBlockEvaluator {
         val diagramCount: Int,
         val noteFindings: List<NoteChecks.Finding>,
         val requirements: List<RequirementDeclaration> = emptyList(),
+        /** Declared notes of the first diagram by kind (empty when the block has no diagram). */
+        val noteKinds: Map<dev.kuml.core.model.note.NoteKind, Int> = emptyMap(),
+    )
+
+    /** Findings of [evaluateDocumentsWithStats] plus the declared-note statistics of all blocks that evaluated. */
+    public data class DocumentsEvaluation(
+        val findings: List<OkfFinding>,
+        val noteStats: NoteChecks.NoteStats,
     )
 
     /**
@@ -157,7 +165,10 @@ public object WorkspaceBlockEvaluator {
                         }
                     val notes = extracted?.let { runCatching { NoteChecks.of(it) }.getOrDefault(emptyList()) }.orEmpty()
                     val requirements = (extracted as? ExtractedDiagram.Sysml2)?.let { requirementsOf(it) }.orEmpty()
-                    Result.success(BlockEvaluation(diagramCount = count, noteFindings = notes, requirements = requirements))
+                    val kinds = extracted?.let { runCatching { NoteChecks.statsOf(it) }.getOrDefault(emptyMap()) }.orEmpty()
+                    Result.success(
+                        BlockEvaluation(diagramCount = count, noteFindings = notes, requirements = requirements, noteKinds = kinds),
+                    )
                 }
             }
         } catch (e: Exception) {
@@ -201,13 +212,21 @@ public object WorkspaceBlockEvaluator {
     public fun evaluateDocuments(
         documents: List<OkfDocument>,
         strict: Boolean,
-    ): List<OkfFinding> {
+    ): List<OkfFinding> = evaluateDocumentsWithStats(documents = documents, strict = strict).findings
+
+    /** Like [evaluateDocuments], additionally returning the declared-note statistics (first diagram per block). */
+    public fun evaluateDocumentsWithStats(
+        documents: List<OkfDocument>,
+        strict: Boolean,
+    ): DocumentsEvaluation {
+        var stats = NoteChecks.NoteStats.EMPTY
         val findings = mutableListOf<OkfFinding>()
         val declarations = mutableListOf<Declared>()
         for (doc in documents) {
             doc.kumlBlocks.forEachIndexed { idx, block ->
                 val evaluation = evaluateBlock(doc = doc, block = block, blockIdx = idx)
                 evaluation.onSuccess { ev ->
+                    if (ev.noteKinds.isNotEmpty()) stats += NoteChecks.NoteStats.ofKinds(ev.noteKinds)
                     findings += ev.noteFindings.map { noteFinding(doc = doc, block = block, finding = it) }
                     ev.requirements.forEach {
                         declarations += Declared(doc = doc, block = block, reqId = it.reqId, text = it.text)
@@ -235,7 +254,7 @@ public object WorkspaceBlockEvaluator {
             }
         }
         findings += reqIdConflictFindings(declarations)
-        return findings
+        return DocumentsEvaluation(findings = findings, noteStats = stats)
     }
 
     /** One requirement declaration with its origin; the name is deliberately not kept (log hygiene). */

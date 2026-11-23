@@ -6,6 +6,12 @@ All notable changes to this project are documented here. Format follows
 
 ## [Unreleased]
 
+### PAL Welle F: note statistics for workspace validate/render_all, MCP regression guards
+
+- **Declared-note statistics (21c).** `kuml_desktop_workspace_render_all` always, and `kuml_desktop_workspace_validate` with `evaluate=true`, now return an additive `noteStats {declared, blocks, scope, byKind}`: the notes DECLARED in the first diagram of each kuml block, by `NoteKind` (zero kinds omitted). Not a count of drawn notes; C4 and Service Blueprint notes have no kind and count as `NOTE`. Backed by `NoteChecks.statsOf`, `NoteChecks.NoteStats`, `WorkspaceBlockEvaluator.evaluateDocumentsWithStats` and `WorkspaceRenderer.RenderReport.noteStats` (default empty, so existing ports/mocks compile unchanged).
+- **Regression guards without a fix (20, 21a, 21b).** `DesktopMcpWorkspaceWelleFTest` runs the real default ports: `set_document` with `baseRevision` already works for `index.md`, `articles/` and `glossary/` documents (REVISION_CONFLICT on a stale revision); `render_all` already reports `KUML-NOTE-W001` through the real render pipeline; `validate` without `evaluate` already carries its explanatory `note`. Tool descriptions of `set_document`, `validate` and `render_all` were extended accordingly.
+- Not changed: layout-dependent note hints (`KUML-NOTE-W004` placement) are still reported by `render_all` only, not by `validate evaluate=true`; the "comment convention" check (point 22) is undefined in kUML and needs a specification first.
+
 ### PAL Welle E2: C4 type label, C4 canvas margin, regression guards for ACT/PAR/wrapColumns
 
 - **`typeLabel` (16a).** New DSL property `typeLabel` on `person { }` and `softwareSystem { }` (metamodel fields `C4Person.typeLabel`, `C4SoftwareSystem.typeLabel`, default `null`, additive). A non-blank value replaces the bracketed type tag (`typeLabel = "Dokument"` renders `[Dokument]`, no `External` prefix), is trimmed and capped at 80 characters (`C4_TYPE_LABEL_MAX_LENGTH`). Persons draw the tag line when the label is set (as external persons did before); the size provider mirrors it. `C4DslPrinter` prints the property. The derived tag was already correct (`[External Software System]` for `external = true`); internal persons still draw no tag without a label.

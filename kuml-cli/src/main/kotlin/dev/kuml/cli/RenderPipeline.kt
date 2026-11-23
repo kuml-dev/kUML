@@ -121,6 +121,8 @@ internal data class RenderOutcome(
     val noteFindings: List<NoteChecks.Finding> = emptyList(),
     /** `layout { }` findings (`KUML-LAYOUT-*`) of the rendered diagram; also printed to stderr. */
     val layoutFindings: List<dev.kuml.layout.bridge.LayoutSpecFinding> = emptyList(),
+    /** Declared notes of the rendered diagram by kind (see [NoteChecks.statsOf]). */
+    val noteKinds: Map<dev.kuml.core.model.note.NoteKind, Int> = emptyMap(),
 )
 
 /** SVG text plus the extracted model of one rendered diagram, see [RenderPipeline.renderToSvg]. */
@@ -414,6 +416,7 @@ internal object RenderPipeline {
             diagramCount = diagramCount,
             noteFindings = noteFindings + undrawnFindings,
             layoutFindings = collected.toList(),
+            noteKinds = runCatching { NoteChecks.statsOf(extracted) }.getOrDefault(emptyMap()),
         )
     }
 
