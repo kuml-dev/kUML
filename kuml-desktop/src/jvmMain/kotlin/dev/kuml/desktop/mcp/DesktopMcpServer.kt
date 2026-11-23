@@ -55,6 +55,7 @@ internal class DesktopMcpServer(
     private val handler: McpRequestHandler,
     private val tokenProvider: () -> String?,
     private val maxBodyBytes: Int = DEFAULT_MAX_BODY_BYTES,
+    private val activity: McpActivityTracker? = null,
 ) {
     private var server: HttpServer? = null
     private var executor: ExecutorService? = null
@@ -196,9 +197,31 @@ internal class DesktopMcpServer(
             handler.handle(text)
             return Outcome(status = 202, toolName = tool)
         }
-        val response = handler.handle(text) ?: return Outcome(status = 202, toolName = tool)
-        return Outcome(status = 200, body = response.toByteArray(Charsets.UTF_8), headers = JSON_HEADERS, toolName = tool)
+        // Only authenticated, well-formed requests reach this point, so refused or malformed traffic
+        // never lights up the status-bar indicator.
+        val activityId = activity?.begin(label = tool ?: methodOf(parsed))
+        var ok = false
+        try {
+            val response = handler.handle(text) ?: return Outcome(status = 202, toolName = tool).also { ok = true }
+            ok = !isFailure(response)
+            return Outcome(status = 200, body = response.toByteArray(Charsets.UTF_8), headers = JSON_HEADERS, toolName = tool)
+        } finally {
+            if (activityId != null) activity.end(id = activityId, ok = ok)
+        }
     }
+
+    private fun methodOf(message: JsonObject): String = sanitize((message["method"] as? JsonPrimitive)?.content ?: "request")
+
+    /** A JSON-RPC error, or a tool result flagged `isError`. Unparseable output counts as failure. */
+    private fun isFailure(response: String): Boolean =
+        try {
+            val obj = Json.parseToJsonElement(response) as? JsonObject
+            obj == null ||
+                obj.containsKey("error") ||
+                ((obj["result"] as? JsonObject)?.get("isError") as? JsonPrimitive)?.content == "true"
+        } catch (_: Exception) {
+            true
+        }
 
     private fun authorized(header: String?): Boolean {
         if (header == null) return false

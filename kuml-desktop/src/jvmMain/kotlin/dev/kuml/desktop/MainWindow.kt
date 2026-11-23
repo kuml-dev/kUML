@@ -1,7 +1,6 @@
 package dev.kuml.desktop
 
 import androidx.compose.foundation.ExperimentalFoundationApi
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -54,6 +53,8 @@ import dev.kuml.desktop.io.UnsavedSaveTarget
 import dev.kuml.desktop.io.unsavedSaveTargetFor
 import dev.kuml.desktop.mcp.DesktopMcpServerManager
 import dev.kuml.desktop.mcp.DesktopMcpTools
+import dev.kuml.desktop.mcp.McpActivityIndicator
+import dev.kuml.desktop.mcp.McpActivityTracker
 import dev.kuml.desktop.mcp.McpNotice
 import dev.kuml.desktop.mcp.McpRenderPort
 import dev.kuml.desktop.mcp.McpServerDialog
@@ -1268,6 +1269,7 @@ fun FrameWindowScope.MainWindow(
                     state = state,
                     showsEditor = showsEditor,
                     mcpStatus = mcpManager.status.value,
+                    mcpActivity = mcpManager.activity,
                     onOpenMcp = { showMcpDialog = true },
                 )
             }
@@ -1531,6 +1533,7 @@ private fun StatusBar(
     state: AppState,
     showsEditor: Boolean,
     mcpStatus: McpServerStatus,
+    mcpActivity: McpActivityTracker,
     onOpenMcp: () -> Unit,
 ) {
     val strings = Strings.forLanguage(state.language)
@@ -1570,11 +1573,11 @@ private fun StatusBar(
             modifier = Modifier.weight(1f),
         )
         if (mcpStatus is McpServerStatus.Running) {
-            Text(
-                text = strings.mcpStatusBarIndicator.format(mcpStatus.port),
-                color = Color(0xFF228822),
-                fontSize = 11.sp,
-                modifier = Modifier.clickable(onClick = onOpenMcp).padding(horizontal = 8.dp),
+            McpActivityIndicator(
+                port = mcpStatus.port,
+                activity = mcpActivity,
+                strings = strings,
+                onClick = onOpenMcp,
             )
         }
         // P5 — view-mode segmented control, only meaningful in single-file mode and the

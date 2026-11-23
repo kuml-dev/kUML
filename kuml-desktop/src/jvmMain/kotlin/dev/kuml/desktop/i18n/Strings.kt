@@ -622,6 +622,10 @@ data class Strings(
                                     "Ein MCP-Client (KI-Agent) hat darum gebeten, diesen Workspace zu öffnen. " +
                                         "Vertrauen Sie ihm nur, wenn Sie damit gerechnet haben.",
                                 noticeWorkspaceOpened = "Ein MCP-Client hat den Workspace \"%s\" geöffnet.",
+                                activityRecentTitle = "Letzte MCP-Aufrufe",
+                                activityNoCalls = "Noch kein Aufruf",
+                                activityBusy = "läuft",
+                                activityFailed = "Fehler",
                             ),
                     ),
                 workspaceLayout =
@@ -1119,6 +1123,10 @@ data class Strings(
                                 workspaceTrustRequestedByMcp =
                                     "An MCP client (AI agent) asked to open this workspace. Only trust it if you expected this.",
                                 noticeWorkspaceOpened = "An MCP client opened the workspace \"%s\".",
+                                activityRecentTitle = "Recent MCP calls",
+                                activityNoCalls = "No calls yet",
+                                activityBusy = "running",
+                                activityFailed = "failed",
                             ),
                     ),
                 workspaceLayout =
@@ -1606,6 +1614,11 @@ data class McpHintStrings(
     // Workspace opening requested by an MCP client (kuml_desktop_workspace_open); here because Strings is at the JVM limit.
     val workspaceTrustRequestedByMcp: String,
     val noticeWorkspaceOpened: String,
+    // Status-bar activity tooltip; here because Strings is at the JVM limit.
+    val activityRecentTitle: String,
+    val activityNoCalls: String,
+    val activityBusy: String,
+    val activityFailed: String,
 )
 
 /** Texts of the About dialog and its license view (see [Strings.about]). */

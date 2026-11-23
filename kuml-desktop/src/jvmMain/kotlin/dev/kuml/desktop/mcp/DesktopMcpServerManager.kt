@@ -59,6 +59,9 @@ internal class DesktopMcpServerManager(
 
     val status: State<McpServerStatus> get() = statusState
 
+    /** Live record of MCP requests for the status-bar indicator. */
+    val activity = McpActivityTracker()
+
     /** Starts or stops the server (asynchronously, off the UI thread). */
     fun apply(enabled: Boolean) {
         scope.launch {
@@ -110,6 +113,7 @@ internal class DesktopMcpServerManager(
                     DesktopMcpServer(
                         handler = handlerFactory(),
                         tokenProvider = { token },
+                        activity = activity,
                     )
                 val result = created.start(preferredPort = state.mcpServerPort)
                 if (result.portChanged) token = tokenStore.regenerate()
@@ -132,6 +136,7 @@ internal class DesktopMcpServerManager(
             server?.stop()
             server = null
             token = null
+            activity.reset()
             statusState.value = McpServerStatus.Off
         }
     }
