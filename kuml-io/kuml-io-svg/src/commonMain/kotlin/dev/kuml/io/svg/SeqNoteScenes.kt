@@ -4,7 +4,6 @@ import dev.kuml.io.svg.sysml2.SYSML2_SEQ_HEAD_HEIGHT
 import dev.kuml.io.svg.sysml2.SYSML2_SEQ_MESSAGE_ROW_HEIGHT
 import dev.kuml.io.svg.sysml2.SeqFragmentTree
 import dev.kuml.io.svg.sysml2.SeqRowOffsets
-import dev.kuml.io.svg.sysml2.nextLifelineAxisX
 import dev.kuml.layout.LayoutResult
 import dev.kuml.layout.NodeId
 import dev.kuml.layout.NodeLayout
@@ -91,7 +90,11 @@ internal object SeqNoteScenes {
         b.heads += headRects
         b.stems += stems
 
-        for (fragment in fragments) {
+        val frames =
+            dev.kuml.io.svg.sysml2
+                .SeqFragmentFrames()
+        // outer frames first: a nested frame is clamped into its (already clamped) parent
+        for (fragment in fragments.sortedBy { tree.places[it.id]?.depth ?: 0 }) {
             val covered =
                 dev.kuml.io.svg.sysml2
                     .coveredLifelines(fragment = fragment, usages = model.usages, tree = tree)
@@ -105,10 +108,31 @@ internal object SeqNoteScenes {
                         tree = tree,
                         coveredLayouts = covered.mapNotNull { layouts[NodeId(it)] },
                         rowReach = rowReach,
+                        frames = frames,
                     )
                 },
             )
         }
+        b.solid(
+            SeqSceneCapture.capture { sb ->
+                for (fragment in fragments.sortedBy { tree.places[it.id]?.depth ?: 0 }) {
+                    val covered =
+                        dev.kuml.io.svg.sysml2
+                            .coveredLifelines(fragment = fragment, usages = model.usages, tree = tree)
+                    dev.kuml.io.svg.sysml2.renderCombinedFragment(
+                        fragment = fragment,
+                        visibleLifelineLayouts = visibleLayouts,
+                        builder = sb,
+                        rows = rows,
+                        tree = tree,
+                        coveredLayouts = covered.mapNotNull { layouts[NodeId(it)] },
+                        rowReach = rowReach,
+                        overlay = true,
+                        frames = frames,
+                    )
+                }
+            },
+        )
         b.solid(
             SeqSceneCapture.capture { sb ->
                 for (es in execSpecs) {
@@ -119,7 +143,6 @@ internal object SeqNoteScenes {
                             lifelineLayout = nl,
                             builder = sb,
                             rows = rows,
-                            nextLifelineCx = nextLifelineAxisX(layout = nl, all = layouts.values),
                         )
                 }
                 for (use in refs) {
@@ -228,6 +251,7 @@ internal object SeqNoteScenes {
         // the fragments of one interaction share the guard pass, so they are captured together: frames are the rects
         // of the fragments' own groups, everything else a solid block
         val guardLabels = ArrayList<dev.kuml.io.svg.uml.SeqGuardLabel>()
+        val fragmentTabs = ArrayList<dev.kuml.io.svg.uml.SeqFragmentTab>()
         val all =
             SeqSceneCapture.capture { sb ->
                 val r =
@@ -239,6 +263,7 @@ internal object SeqNoteScenes {
                         labelBackdropFill = labelBackdropFill,
                     )
                 guardLabels += r.guardLabels
+                fragmentTabs += r.tabs
             }
         val fragmentIds = interaction.fragments.map { it.id }.toSet()
         for (fragment in interaction.fragments) b.fragment(all.filter { it.groupId == fragment.id })
@@ -246,7 +271,7 @@ internal object SeqNoteScenes {
         b.solid(
             SeqSceneCapture.capture { sb ->
                 dev.kuml.io.svg.uml
-                    .renderUmlGuardLabels(guards = guardLabels, builder = sb)
+                    .renderUmlGuardLabels(guards = guardLabels, builder = sb, tabs = fragmentTabs)
             },
         )
         b.messagesDrawn(

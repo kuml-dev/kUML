@@ -513,6 +513,15 @@ internal data class SeqGuardLabel(
  */
 internal data class SeqFragmentRenderResult(
     val guardLabels: List<SeqGuardLabel>,
+    /** PAL Welle D2 (12c): operator-tag pentagons, drawn with the guards above the lifelines. */
+    val tabs: List<SeqFragmentTab> = emptyList(),
+)
+
+/** PAL Welle D2 (12c): an operator-tag pentagon (top-left of a fragment frame) queued for the late render pass. */
+internal data class SeqFragmentTab(
+    val x: Float,
+    val y: Float,
+    val label: String,
 )
 
 /**
@@ -550,7 +559,7 @@ internal fun renderUmlCombinedFragments(
     builder: SvgBuilder,
     labelBackdropFill: String = "white",
 ): SeqFragmentRenderResult {
-    if (visibleLifelineLayouts.isEmpty()) return SeqFragmentRenderResult(emptyList())
+    if (visibleLifelineLayouts.isEmpty()) return SeqFragmentRenderResult(guardLabels = emptyList())
     val msgById: Map<String, UmlMessage> = interaction.messages.associateBy { it.id }
     val operandFirstSeqs = umlOperandFirstSeqs(fragments = fragments, msgById = msgById)
     // Nested fragments (those referenced by any operand's fragmentIds) must be
@@ -561,6 +570,7 @@ internal fun renderUmlCombinedFragments(
     val nestedIds = fragments.flatMap { f -> f.operands.flatMap { o -> o.fragmentIds } }.toSet()
     val renderOrder = fragments.sortedBy { if (it.id in nestedIds) 1 else 0 }
     val guardLabels = mutableListOf<SeqGuardLabel>()
+    val tabs = mutableListOf<SeqFragmentTab>()
     for (fragment in renderOrder) {
         renderUmlFragment(
             fragment = fragment,
@@ -569,18 +579,39 @@ internal fun renderUmlCombinedFragments(
             builder = builder,
             operandFirstSeqs = operandFirstSeqs,
             guardLabels = guardLabels,
+            tabs = tabs,
             labelBackdropFill = labelBackdropFill,
             isNested = fragment.id in nestedIds,
         )
     }
-    return SeqFragmentRenderResult(guardLabels)
+    return SeqFragmentRenderResult(guardLabels = guardLabels, tabs = tabs)
 }
 
 /** Draws guard labels queued by [renderUmlCombinedFragments], on top of whatever is already in [builder]. */
 internal fun renderUmlGuardLabels(
     guards: List<SeqGuardLabel>,
     builder: SvgBuilder,
+    tabs: List<SeqFragmentTab> = emptyList(),
 ) {
+    for (tab in tabs) {
+        val notch = 6f
+        val pts =
+            "${fmt(tab.x)},${fmt(tab.y)} ${fmt(tab.x + FRAGMENT_TAG_W)},${fmt(tab.y)} " +
+                "${fmt(tab.x + FRAGMENT_TAG_W)},${fmt(tab.y + FRAGMENT_TAG_H - notch)} " +
+                "${fmt(tab.x + FRAGMENT_TAG_W - notch)},${fmt(tab.y + FRAGMENT_TAG_H)} " +
+                "${fmt(tab.x)},${fmt(tab.y + FRAGMENT_TAG_H)}"
+        builder.tag(name = "polygon", attrs = mapOf("points" to pts, "class" to "kuml-class", "fill" to "white"))
+        builder.tag(
+            name = "text",
+            attrs =
+                mapOf(
+                    "class" to "kuml-stereotype",
+                    "x" to fmt(tab.x + FRAGMENT_TAG_W / 2f),
+                    "y" to fmt(tab.y + FRAGMENT_TAG_H / 2f + 4f),
+                    "text-anchor" to "middle",
+                ),
+        ) { text(tab.label) }
+    }
     for (guard in guards) {
         drawLabelWithWhiteBackground(
             label = guard.label,
@@ -601,6 +632,7 @@ private fun renderUmlFragment(
     builder: SvgBuilder,
     operandFirstSeqs: List<Int>,
     guardLabels: MutableList<SeqGuardLabel>,
+    tabs: MutableList<SeqFragmentTab>,
     labelBackdropFill: String,
     isNested: Boolean = false,
 ) {
@@ -659,23 +691,7 @@ private fun renderUmlFragment(
         tag(name = "rect", attrs = rectAttrs)
         val tagX = frameX
         val tagY = frameY
-        val notch = 6f
-        val pts =
-            "${fmt(tagX)},${fmt(tagY)} ${fmt(tagX + FRAGMENT_TAG_W)},${fmt(tagY)} " +
-                "${fmt(tagX + FRAGMENT_TAG_W)},${fmt(tagY + FRAGMENT_TAG_H - notch)} " +
-                "${fmt(tagX + FRAGMENT_TAG_W - notch)},${fmt(tagY + FRAGMENT_TAG_H)} " +
-                "${fmt(tagX)},${fmt(tagY + FRAGMENT_TAG_H)}"
-        tag(name = "polygon", attrs = mapOf("points" to pts, "class" to "kuml-class", "fill" to "white"))
-        tag(
-            name = "text",
-            attrs =
-                mapOf(
-                    "class" to "kuml-stereotype",
-                    "x" to fmt(tagX + FRAGMENT_TAG_W / 2f),
-                    "y" to fmt(tagY + FRAGMENT_TAG_H / 2f + 4f),
-                    "text-anchor" to "middle",
-                ),
-        ) { text(fragment.operator.name) }
+        tabs.add(SeqFragmentTab(x = tagX, y = tagY, label = fragment.operator.name))
 
         // Guards per operand
         // Track the Y-bottom of the previous operand's last message row so that

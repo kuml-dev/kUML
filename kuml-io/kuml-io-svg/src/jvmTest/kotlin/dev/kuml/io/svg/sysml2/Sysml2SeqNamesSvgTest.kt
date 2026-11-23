@@ -36,14 +36,22 @@ class Sysml2SeqNamesSvgTest :
             return svg
         }
 
+        // PAL Welle D2 (12c): the tab, name and guards of a fragment live in an overlay group above the lifelines.
+        fun overlayOf(
+            svg: String,
+            marker: String,
+        ): String {
+            val start = svg.indexOf("<g class=\"kuml-seq-fragment-tab\" $marker")
+            return if (start < 0) "" else svg.substring(start, svg.indexOf("</g>", start))
+        }
+
         fun block(
             svg: String,
             id: String,
         ): String {
             val start = svg.indexOf("<g id=\"$id\"")
             check(start >= 0) { "no group $id" }
-            return svg
-                .substring(start, svg.indexOf("</g>", start))
+            return (svg.substring(start, svg.indexOf("</g>", start)) + overlayOf(svg, "data-fragment=\"$id\""))
                 .replace(Regex(">\\s+"), ">")
                 .replace(Regex("\\s+<"), "<")
         }
@@ -55,8 +63,7 @@ class Sysml2SeqNamesSvgTest :
         ): String {
             val start = svg.indexOf("<g id=\"$prefix")
             check(start >= 0) { "no group starting with $prefix" }
-            return svg
-                .substring(start, svg.indexOf("</g>", start))
+            return (svg.substring(start, svg.indexOf("</g>", start)) + overlayOf(svg, "data-fragment=\"$prefix"))
                 .replace(Regex(">\\s+"), ">")
                 .replace(Regex("\\s+<"), "<")
         }
@@ -104,13 +111,13 @@ class Sysml2SeqNamesSvgTest :
             (attr(text.value, "y") <= barTop) shouldBe true
         }
 
-        "execution spec name longer than 16 characters is clipped with an ellipsis, title keeps the full name" {
+        "execution spec name longer than 16 characters is never clipped (PAL Welle D2 12e)" {
             val long = "handleVeryLongRequestName"
             val svg = render(execModel(execName = long), "exec-long")
             val g = block(svg, "executionSpec:Server-0-2")
             g shouldContain "<title>$long</title>"
-            g shouldContain "…"
-            g shouldNotContain ">$long</text>"
+            g shouldNotContain "…"
+            g shouldContain ">$long</text>"
         }
 
         "blank execution spec name draws neither text nor title" {
@@ -125,33 +132,6 @@ class Sysml2SeqNamesSvgTest :
             val g = block(svg, "executionSpec:Server-0-2")
             g shouldNotContain "<script>"
             g shouldContain "&lt;script&gt;&amp;"
-        }
-
-        "execution spec keeps only the title when the next lifeline is too close" {
-            val spec =
-                dev.kuml.sysml2.ExecutionSpecificationUsage(
-                    id = "executionSpec:x",
-                    name = "handleRequest",
-                    qualifiedName = "handleRequest",
-                    lifelineId = "x",
-                    startSeqNo = 0,
-                    endSeqNo = 1,
-                )
-            val layout =
-                dev.kuml.layout.NodeLayout(
-                    bounds =
-                        dev.kuml.layout.Rect(
-                            origin = dev.kuml.layout.Point(x = 0f, y = 0f),
-                            size = dev.kuml.layout.Size(width = 140f, height = 300f),
-                        ),
-                )
-            val builder =
-                dev.kuml.io.svg
-                    .SvgBuilder(pretty = false)
-            renderExecutionSpec(execSpec = spec, lifelineLayout = layout, builder = builder, nextLifelineCx = 70f + 5f + 20f)
-            val out = builder.toString()
-            out shouldContain "<title>handleRequest</title>"
-            out shouldNotContain "<text"
         }
 
         fun fragModel(

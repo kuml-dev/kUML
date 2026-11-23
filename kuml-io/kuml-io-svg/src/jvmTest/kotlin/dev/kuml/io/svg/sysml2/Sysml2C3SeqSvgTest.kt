@@ -238,7 +238,8 @@ class Sysml2C3SeqSvgTest :
             for (id in listOf("message:found-b-0", "message:lost-b-1")) {
                 val g = block(svg, id)
                 val line = Regex("<line[^>]*/>").find(g)!!.value
-                abs(abs(attr(line, "x2") - attr(line, "x1")) - 120f) shouldBeLessThanOrEqual 1f
+                // PAL Welle D2 (12d): the circle now stands outside the whole diagram, so the arrow is at least 120 px long
+                (abs(attr(line, "x2") - attr(line, "x1")) >= 119f) shouldBe true
                 attr(Regex("<circle[^>]*/>").find(g)!!.value, "r") shouldBe 5f
                 g shouldNotContain "<path"
             }

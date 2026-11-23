@@ -144,10 +144,71 @@ private fun Sysml2LayoutBridge.normalizeSeqOrderAndGaps(
     val ordered = diagram.elementIds.map { NodeId(it) }.filter { it in layoutResult.nodes }
     if (ordered.isEmpty()) return layoutResult
     val needs = seqSideTextNeeds(model = model, ordered = ordered)
-    return seqLeftCanvasShift(
-        needs = needs,
+    return seqFoundLostCanvasRoom(
+        model = model,
         ordered = ordered,
-        result = seqSpaceLifelines(needs = needs, ordered = ordered, layoutResult = layoutResult),
+        result =
+            seqLeftCanvasShift(
+                needs = needs,
+                ordered = ordered,
+                result = seqSpaceLifelines(needs = needs, ordered = ordered, layoutResult = layoutResult),
+            ),
+    )
+}
+
+/**
+ * PAL Welle D2 (12d): the circle of a found message stands left of the leftmost lifeline and the circle of a lost
+ * message right of the rightmost one ([seqFoundLostOriginX]). The diagram moves right by the missing room on the left
+ * and the canvas widens on the right. Idempotent: once the room exists, nothing moves.
+ */
+private fun seqFoundLostCanvasRoom(
+    model: Sysml2Model,
+    ordered: List<NodeId>,
+    result: LayoutResult,
+): LayoutResult {
+    val visible = ordered.map { it.value }.toSet()
+    val foundLost =
+        model.usages.filterIsInstance<dev.kuml.sysml2.MessageUsage>().filter {
+            (it.kind == dev.kuml.sysml2.MessageKind.Found || it.kind == dev.kuml.sysml2.MessageKind.Lost) &&
+                it.sourceLifelineId == it.targetLifelineId &&
+                it.targetLifelineId in visible
+        }
+    if (foundLost.isEmpty()) return result
+
+    fun centre(id: NodeId): Float =
+        result.nodes
+            .getValue(id)
+            .bounds
+            .let { it.origin.x + it.size.width / 2f }
+    val first = ordered.minOf { centre(it) }
+    val last = ordered.maxOf { centre(it) }
+    var minX = Float.POSITIVE_INFINITY
+    var maxX = Float.NEGATIVE_INFINITY
+    for (m in foundLost) {
+        val isFound = m.kind == dev.kuml.sysml2.MessageKind.Found
+        val originX =
+            seqFoundLostOriginX(
+                isFound = isFound,
+                targetCx = centre(NodeId(m.targetLifelineId)),
+                length = seqFoundLostLength(m.messageLabel),
+                firstLifelineX = first,
+                lastLifelineX = last,
+            )
+        if (isFound) minX = minOf(minX, originX) else maxX = maxOf(maxX, originX)
+    }
+    val shift = if (minX.isFinite()) (SEQ_FOUND_LOST_CIRCLE_RESERVE - minX).coerceAtLeast(0f) else 0f
+    val rightEdge = if (maxX.isFinite()) maxX + SEQ_FOUND_LOST_CIRCLE_RESERVE + shift else 0f
+    if (shift <= 0.01f && rightEdge <= result.canvas.width) return result
+    return result.copy(
+        nodes =
+            if (shift > 0.01f) {
+                result.nodes.mapValues { (_, n) ->
+                    n.copy(bounds = n.bounds.copy(origin = n.bounds.origin.copy(x = n.bounds.origin.x + shift)))
+                }
+            } else {
+                result.nodes
+            },
+        canvas = result.canvas.copy(width = maxOf(result.canvas.width + shift, rightEdge)),
     )
 }
 
@@ -320,6 +381,12 @@ private fun seqSideTextNeeds(
                                 }
                         }
                     if (myIndex > 0 && !leftBlocked) add(left, u.lifelineId, w) else add(right, u.lifelineId, w)
+                }
+            is dev.kuml.sysml2.ExecutionSpecificationUsage ->
+                // PAL Welle D2 (12e): the explicit name stands right of the bar (4 px offset) and is never shortened.
+                if (u.lifelineId in visible) {
+                    val name = u.name.trim()
+                    if (name.isNotEmpty() && name != u.id) add(right, u.lifelineId, 5f + 4f + seqExecLabelWidth(name))
                 }
             is dev.kuml.sysml2.MessageUsage ->
                 // Wave 2F: a self message has a 32 px loop and its label right of it.

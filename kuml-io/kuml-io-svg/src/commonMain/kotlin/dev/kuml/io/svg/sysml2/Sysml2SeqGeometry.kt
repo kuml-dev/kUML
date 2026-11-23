@@ -36,6 +36,19 @@ internal class SeqRowOffsets(
         /** Frame bottom of a fragment is 8 px below its last content; the next frame's top lies 11 px below a plain row. */
         private const val NATURAL_GAP_PX: Float = 11f
 
+        /** PAL Welle D2 (12b): least distance (px) between a frame bottom and the label box of the message below it. */
+        const val LABEL_CLEARANCE_PX: Float = 4f
+
+        /**
+         * Extra gap (px) below the last row of a fragment so that the label box of the next message (its top lies
+         * 17 px above the row line, a plain row is 32 px high) clears the frame bottom (8 px below the last content,
+         * plus [reach] of a self loop / `ref` and the nested bottom step) by [LABEL_CLEARANCE_PX].
+         */
+        fun labelGapBelowFragment(
+            reach: Float,
+            nestedStep: Float,
+        ): Float = (reach + 8f + nestedStep + LABEL_CLEARANCE_PX - (32f - 17f)).coerceAtLeast(0f)
+
         fun of(
             fragments: List<CombinedFragmentUsage>,
             refs: List<InteractionUseUsage>,
@@ -71,6 +84,18 @@ internal class SeqRowOffsets(
                 if (separate) {
                     val nestedStep = SYSML2_FRAGMENT_BOTTOM_STEP * (tree.places[f.id]?.height ?: 0).coerceAtMost(2)
                     need = maxOf(need, reach + FRAGMENT_GAP_PX - NATURAL_GAP_PX + nestedStep)
+                }
+                // PAL Welle D2 (12b): the label of the message right below the frame keeps 4 px from the frame bottom.
+                if (!separate && end + 1 in messageSeqNos) {
+                    need =
+                        maxOf(
+                            need,
+                            labelGapBelowFragment(
+                                reach = reach,
+                                nestedStep =
+                                    SYSML2_FRAGMENT_BOTTOM_STEP * (tree.places[f.id]?.height ?: 0).coerceAtMost(2),
+                            ),
+                        )
                 }
                 if (need > 0f) ends[end] = maxOf(ends[end] ?: 0f, need)
             }
@@ -176,6 +201,9 @@ internal class SeqFragmentTree(
     /** Left padding the *outermost* frame of the tree containing [id] needs (own guard and all nested guards). */
     fun rootLeftPad(id: String): Float = leftPadFull.getValue(places.getValue(id).rootId)
 
+    /** Id of the fragment [id] is nested in, or `null` for a top-level fragment. */
+    fun parentOf(id: String): String? = parentOf[id]
+
     fun heightOfRoot(id: String): Int = places.getValue(id).let { places.getValue(it.rootId).height }
 
     /** [id] and all fragments nested below it. */
@@ -229,3 +257,35 @@ internal fun clipSeqText(
     text: String,
     max: Int = Sysml2Limits.TEXT,
 ): String = if (text.length <= max) text else text.take(max - 1) + "…"
+
+/** PAL Welle D2 (12a): a fragment frame keeps at least this distance (px) from the axis of every lifeline it does not cover. */
+internal const val SEQ_FRAGMENT_FOREIGN_CLEARANCE: Float = 12f
+
+/** Horizontal extent (frame left x, frame right x) of already rendered fragments, so nested frames stay inside their parent. */
+internal class SeqFragmentFrames {
+    val bounds: MutableMap<String, Pair<Float, Float>> = HashMap()
+}
+
+/**
+ * PAL Welle D2 (12a): clamps the horizontal extent of a fragment frame so that it does not reach into the column of a
+ * lifeline it does not cover (before, a wide guard text pushed the left edge across the neighbouring axis).
+ *
+ * @param left desired left edge, @param right desired right edge.
+ * @param coveredLeft left edge of the leftmost covered lifeline box, @param coveredRight right edge of the rightmost one.
+ * @param foreignAxes axis x of the lifelines the fragment does not cover.
+ * @return the clamped (left, right); never moves an edge inwards past the covered span.
+ */
+internal fun fragmentFrameBounds(
+    left: Float,
+    right: Float,
+    coveredLeft: Float,
+    coveredRight: Float,
+    foreignAxes: List<Float>,
+    clearance: Float = SEQ_FRAGMENT_FOREIGN_CLEARANCE,
+): Pair<Float, Float> {
+    val minLeft = foreignAxes.filter { it < coveredLeft }.maxOrNull()?.plus(clearance)
+    val maxRight = foreignAxes.filter { it > coveredRight }.minOrNull()?.minus(clearance)
+    val l = if (minLeft != null && left < minLeft) minOf(minLeft, coveredLeft) else left
+    val r = if (maxRight != null && right > maxRight) maxOf(maxRight, coveredRight) else right
+    return l to r
+}

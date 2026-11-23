@@ -87,6 +87,11 @@ public data class NotePlacementConfig(
     val localPorts: Boolean = false,
     /** Gap between notes of the free-standing grid. */
     val gridGap: Float = 16f,
+    /**
+     * PAL Welle D2 (10b): free-standing notes (legends) go BELOW the content, right-aligned to it, instead of into a
+     * grid right of it, so they make the image taller and never wider. Used by activity diagrams.
+     */
+    val looseNotesBelow: Boolean = false,
     /** Inset of exit points from the corners of the note border. */
     val exitCornerInset: Float = 10f,
     /** Minimum distance between a note and a part box (PAL wave 2C-b2b). */
@@ -465,8 +470,17 @@ public object NotePlacer {
             val cols = min(4, ceil(sqrt(loose.size.toFloat())).toInt()).coerceAtLeast(1)
             val rows = loose.chunked(cols)
             val colWidths = (0 until cols).map { c -> rows.maxOf { r -> r.getOrNull(c)?.second?.width ?: 0f } }
-            var y = 0f
-            val originX = extent.right + config.candidateGap
+            val contentRight = extent.right
+            val contentLeft = extent.left
+            var y = if (config.looseNotesBelow) extent.bottom + config.candidateGap * 2f / 3f else 0f
+            val originX =
+                if (config.looseNotesBelow) {
+                    // right-aligned to the content; left-aligned when the grid is wider than the content (never widens the image on the left)
+                    val gridWidth = colWidths.sum() + config.gridGap * (cols - 1)
+                    max(contentLeft, contentRight - gridWidth)
+                } else {
+                    extent.right + config.candidateGap
+                }
             for (row in rows) {
                 var x = originX
                 row.forEachIndexed { c, (note, size) ->

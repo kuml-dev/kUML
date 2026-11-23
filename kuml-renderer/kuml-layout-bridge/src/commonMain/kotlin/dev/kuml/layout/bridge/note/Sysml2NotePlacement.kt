@@ -8,6 +8,7 @@ import dev.kuml.layout.bridge.ReqNoteRoom
 import dev.kuml.layout.bridge.Sysml2LayoutBridge
 import dev.kuml.layout.bridge.label.Sysml2LabelSizing
 import dev.kuml.layout.polylinePoints
+import dev.kuml.sysml2.ActDiagram
 import dev.kuml.sysml2.ReqDiagram
 import dev.kuml.sysml2.Sysml2Diagram
 import dev.kuml.sysml2.Sysml2Model
@@ -140,7 +141,11 @@ public object Sysml2NotePlacement {
             resolver = resolver,
             obstacles = obstacles,
             measure = measure,
-            config = if (homes.isEmpty()) config else config.copy(noteHomes = homes),
+            config =
+                config
+                    .let { if (homes.isEmpty()) it else it.copy(noteHomes = homes) }
+                    // PAL Welle D2 (10b): a free-standing legend of an activity diagram goes below the content
+                    .let { if (diagram is ActDiagram) it.copy(looseNotesBelow = true) else it },
         )
     }
 

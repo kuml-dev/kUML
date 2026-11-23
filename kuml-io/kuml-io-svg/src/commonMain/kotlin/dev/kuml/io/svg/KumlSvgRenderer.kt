@@ -58,7 +58,6 @@ import dev.kuml.io.svg.erm.renderErmMartinRelationship
 import dev.kuml.io.svg.erm.renderErmView
 import dev.kuml.io.svg.erm.renderIdef1xCategoryCircle
 import dev.kuml.io.svg.sysml2.edge.Sysml2EdgeRenderer
-import dev.kuml.io.svg.sysml2.nextLifelineAxisX
 import dev.kuml.io.svg.sysml2.renderPlacedControlName
 import dev.kuml.io.svg.uml.UmlEndpointSide
 import dev.kuml.io.svg.uml.renderUmlAssociationClassTether
@@ -1213,7 +1212,7 @@ public object KumlSvgRenderer {
             //     sits inside the fragment, not just on its border). See
             //     renderUmlCombinedFragments doc comment.
             dev.kuml.io.svg.uml
-                .renderUmlGuardLabels(guards = fragmentRenderResult.guardLabels, builder = nodesBuilder)
+                .renderUmlGuardLabels(guards = fragmentRenderResult.guardLabels, builder = nodesBuilder, tabs = fragmentRenderResult.tabs)
 
             // 4. Render messages directly into the edges layer — they paint
             //    last (after the entire nodes layer), so arrows always sit on
@@ -4271,6 +4270,9 @@ public object KumlSvgRenderer {
                 rowReach[u.seqNo] = maxOf(rowReach[u.seqNo] ?: 0f, dev.kuml.io.svg.sysml2.SYSML2_REF_HEIGHT / 2f)
             }
             val usagesForCoverage: List<dev.kuml.sysml2.Sysml2Usage> = model.usages
+            val fragmentFrames =
+                dev.kuml.io.svg.sysml2
+                    .SeqFragmentFrames()
             for (fragment in fragments.sortedBy { fragmentTree.places[it.id]?.depth ?: 0 }) {
                 val coveredIds =
                     dev.kuml.io.svg.sysml2
@@ -4283,6 +4285,7 @@ public object KumlSvgRenderer {
                     tree = fragmentTree,
                     coveredLayouts = coveredIds.mapNotNull { shiftedLayouts[NodeId(it)] },
                     rowReach = rowReach,
+                    frames = fragmentFrames,
                 )
             }
 
@@ -4319,6 +4322,25 @@ public object KumlSvgRenderer {
                 )
             }
 
+            // 3b. PAL Welle D2 (12c): operator tabs, fragment names and guards paint AFTER the lifelines (still in the
+            //     nodes layer), so no lifeline axis runs through their opaque backgrounds.
+            for (fragment in fragments.sortedBy { fragmentTree.places[it.id]?.depth ?: 0 }) {
+                val coveredIds =
+                    dev.kuml.io.svg.sysml2
+                        .coveredLifelines(fragment = fragment, usages = usagesForCoverage, tree = fragmentTree)
+                dev.kuml.io.svg.sysml2.renderCombinedFragment(
+                    fragment = fragment,
+                    visibleLifelineLayouts = visibleLifelineLayouts,
+                    builder = nodesBuilder,
+                    rows = rows,
+                    tree = fragmentTree,
+                    coveredLayouts = coveredIds.mapNotNull { shiftedLayouts[NodeId(it)] },
+                    rowReach = rowReach,
+                    overlay = true,
+                    frames = fragmentFrames,
+                )
+            }
+
             // 4. V2.0.15: Execution Specs in den edges-Layer — die Aktivierungs-Bar
             //    liegt nach diesem Reordering ÜBER der Lifeline-Vertikale (gut so:
             //    eine aktive Lifeline soll als Bar erkennbar bleiben) und UNTER
@@ -4331,7 +4353,6 @@ public object KumlSvgRenderer {
                         lifelineLayout = lifelineLayout,
                         builder = edgesBuilder,
                         rows = rows,
-                        nextLifelineCx = nextLifelineAxisX(layout = lifelineLayout, all = shiftedLayouts.values),
                     )
             }
 

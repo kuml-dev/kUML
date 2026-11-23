@@ -137,6 +137,17 @@ public fun Sysml2LayoutBridge.normalizeActLayout(
                 affectedNodes = unresolved.sorted().map { NodeId(it) },
             )
     }
+    // PAL Welle D2 (10c): with swimlanes the columns are given by the lanes; `wrapColumns` is silently ignored otherwise.
+    if (diagram.layout?.wrapColumns != null) {
+        warnings +=
+            LayoutWarning(
+                code = LayoutCodes.ACTIVITY_HINT_UNSUPPORTED,
+                message =
+                    "layout option 'wrapColumns' has no effect on activity diagram '${diagram.name}' with swimlanes: " +
+                        "the columns are given by the lanes. Remove wrapColumns.",
+                affectedNodes = emptyList(),
+            )
+    }
     return outcome.result.copy(edges = edges, warnings = warnings)
 }
 

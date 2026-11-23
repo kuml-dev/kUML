@@ -299,7 +299,20 @@ class UmlSeqFragmentSvgTest :
                 assert(groupStart >= 0) { "Fragment <g id=\"$fragId\"> not found in SVG" }
                 val groupEnd = svg.indexOf("</g>", groupStart) + 4
                 val groupSvg = svg.substring(groupStart, groupEnd)
-                val pointsMatch = Regex("""<polygon points="([^"]+)"""").find(groupSvg)
+                // PAL Welle D2 (12c): the pentagon is drawn in the late pass (above the lifelines), so it is found by the
+                // top-left corner of the fragment's own frame rect.
+                val rectTag = Regex("""<rect[^>]*>""").find(groupSvg)!!.value
+                val fx = Regex("""\bx="([0-9.]+)"""").find(rectTag)!!.groupValues[1].toFloat()
+                val fy = Regex("""\by="([0-9.]+)"""").find(rectTag)!!.groupValues[1].toFloat()
+                val pointsMatch =
+                    Regex("""<polygon points="([^"]+)"""").findAll(svg).firstOrNull {
+                        val first =
+                            it.groupValues[1]
+                                .split(" ")
+                                .first()
+                                .split(",")
+                        kotlin.math.abs(first[0].toFloat() - fx) < 0.01f && kotlin.math.abs(first[1].toFloat() - fy) < 0.01f
+                    }
                 assert(pointsMatch != null) { "No pentagon <polygon> found in fragment group for $fragId" }
                 val xs =
                     pointsMatch!!.groupValues[1].split(" ").map { pair ->

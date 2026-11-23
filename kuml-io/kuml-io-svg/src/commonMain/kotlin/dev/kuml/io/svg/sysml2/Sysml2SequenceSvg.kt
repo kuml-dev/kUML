@@ -7,6 +7,9 @@ import dev.kuml.io.svg.xmlEscapeAttr
 import dev.kuml.layout.LayoutResult
 import dev.kuml.layout.NodeId
 import dev.kuml.layout.NodeLayout
+import dev.kuml.layout.bridge.seqFoundLostLength
+import dev.kuml.layout.bridge.seqFoundLostOriginX
+import dev.kuml.layout.bridge.wrapExecLabel
 import dev.kuml.renderer.theme.core.KumlTheme
 import dev.kuml.sysml2.CombinedFragmentUsage
 import dev.kuml.sysml2.DurationConstraintUsage
@@ -248,8 +251,11 @@ internal fun renderSysml2SeqMessages(
         val tgtLayout = nodeLayouts[NodeId(msg.targetLifelineId)] ?: continue
         val rowOffset = rows.offsetAt(msg.seqNo)
         // C3: a found/lost message needs to know on which side of its lifeline there is room.
-        val leftmostX = nodeLayouts.values.minOf { it.bounds.origin.x }
-        val rightmostX = nodeLayouts.values.maxOf { it.bounds.origin.x + it.bounds.size.width }
+        // PAL Welle D2 (12d): axis x of the outermost visible lifelines.
+        val axes =
+            visibleLifelineIds.mapNotNull { nodeLayouts[NodeId(it)] }.map { it.bounds.origin.x + it.bounds.size.width / 2f }
+        val leftmostX = axes.minOrNull() ?: Float.NEGATIVE_INFINITY
+        val rightmostX = axes.maxOrNull() ?: Float.POSITIVE_INFINITY
         renderMessage(
             msg = msg,
             srcLayout = srcLayout,
@@ -322,7 +328,6 @@ internal fun renderMessage(
             builder = builder,
             leftmostX = leftmostX,
             rightmostX = rightmostX,
-            laneW = tgtLayout.bounds.size.width,
         )
         return
     }
@@ -442,9 +447,9 @@ private fun renderFoundFromLifeline(
 
 /**
  * C3 — found message (sender outside the diagram: filled circle, arrow to the lifeline) and lost
- * message (arrow from the lifeline to a filled circle). Fixed length [FOUND_LOST_LENGTH]; the side
- * is chosen so the circle stays inside the diagram: found messages come from the left unless the
- * lifeline is the leftmost one, lost messages leave to the right unless it is the rightmost one.
+ * message (arrow from the lifeline to a filled circle). PAL Welle D2 (12d): a found message always comes from the
+ * left of the whole diagram and a lost message always leaves to the right ([seqFoundLostOriginX]); [leftmostX] and
+ * [rightmostX] are the axes of the outermost lifelines.
  */
 private fun renderFoundLostMessage(
     msg: MessageUsage,
@@ -453,18 +458,19 @@ private fun renderFoundLostMessage(
     builder: SvgBuilder,
     leftmostX: Float,
     rightmostX: Float,
-    laneW: Float,
 ) {
     val isFound = msg.kind == MessageKind.Found
-    val laneLeft = cx - laneW / 2f
-    val laneRight = cx + laneW / 2f
-    val canGoLeft = laneLeft > leftmostX + 1f || leftmostX == Float.NEGATIVE_INFINITY
-    val canGoRight = laneRight < rightmostX - 1f || rightmostX == Float.POSITIVE_INFINITY
-    val toLeft = if (isFound) canGoLeft || !canGoRight else !canGoRight && canGoLeft
-    val dir = if (toLeft) -1f else 1f
-    // Wave 2F: at least 120 px, and long enough for the label (plus 24 px).
-    val length = maxOf(FOUND_LOST_LENGTH, msg.messageLabel.length * BODY_CHAR_WIDTH + 24f)
-    val farX = cx + dir * length
+    val length = seqFoundLostLength(msg.messageLabel)
+    val farX =
+        seqFoundLostOriginX(
+            isFound = isFound,
+            targetCx = cx,
+            length = length,
+            firstLifelineX = if (leftmostX.isFinite()) leftmostX else cx,
+            lastLifelineX = if (rightmostX.isFinite()) rightmostX else cx,
+        )
+    val dir = if (farX < cx) -1f else 1f
+    val arrowLen = kotlin.math.abs(farX - cx)
     val (fromX, toX) = if (isFound) farX to cx else cx to farX
     val arrowDx = if (toX >= fromX) -8f else 8f
     builder.tag(name = "g", attrs = mapOf("id" to xmlEscapeAttr(msg.id))) {
@@ -478,7 +484,7 @@ private fun renderFoundLostMessage(
             y = y - 6f,
             anchor = "middle",
             builder = this,
-            maxWidth = (length - 12f).coerceAtLeast(20f),
+            maxWidth = (arrowLen - 12f).coerceAtLeast(20f),
         )
         tag(
             name = "circle",
@@ -593,18 +599,6 @@ internal fun explicitSeqName(
 ): String? {
     val trimmed = name?.trim().orEmpty()
     return if (trimmed.isEmpty() || trimmed == id) null else trimmed
-}
-
-/** Smallest lifeline axis x strictly right of [layout]'s axis among [all], or `null` for the rightmost lifeline. */
-internal fun nextLifelineAxisX(
-    layout: NodeLayout,
-    all: Collection<NodeLayout>,
-): Float? {
-    val cx = layout.bounds.origin.x + layout.bounds.size.width / 2f
-    return all
-        .map { it.bounds.origin.x + it.bounds.size.width / 2f }
-        .filter { it > cx + 0.5f }
-        .minOrNull()
 }
 
 /** Fewest characters a name label must keep to be worth drawing; below this only the `<title>` remains. */
@@ -832,8 +826,6 @@ internal fun renderExecutionSpec(
     lifelineLayout: NodeLayout,
     builder: SvgBuilder,
     rows: SeqRowOffsets = SeqRowOffsets.NONE,
-    /** Axis x of the next lifeline to the right (limits the name label), or `null` when there is none. */
-    nextLifelineCx: Float? = null,
 ) {
     val cx = lifelineLayout.bounds.origin.x + lifelineLayout.bounds.size.width / 2f
     // Apply the same fragment-header offset the messages use so the activation
@@ -864,16 +856,16 @@ internal fun renderExecutionSpec(
         if (name != null) {
             tag(name = "title") { text(name) }
             val labelX = cx + w / 2f + 4f
-            val room = (nextLifelineCx ?: (labelX + SEQ_EXEC_NAME_MAX_CHARS * BODY_CHAR_WIDTH + 12f)) - 12f - labelX
-            val chars = minOf(SEQ_EXEC_NAME_MAX_CHARS, seqCharsFitting(room))
-            if (chars >= SEQ_NAME_MIN_CHARS) {
+            // PAL Welle D2 (12e): never clipped, never dropped; wraps at spaces into up to three lines that stack upwards
+            // from the line right above the bar's top edge. The layout reserves the room right of the lifeline.
+            val lines = wrapExecLabel(name = name)
+            for ((i, line) in lines.withIndex()) {
                 drawSeqLabelWithWhiteBackground(
-                    label = clipSeqText(text = name, max = chars),
+                    label = line,
                     x = labelX,
-                    y = yStart - 3f,
+                    y = yStart - 3f - (lines.size - 1 - i) * SEQ_EXEC_LABEL_LINE_HEIGHT,
                     anchor = "start",
                     builder = this,
-                    cssClass = "kuml-stereotype",
                     hPad = 1f,
                 )
             }
@@ -979,8 +971,8 @@ internal fun placeSeqLabelAcrossBars(
     }
 }
 
-/** Longest execution-specification name drawn next to its bar. */
-private const val SEQ_EXEC_NAME_MAX_CHARS: Int = 16
+/** Line pitch (px) of a wrapped execution-specification label. */
+private const val SEQ_EXEC_LABEL_LINE_HEIGHT: Float = 12f
 
 /**
  * Render a Combined Fragment — V2.0.15.
@@ -1014,6 +1006,13 @@ internal fun renderCombinedFragment(
     coveredLayouts: List<NodeLayout> = emptyList(),
     /** Depth (px) below a row's line that content in that row reaches (self loop, ref frame), by seqNo. */
     rowReach: Map<Int, Float> = emptyMap(),
+    /**
+     * PAL Welle D2 (12c): `false` draws the frame and the operand separators (below the lifelines), `true` draws the
+     * operator tab, the fragment name and the guards (above the lifelines, so a lifeline axis never runs through them).
+     */
+    overlay: Boolean = false,
+    /** PAL Welle D2 (12a): frames already rendered, read for the parent's extent and filled with this fragment's. */
+    frames: SeqFragmentFrames = SeqFragmentFrames(),
 ) {
     if (visibleLifelineLayouts.isEmpty() || fragment.operands.isEmpty()) return
     val place = tree.places[fragment.id] ?: SeqFragmentPlace(depth = 0, height = 0, rootId = fragment.id)
@@ -1036,8 +1035,34 @@ internal fun renderCombinedFragment(
     // by SYSML2_FRAGMENT_INDENT per level on the left and the right, so it always lies inside its parent.
     val leftPad = tree.rootLeftPad(fragment.id)
     val rightPadRoot = FRAGMENT_COVER_MARGIN + SYSML2_FRAGMENT_INDENT * tree.heightOfRoot(fragment.id)
-    val frameX = minLifelineX - leftPad + SYSML2_FRAGMENT_INDENT * place.depth
-    val frameRight = maxLifelineX + rightPadRoot - SYSML2_FRAGMENT_INDENT * place.depth
+    val unclampedX = minLifelineX - leftPad + SYSML2_FRAGMENT_INDENT * place.depth
+    val unclampedRight = maxLifelineX + rightPadRoot - SYSML2_FRAGMENT_INDENT * place.depth
+    val cached = frames.bounds[fragment.id]
+    val frameX: Float
+    val frameRight: Float
+    if (cached != null) {
+        frameX = cached.first
+        frameRight = cached.second
+    } else {
+        // PAL Welle D2 (12a): never reach into the column of a lifeline this fragment does not cover, and stay inside the
+        // (already clamped) parent frame.
+        val foreignAxes =
+            visibleLifelineLayouts
+                .filter { v -> spanLayouts.none { it.bounds.origin.x == v.bounds.origin.x } }
+                .map { it.bounds.origin.x + it.bounds.size.width / 2f }
+        val (clampedX, clampedRight) =
+            fragmentFrameBounds(
+                left = unclampedX,
+                right = unclampedRight,
+                coveredLeft = minLifelineX,
+                coveredRight = maxLifelineX,
+                foreignAxes = foreignAxes,
+            )
+        val parent = tree.parentOf(fragment.id)?.let { frames.bounds[it] }
+        frameX = if (parent != null) maxOf(clampedX, parent.first + SYSML2_FRAGMENT_INDENT) else clampedX
+        frameRight = if (parent != null) minOf(clampedRight, parent.second - SYSML2_FRAGMENT_INDENT) else clampedRight
+        frames.bounds[fragment.id] = frameX to frameRight
+    }
     val frameW = maxOf(frameRight - frameX, FRAGMENT_OPERATOR_TAG_WIDTH + 70f)
     // Rendered Y of a message = headBottom + (seqNo + 1) * ROW + header offset.
     // The first message of this fragment (operand 0) is pushed down by exactly
@@ -1066,22 +1091,29 @@ internal fun renderCombinedFragment(
 
     builder.tag(
         name = "g",
-        attrs = mapOf("id" to xmlEscapeAttr(fragment.id)),
+        attrs =
+            if (overlay) {
+                mapOf("class" to "kuml-seq-fragment-tab", "data-fragment" to xmlEscapeAttr(fragment.id))
+            } else {
+                mapOf("id" to xmlEscapeAttr(fragment.id))
+            },
     ) {
         // 1. Dashed frame rectangle.
-        tag(
-            name = "rect",
-            attrs =
-                mapOf(
-                    "x" to fmt(frameX),
-                    "y" to fmt(frameY),
-                    "width" to fmt(frameW),
-                    "height" to fmt(frameH),
-                    "class" to "kuml-class",
-                    "fill" to "none",
-                    "stroke-dasharray" to "6 4",
-                ),
-        )
+        if (!overlay) {
+            tag(
+                name = "rect",
+                attrs =
+                    mapOf(
+                        "x" to fmt(frameX),
+                        "y" to fmt(frameY),
+                        "width" to fmt(frameW),
+                        "height" to fmt(frameH),
+                        "class" to "kuml-class",
+                        "fill" to "none",
+                        "stroke-dasharray" to "6 4",
+                    ),
+            )
+        }
 
         // 2. Operator-tag pentagon in the top-left corner. Five points: a
         //    rectangle with a notched right edge so it looks like the UML
@@ -1097,52 +1129,54 @@ internal fun renderCombinedFragment(
                 "${fmt(tagX + tagW)},${fmt(tagY + tagH - notch)} " +
                 "${fmt(tagX + tagW - notch)},${fmt(tagY + tagH)} " +
                 "${fmt(tagX)},${fmt(tagY + tagH)}"
-        tag(
-            name = "polygon",
-            attrs =
-                mapOf(
-                    "points" to pentagonPoints,
-                    "class" to "kuml-class",
-                    "fill" to "white",
-                ),
-        )
-        tag(
-            name = "text",
-            attrs =
-                mapOf(
-                    "class" to "kuml-stereotype",
-                    "x" to fmt(tagX + tagW / 2f),
-                    "y" to fmt(tagY + tagH / 2f + 4f),
-                    "text-anchor" to "middle",
-                ),
-        ) { text(fragment.operator.name.uppercase()) }
+        if (overlay) {
+            tag(
+                name = "polygon",
+                attrs =
+                    mapOf(
+                        "points" to pentagonPoints,
+                        "class" to "kuml-class",
+                        "fill" to "white",
+                    ),
+            )
+            tag(
+                name = "text",
+                attrs =
+                    mapOf(
+                        "class" to "kuml-stereotype",
+                        "x" to fmt(tagX + tagW / 2f),
+                        "y" to fmt(tagY + tagH / 2f + 4f),
+                        "text-anchor" to "middle",
+                    ),
+            ) { text(fragment.operator.name.uppercase()) }
 
-        // Nacharbeit 63: the explicit fragment name sits right-aligned on the tag row; it yields to the
-        // index-0 guard and is dropped (title only) when fewer than SEQ_NAME_MIN_CHARS characters fit.
-        val fragmentName = explicitSeqName(name = fragment.name, id = fragment.id)
-        if (fragmentName != null) {
-            tag(name = "title") { text(fragmentName) }
-            val firstOperand = fragment.operands.first()
-            val shownGuard = seqGuardDisplay(raw = firstOperand.guard)
-            val guardWidth =
-                if (shownGuard == null) {
-                    0f
-                } else {
-                    minOf(shownGuard.length * BODY_CHAR_WIDTH, (frameW - tagW - 8f).coerceAtLeast(20f)) + 7f
+            // Nacharbeit 63: the explicit fragment name sits right-aligned on the tag row; it yields to the
+            // index-0 guard and is dropped (title only) when fewer than SEQ_NAME_MIN_CHARS characters fit.
+            val fragmentName = explicitSeqName(name = fragment.name, id = fragment.id)
+            if (fragmentName != null) {
+                tag(name = "title") { text(fragmentName) }
+                val firstOperand = fragment.operands.first()
+                val shownGuard = seqGuardDisplay(raw = firstOperand.guard)
+                val guardWidth =
+                    if (shownGuard == null) {
+                        0f
+                    } else {
+                        minOf(shownGuard.length * BODY_CHAR_WIDTH, (frameW - tagW - 8f).coerceAtLeast(20f)) + 7f
+                    }
+                val room = frameW - tagW - guardWidth - 12f
+                val chars = seqCharsFitting(room)
+                if (chars >= SEQ_NAME_MIN_CHARS) {
+                    tag(
+                        name = "text",
+                        attrs =
+                            mapOf(
+                                "class" to "kuml-stereotype",
+                                "x" to fmt(frameX + frameW - 6f),
+                                "y" to fmt(tagY + tagH / 2f + 4f),
+                                "text-anchor" to "end",
+                            ),
+                    ) { text(clipSeqText(text = fragmentName, max = chars)) }
                 }
-            val room = frameW - tagW - guardWidth - 12f
-            val chars = seqCharsFitting(room)
-            if (chars >= SEQ_NAME_MIN_CHARS) {
-                tag(
-                    name = "text",
-                    attrs =
-                        mapOf(
-                            "class" to "kuml-stereotype",
-                            "x" to fmt(frameX + frameW - 6f),
-                            "y" to fmt(tagY + tagH / 2f + 4f),
-                            "text-anchor" to "end",
-                        ),
-                ) { text(clipSeqText(text = fragmentName, max = chars)) }
             }
         }
 
@@ -1185,18 +1219,20 @@ internal fun renderCombinedFragment(
                         .coerceAtLeast(1)
                 val naturalSepY = opFirstMsgY - SYSML2_FRAGMENT_HEADER_BAND * opBands - 12f
                 val sepY = maxOf(naturalSepY, prevBottomY + 8f)
-                tag(
-                    name = "line",
-                    attrs =
-                        mapOf(
-                            "x1" to fmt(frameX),
-                            "y1" to fmt(sepY),
-                            "x2" to fmt(frameX + frameW),
-                            "y2" to fmt(sepY),
-                            "class" to "kuml-divider",
-                            "stroke-dasharray" to "6 4",
-                        ),
-                )
+                if (!overlay) {
+                    tag(
+                        name = "line",
+                        attrs =
+                            mapOf(
+                                "x1" to fmt(frameX),
+                                "y1" to fmt(sepY),
+                                "x2" to fmt(frameX + frameW),
+                                "y2" to fmt(sepY),
+                                "class" to "kuml-divider",
+                                "stroke-dasharray" to "6 4",
+                            ),
+                    )
+                }
                 operandY = sepY + 12f
             }
 
@@ -1206,7 +1242,7 @@ internal fun renderCombinedFragment(
             // Nacharbeit 68: a bracketed empty guard (`[]`, `[ ]`) is treated the same way.
             // V3.0.11: idempotent bracket-wrapping (`valid` and `[valid]` both render as `[valid]`).
             val displayGuard = seqGuardDisplay(raw = operand.guard)
-            if (displayGuard != null) {
+            if (overlay && displayGuard != null) {
                 // Index-0 guard: place to the RIGHT of the pentagon keyword
                 // label (same pattern as UmlSequenceSvg). This keeps the guard
                 // above the first message arrow.
@@ -1228,6 +1264,9 @@ internal fun renderCombinedFragment(
                         y = operandY,
                         anchor = "end",
                         builder = this,
+                        // PAL Welle D2 (12a): a clamped frame leaves less room left of the lifeline; the text is compressed
+                        // into it (textLength) instead of running over the frame edge.
+                        maxWidth = (minLifelineX - 4f - (frameX + 8f)).coerceAtLeast(20f),
                     )
                 }
             }
@@ -1386,9 +1425,6 @@ private const val SEQ_RENDERER_MESSAGE_ROW_HEIGHT: Float = SYSML2_SEQ_MESSAGE_RO
  * bridge) und `FRAGMENT_HEADER_BAND` in `UmlSequenceSvg` synchron bleiben.
  */
 internal const val SYSML2_FRAGMENT_HEADER_BAND: Float = 24f
-
-/** Length of a found/lost message arrow (C3). */
-private const val FOUND_LOST_LENGTH: Float = 120f
 
 /** Radius of the filled end circle of a found/lost message (C3). */
 private const val FOUND_LOST_RADIUS: Float = 5f
@@ -1589,28 +1625,91 @@ internal fun renderDurationConstraint(
     val x = cx - (if (hasActivationBar) EXEC_SPEC_WIDTH / 2f else 0f) - 12f
     val y1 = headBottom + (constraint.fromSeqNo + 1) * SEQ_RENDERER_MESSAGE_ROW_HEIGHT + rows.offsetAt(constraint.fromSeqNo)
     val y2 = headBottom + (constraint.toSeqNo + 1) * SEQ_RENDERER_MESSAGE_ROW_HEIGHT + rows.offsetAt(constraint.toSeqNo)
-    val top = minOf(y1, y2)
-    val bottom = maxOf(y1, y2)
+    val dim = durationDimensionGeometry(x = x, y1 = y1, y2 = y2)
     builder.tag(name = "g", attrs = mapOf("id" to xmlEscapeAttr(constraint.id))) {
-        tag(name = "line", attrs = mapOf("x1" to fmt(x), "y1" to fmt(top), "x2" to fmt(x), "y2" to fmt(bottom), "class" to "kuml-edge"))
-        for (yy in listOf(top, bottom)) {
+        // PAL Welle D2 (12f): a dimension line — shaft, a tick and a filled arrowhead at each end, and the label with
+        // an opaque background so no lifeline or frame edge runs through it.
+        tag(
+            name = "line",
+            attrs = mapOf("x1" to fmt(dim.x), "y1" to fmt(dim.top), "x2" to fmt(dim.x), "y2" to fmt(dim.bottom), "class" to "kuml-edge"),
+        )
+        for (yy in listOf(dim.top, dim.bottom)) {
             tag(
                 name = "line",
                 attrs =
                     mapOf(
-                        "x1" to fmt(x - 6f),
+                        "x1" to fmt(dim.x - DURATION_TICK_HALF),
                         "y1" to fmt(yy),
-                        "x2" to fmt(x + 6f),
+                        "x2" to fmt(dim.x + DURATION_TICK_HALF),
                         "y2" to fmt(yy),
                         "class" to "kuml-edge",
                     ),
             )
         }
-        tag(
-            name = "text",
-            attrs = mapOf("class" to "kuml-body", "x" to fmt(x - 8f), "y" to fmt((top + bottom) / 2f + 4f), "text-anchor" to "end"),
-        ) { text("{" + clipSeqText(text = constraint.expression, max = Sysml2Limits.TIME_EXPR) + "}") }
+        for (arrow in listOf(dim.topArrow, dim.bottomArrow)) {
+            tag(
+                name = "polygon",
+                attrs =
+                    mapOf(
+                        "points" to arrow.joinToString(" ") { "${fmt(it.first)},${fmt(it.second)}" },
+                        "class" to "kuml-seq-arrow-filled",
+                    ),
+            )
+        }
+        drawSeqLabelWithWhiteBackground(
+            label = "{" + clipSeqText(text = constraint.expression, max = Sysml2Limits.TIME_EXPR) + "}",
+            x = x - 8f,
+            y = (dim.top + dim.bottom) / 2f + 4f,
+            anchor = "end",
+            builder = this,
+            hPad = 2f,
+        )
     }
+}
+
+/** Half width (px) of the tick at each end of a duration dimension line (a tick is 8 px wide). */
+private const val DURATION_TICK_HALF: Float = 4f
+
+/** Length (px) and half width (px) of the arrowheads of a duration dimension line. */
+private const val DURATION_ARROW_LENGTH: Float = 6f
+private const val DURATION_ARROW_HALF_WIDTH: Float = 3f
+
+/** A span shorter than this (px) leaves no room for two inward arrowheads; the heads then point from outside inwards. */
+private const val DURATION_SHORT_SPAN: Float = 20f
+
+/** Geometry of the dimension line of a duration constraint: the shaft and the two arrowhead polygons. */
+internal data class DurationDimension(
+    val x: Float,
+    val top: Float,
+    val bottom: Float,
+    /** Arrowhead at the upper tick; its tip sits at [top] (point list of a triangle). */
+    val topArrow: List<Pair<Float, Float>>,
+    /** Arrowhead at the lower tick; its tip sits at [bottom]. */
+    val bottomArrow: List<Pair<Float, Float>>,
+)
+
+/**
+ * PAL Welle D2 (12f): pure geometry of a duration constraint's dimension line between the rows at [y1] and [y2]. The
+ * arrowheads' tips touch the ticks and point outwards; below [DURATION_SHORT_SPAN] they point from outside inwards.
+ */
+internal fun durationDimensionGeometry(
+    x: Float,
+    y1: Float,
+    y2: Float,
+): DurationDimension {
+    val top = minOf(y1, y2)
+    val bottom = maxOf(y1, y2)
+    val short = bottom - top < DURATION_SHORT_SPAN
+    val dir = if (short) -1f else 1f
+    val topBase = top + dir * DURATION_ARROW_LENGTH
+    val bottomBase = bottom - dir * DURATION_ARROW_LENGTH
+    return DurationDimension(
+        x = x,
+        top = top,
+        bottom = bottom,
+        topArrow = listOf(x to top, (x - DURATION_ARROW_HALF_WIDTH) to topBase, (x + DURATION_ARROW_HALF_WIDTH) to topBase),
+        bottomArrow = listOf(x to bottom, (x - DURATION_ARROW_HALF_WIDTH) to bottomBase, (x + DURATION_ARROW_HALF_WIDTH) to bottomBase),
+    )
 }
 
 /**

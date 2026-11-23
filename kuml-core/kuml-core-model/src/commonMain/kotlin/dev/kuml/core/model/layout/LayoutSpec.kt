@@ -163,6 +163,12 @@ object LayoutCodes {
 
     /** Requirement group grid: a `first()` / `last()` pin names a nested group; only top-level groups can be pinned (PAL Welle C2). */
     const val FIRST_LAST_NESTED_GROUP_IGNORED = "KUML-LAYOUT-W011"
+
+    /**
+     * Activity diagram with swimlanes: a layout hint the lane column pass does not honour (`wrapColumns`) is ignored,
+     * because the columns are given by the lanes (PAL Welle D2).
+     */
+    const val ACTIVITY_HINT_UNSUPPORTED = "KUML-LAYOUT-W012"
     const val OUT_OF_RANGE = "KUML-LAYOUT-E001"
 
     /** Informational: a `sameLayer` of groups widens its row beyond the column count (wave 2E-a). Not an error. */
