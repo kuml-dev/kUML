@@ -41,6 +41,8 @@ public data class StrictNotePolicy(
     val anchorNearPenalty: Float = 0f,
     val hardAnchorLines: Boolean = false,
     val homeLanes: Map<String, Rect> = emptyMap(),
+    /** PAL wave K: label clearance of the attach point of anchor lines on connections; 0 = off (see [NotePlacementConfig]). */
+    val anchorLabelClearance: Float = 0f,
 ) {
     /** The placer configuration these rules produce on top of [base]. */
     public fun toConfig(base: NotePlacementConfig): NotePlacementConfig =
@@ -58,6 +60,7 @@ public data class StrictNotePolicy(
             anchorNearPenalty = anchorNearPenalty,
             hardAnchorLines = hardAnchorLines,
             homeLanes = homeLanes,
+            anchorLabelClearance = anchorLabelClearance,
         )
 
     public companion object {

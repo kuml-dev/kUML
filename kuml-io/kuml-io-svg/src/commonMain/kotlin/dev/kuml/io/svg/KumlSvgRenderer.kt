@@ -3269,7 +3269,7 @@ public object KumlSvgRenderer {
                     noteMaxWidth = dev.kuml.layout.bridge.NoteLayout.STM_MAX_W,
                     strictNotes =
                         dev.kuml.layout.bridge.note
-                            .StrictNotePolicy(widthFactor = STM_NOTE_WIDTH_FACTOR),
+                            .StrictNotePolicy(widthFactor = STM_NOTE_WIDTH_FACTOR, anchorLabelClearance = STM_ANCHOR_LABEL_CLEARANCE),
                 ),
             theme = theme,
             options = options,
@@ -4523,6 +4523,9 @@ public object KumlSvgRenderer {
      * `content + 2 * (24 + maxNoteWidth)`, the worst case of two full columns.
      */
     internal const val STM_NOTE_WIDTH_FACTOR: Float = 2.0f
+
+    /** PAL wave K: the attach point of a note anchor line on a transition keeps this distance from every transition label. */
+    internal const val STM_ANCHOR_LABEL_CLEARANCE: Float = 20f
 
     /** State machines: clearance in px between a note and edges, states and other notes (Nacharbeit 25). */
     internal const val STM_NOTE_EDGE_CLEARANCE: Float = 16f

@@ -12,6 +12,7 @@ import dev.kuml.layout.Point
 import dev.kuml.layout.Rect
 import dev.kuml.layout.Size
 import dev.kuml.layout.bridge.NoteLayout
+import io.github.oshai.kotlinlogging.KotlinLogging
 import kotlin.math.ceil
 import kotlin.math.max
 import kotlin.math.min
@@ -138,6 +139,12 @@ public data class NotePlacementConfig(
     /** Nacharbeit 38: a note rectangle may not sit on the anchor line of an earlier note (6 px). */
     val hardAnchorLines: Boolean = false,
     /**
+     * PAL wave K: minimum distance of the attach point of an anchor line on a connection from every label rectangle
+     * (as drawn, without halo); the point also keeps 12 px from nodes and from the connection's
+     * ends. 0 = off (the legacy choice of the attach point).
+     */
+    val anchorLabelClearance: Float = 0f,
+    /**
      * Nacharbeit 55: the area inside the group frame that is reserved for a note (note id to rectangle, layout
      * coordinates). A note with an area is tried there first (the cheapest free position whose anchor lines can be
      * routed); when none works the general search decides as for every other note.
@@ -214,13 +221,15 @@ public object NotePlacer {
         obstacles: ObstacleIndex,
         used: List<Point> = emptyList(),
         spacing: Float = 0f,
+        clearance: Float = 0f,
     ) {
         val rep: Point =
             when (geometry) {
                 is AnchorGeometry.At -> geometry.p
                 is AnchorGeometry.Port -> outerMidpoint(box = geometry.box, side = geometry.outward)
                 is AnchorGeometry.Stem -> Point(x = geometry.x, y = geometry.top + STEM_FIRST_OFFSET)
-                is AnchorGeometry.Along -> freePointOn(pts = geometry.pts, obstacles = obstacles, used = used, spacing = spacing)
+                is AnchorGeometry.Along ->
+                    pickEdgeAnchorPoint(pts = geometry.pts, obstacles = obstacles, used = used, spacing = spacing, clearance = clearance)
                 is AnchorGeometry.Around -> Point(x = geometry.r.cx, y = geometry.r.cy)
                 is AnchorGeometry.Ellipse -> Point(x = geometry.cx, y = geometry.cy)
             }
@@ -372,7 +381,15 @@ public object NotePlacer {
                 } else {
                     // PAL 2C-b2b: anchors on one connection get their own attach points, at least minAttachSpacing apart.
                     val used = usedAlong.getOrPut(ref.targetId) { mutableListOf() }
-                    val anchor = Anchor(ref = ref, geometry = g, obstacles = obstacles, used = used, spacing = config.minAttachSpacing)
+                    val anchor =
+                        Anchor(
+                            ref = ref,
+                            geometry = g,
+                            obstacles = obstacles,
+                            used = used,
+                            spacing = config.minAttachSpacing,
+                            clearance = config.anchorLabelClearance,
+                        )
                     if (g is AnchorGeometry.Along) used += anchor.rep
                     resolved += anchor
                 }
@@ -654,6 +671,57 @@ public object NotePlacer {
             if (used.none { distance(a = it, b = p) < spacing }) return p
         }
         return polylineMidpoint(pts)
+    }
+
+    /**
+     * The attach point of an anchor line on a connection. The legacy choice ([freePointOn]) stays when [clearance] is 0 or
+     * when it already keeps [clearance] from every label rectangle and [EDGE_ANCHOR_NODE_CLEARANCE] from nodes and from the
+     * connection's ends; otherwise the nearest point along the connection that does (stable for anchors that are fine).
+     * Candidates are capped ([MAX_ANCHOR_CANDIDATES]); when none qualifies the legacy point is kept.
+     */
+    private fun pickEdgeAnchorPoint(
+        pts: List<Point>,
+        obstacles: ObstacleIndex,
+        used: List<Point>,
+        spacing: Float,
+        clearance: Float,
+    ): Point {
+        val legacy = freePointOn(pts = pts, obstacles = obstacles, used = used, spacing = spacing)
+        if (clearance <= 0f || pts.size < 2) return legacy
+        val total = polylineLength(pts)
+        if (total <= 2f * EDGE_ANCHOR_NODE_CLEARANCE) return legacy
+        val labels = obstacles.rects.filter { it.kind.isLabel }.map { it.core }
+        val nodes = obstacles.rects.filter { it.kind == ObstacleKind.NODE || it.kind == ObstacleKind.COMPOSITE_TITLE }.map { it.core }
+
+        fun ok(p: Point): Boolean =
+            labels.none { rectDistance(r = it, p = p) < clearance } &&
+                nodes.none { rectDistance(r = it, p = p) < EDGE_ANCHOR_NODE_CLEARANCE } &&
+                used.none { distance(a = it, b = p) < spacing }
+        if (ok(legacy)) return legacy
+        val span = total - 2f * EDGE_ANCHOR_NODE_CLEARANCE
+        val step = max(ANCHOR_CANDIDATE_STEP, span / MAX_ANCHOR_CANDIDATES)
+        val candidates = ArrayList<Point>()
+        var at = EDGE_ANCHOR_NODE_CLEARANCE
+        while (at <= total - EDGE_ANCHOR_NODE_CLEARANCE) {
+            candidates += polylineAt(pts = pts, at = at)
+            at += step
+        }
+        val best =
+            candidates
+                .filter { ok(it) }
+                .minByOrNull { distance(a = it, b = legacy) }
+        if (best == null) logger.debug { "no edge anchor point with ${clearance}px label clearance, keeping the legacy point" }
+        return best ?: legacy
+    }
+
+    /** Distance of [p] to the rectangle [r]; 0 inside. */
+    private fun rectDistance(
+        r: Rect,
+        p: Point,
+    ): Float {
+        val dx = max(0f, max(r.left - p.x, p.x - r.right))
+        val dy = max(0f, max(r.top - p.y, p.y - r.bottom))
+        return sqrt(dx * dx + dy * dy)
     }
 
     private fun contentExtent(layout: LayoutResult): Rect {
@@ -1714,6 +1782,10 @@ public object NotePlacer {
         return out
     }
 
+    private val logger = KotlinLogging.logger {}
+    private const val EDGE_ANCHOR_NODE_CLEARANCE: Float = 12f
+    private const val ANCHOR_CANDIDATE_STEP: Float = 3f
+    private const val MAX_ANCHOR_CANDIDATES: Float = 200f
     private val ALONG_FRACTIONS: List<Float> = listOf(0.5f, 0.35f, 0.65f, 0.2f, 0.8f, 0.1f, 0.9f)
     private const val LONG_ROUTE_FACTOR: Float = 1.5f
     private const val LONG_ROUTE_SLACK: Float = 200f

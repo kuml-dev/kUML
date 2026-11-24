@@ -6,6 +6,11 @@ All notable changes to this project are documented here. Format follows
 
 ## [Unreleased]
 
+### PAL Welle K: note anchor lines on transitions (STM)
+
+- **Attach point keeps clear of transition labels.** The point where a note's anchor line meets a transition now keeps at least 20 px from every transition label rectangle (as drawn) and 12 px from nodes and from the ends of the transition (new `NotePlacementConfig.anchorLabelClearance` / `StrictNotePolicy.anchorLabelClearance`, on for state machines only; `0` keeps the previous choice, so every other diagram type is bit-identical). A point that already satisfies the rule never moves; otherwise the nearest admissible point along the transition is taken (candidates every 3 px, capped at 200), and when none exists the previous point is kept (debug log). On the real doc 55 the anchor of the note on `Verzögerung Freigabe ausstehend -> Eingefroren PAL` no longer runs as an underline of the transition label (label distance 15.8 px -> 21 px); the other anchor lines and all note positions are unchanged.
+- **Not done:** the attach point is chosen before the note position is known, so crossings of foreign edges are not minimised (doc 55 has two crossings, which is the topological minimum there), and the point is checked against the preliminary label plan, not re-checked after the final transition label placement.
+
 ### PAL Welle J: edge clearance for STM (J1, partial)
 
 - **Shared clearance detector.** `EdgeClearance.kt` gains `edgeNodeGap`, `trimEnds`, `parallelOverlap`, `detectViolations` and `needsRelayout`: parallel segments of different edges closer than 16 px (common run of at least 8 px, no node between them), and edges closer than 12 px to a foreign node, to the inside of a composite frame or to its header band. The first and last 12 px of a route belong to its own attachment and are exempt. Edges that leave or enter the same node on one line, and pairs at a pseudo node too small for two lanes, are not reported. Hostile-input caps (512 routes, 64 points per route) apply. Public view for tools: `StmClearance.violationCount` / `describe`.
