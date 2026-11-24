@@ -1,5 +1,6 @@
 package dev.kuml.layout.bridge.label
 
+import dev.kuml.core.model.layout.LayoutCodes
 import dev.kuml.layout.EdgeRoute
 import dev.kuml.layout.LayoutResult
 import dev.kuml.layout.Point
@@ -16,6 +17,7 @@ import dev.kuml.layout.bridge.note.right
 import dev.kuml.layout.bridge.note.segmentIntersectsRect
 import dev.kuml.layout.bridge.note.top
 import dev.kuml.layout.bridge.port.PortEdgeClamp
+import io.github.oshai.kotlinlogging.KotlinLogging
 
 /** A port label to place: the label of the port square [anchorRect] of the owner [ownerId] (PAL wave 2C-b2). */
 public data class PortLabelSpec(
@@ -75,6 +77,8 @@ public data class StmCompositeObstacle(
 public data class Sysml2LabelPlanResult(
     val labels: Map<String, PlacedLabel>,
     val lines: Map<String, List<String>>,
+    /** Ids of labels that have no free position (PAL Welle J2, state machines): they keep their best compromise and are not clean. */
+    val unresolved: List<String> = emptyList(),
 )
 
 /**
@@ -84,6 +88,8 @@ public data class Sysml2LabelPlanResult(
  * by label id (edge id or [PortLabelSpec.id]) and deterministic.
  */
 public object Sysml2DiagramLabelPlan {
+    private val logger = KotlinLogging.logger {}
+
     /** Side length of the square a label keeps clear around an arrow tip. */
     public const val ARROWHEAD_PX: Float = 12f
 
@@ -418,6 +424,7 @@ public object Sysml2DiagramLabelPlan {
             foreignCloserPenalty = 20_000f,
             foreignNearPenalty = 1_500f,
             perRequestWorkBudget = 400_000L,
+            hardExclusions = true,
         )
 
     /** Segments shorter than this carry no label by preference (PAL wave 2D-a). */
@@ -449,44 +456,47 @@ public object Sysml2DiagramLabelPlan {
         costs: LabelCostModel = STM_COSTS,
     ): Sysml2LabelPlanResult {
         if (labels.isEmpty()) return Sysml2LabelPlanResult(labels = emptyMap(), lines = emptyMap())
-        val index = ObstacleIndex()
-        for ((id, r) in nodes.entries.sortedBy { it.key }) index.addRect(kind = ObstacleKind.NODE, r = r, ownerId = id)
-        index.addRect(
-            kind = ObstacleKind.NODE,
-            r = rectOf(left = -STM_STRIP_PX, top = frameTop - STM_STRIP_PX, right = STM_STRIP_PX, bottom = frameTop),
-        )
-        for (c in composites.sortedBy { it.id }) {
-            val f = c.frame
-            val l = f.origin.x
-            val t = f.origin.y
-            val r = l + f.size.width
-            val b = t + f.size.height
-            index.addPolyline(
-                kind = ObstacleKind.FRAGMENT,
-                pts = listOf(Point(x = l, y = t), Point(x = r, y = t), Point(x = r, y = b), Point(x = l, y = b), Point(x = l, y = t)),
-                ownerId = c.id,
-            )
-            val header = rectOf(left = l, top = t, right = r, bottom = maxOf(t, c.headerBottom))
-            if (header.size.height > 0f) index.addRect(kind = ObstacleKind.COMPOSITE_TITLE, r = header)
-            for ((p, q) in c.dividers) index.addPolyline(kind = ObstacleKind.FRAGMENT, pts = listOf(p, q), ownerId = c.id)
-            for (n in c.regionNameRects) index.addRect(kind = ObstacleKind.COMPOSITE_TITLE, r = n)
-        }
         val polys = LinkedHashMap<String, List<Point>>()
-        for ((id, route) in edges.entries.sortedBy { it.key }) {
-            val pts = stmPolylineOf(route)
-            polys[id] = pts
-            index.addPolyline(kind = ObstacleKind.EDGE, pts = pts, ownerId = id)
-        }
-        for ((_, pts) in polys) {
-            if (pts.size < 2) continue
-            // Source end: a small square at the junction with the state; target end: the box of the drawn arrow head.
-            val src = pts.first()
-            val h = ARROWHEAD_PX / 2f
+        for ((id, route) in edges.entries.sortedBy { it.key }) polys[id] = stmPolylineOf(route)
+
+        // The obstacle model without any label. Built twice: the greedy run adds the labels it places, the repair pass
+        // (PAL Welle J2) needs the model without them and tests the labels itself.
+        fun buildIndex(): ObstacleIndex {
+            val index = ObstacleIndex()
+            for ((id, r) in nodes.entries.sortedBy { it.key }) index.addRect(kind = ObstacleKind.NODE, r = r, ownerId = id)
             index.addRect(
-                kind = ObstacleKind.ARROWHEAD,
-                r = rectOf(left = src.x - h, top = src.y - h, right = src.x + h, bottom = src.y + h),
+                kind = ObstacleKind.NODE,
+                r = rectOf(left = -STM_STRIP_PX, top = frameTop - STM_STRIP_PX, right = STM_STRIP_PX, bottom = frameTop),
             )
-            index.addRect(kind = ObstacleKind.ARROWHEAD, r = arrowHeadBox(tip = pts.last(), from = pts[pts.size - 2]))
+            for (c in composites.sortedBy { it.id }) {
+                val f = c.frame
+                val l = f.origin.x
+                val t = f.origin.y
+                val r = l + f.size.width
+                val b = t + f.size.height
+                index.addPolyline(
+                    kind = ObstacleKind.FRAGMENT,
+                    pts = listOf(Point(x = l, y = t), Point(x = r, y = t), Point(x = r, y = b), Point(x = l, y = b), Point(x = l, y = t)),
+                    ownerId = c.id,
+                )
+                val header = rectOf(left = l, top = t, right = r, bottom = maxOf(t, c.headerBottom))
+                if (header.size.height > 0f) index.addRect(kind = ObstacleKind.COMPOSITE_TITLE, r = header)
+                for ((p, q) in c.dividers) index.addPolyline(kind = ObstacleKind.FRAGMENT, pts = listOf(p, q), ownerId = c.id)
+                for (n in c.regionNameRects) index.addRect(kind = ObstacleKind.COMPOSITE_TITLE, r = n)
+            }
+            for ((id, pts) in polys) index.addPolyline(kind = ObstacleKind.EDGE, pts = pts, ownerId = id)
+            for ((_, pts) in polys) {
+                if (pts.size < 2) continue
+                // Source end: a small square at the junction with the state; target end: the box of the drawn arrow head.
+                val src = pts.first()
+                val h = ARROWHEAD_PX / 2f
+                index.addRect(
+                    kind = ObstacleKind.ARROWHEAD,
+                    r = rectOf(left = src.x - h, top = src.y - h, right = src.x + h, bottom = src.y + h),
+                )
+                index.addRect(kind = ObstacleKind.ARROWHEAD, r = arrowHeadBox(tip = pts.last(), from = pts[pts.size - 2]))
+            }
+            return index
         }
         val requests = ArrayList<LabelRequest>()
         val lines = LinkedHashMap<String, List<String>>()
@@ -537,8 +547,16 @@ public object Sysml2DiagramLabelPlan {
                 )
         }
         if (requests.isEmpty()) return Sysml2LabelPlanResult(labels = emptyMap(), lines = emptyMap())
-        return Sysml2LabelPlanResult(labels = LabelPlacer.place(requests = requests, index = index, costs = costs), lines = lines)
+        val placed = LabelPlacer.place(requests = requests, index = buildIndex(), costs = costs)
+        if (!costs.hardExclusions) return Sysml2LabelPlanResult(labels = placed, lines = lines)
+        val repaired = StmLabelRepair.repair(requests = requests, placed0 = placed, base = buildIndex(), costs = costs)
+        for (id in repaired.unresolved) {
+            logger.warn { "${LayoutCodes.STM_LABEL_NO_FREE_SPOT}: the label of transition '${id.take(MAX_LOG_ID)}' has no free position." }
+        }
+        return Sysml2LabelPlanResult(labels = repaired.placed, lines = lines, unresolved = repaired.unresolved)
     }
+
+    private const val MAX_LOG_ID: Int = 120
 
     private const val STM_STRIP_PX: Float = 100_000f
 

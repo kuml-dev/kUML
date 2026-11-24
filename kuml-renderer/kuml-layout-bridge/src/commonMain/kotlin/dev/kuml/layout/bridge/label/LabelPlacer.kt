@@ -163,6 +163,12 @@ public data class LabelCostModel(
      * the per-label budget). Once spent, the remaining labels take their first candidate without a collision search.
      */
     val totalWorkBudget: Long = 4_000_000L,
+    /**
+     * PAL Welle J2: a label that ends up covering a node, another label or a foreign line anyway (no free candidate in the
+     * greedy run) is repaired afterwards by [StmLabelRepair]; only such violators move. Off by default, so every other
+     * diagram type keeps its placement bit for bit.
+     */
+    val hardExclusions: Boolean = false,
 )
 
 /** A placed label: its rectangle and whether it sits on its own line (the renderer then needs the canvas-coloured halo). */
@@ -419,7 +425,7 @@ public object LabelPlacer {
         return out
     }
 
-    private fun pointAt(
+    internal fun pointAt(
         pts: List<Point>,
         cum: FloatArray,
         s: Float,
@@ -647,7 +653,7 @@ public object LabelPlacer {
     }
 
     /** True if a foreign edge polyline is at least as close to [r] as the owner's own line (distance [own]). */
-    private fun foreignAsClose(
+    internal fun foreignAsClose(
         r: Rect,
         own: Float,
         ownerId: String,
@@ -700,13 +706,13 @@ public object LabelPlacer {
         return sqrt(dx * dx + dy * dy)
     }
 
-    private fun centered(
+    internal fun centered(
         cx: Float,
         cy: Float,
         size: Size,
     ): Rect = rectOf(left = cx - size.width / 2f, top = cy - size.height / 2f, right = cx + size.width / 2f, bottom = cy + size.height / 2f)
 
-    private fun len(
+    internal fun len(
         a: Point,
         b: Point,
     ): Float {

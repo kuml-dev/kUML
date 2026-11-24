@@ -169,6 +169,12 @@ object LayoutCodes {
      * because the columns are given by the lanes (PAL Welle D2).
      */
     const val ACTIVITY_HINT_UNSUPPORTED = "KUML-LAYOUT-W012"
+
+    /**
+     * A transition label of a state machine has no free position: it keeps its best compromise and touches another label or a
+     * foreign line (PAL Welle J2).
+     */
+    const val STM_LABEL_NO_FREE_SPOT = "KUML-LAYOUT-W013"
     const val OUT_OF_RANGE = "KUML-LAYOUT-E001"
 
     /** Informational: a `sameLayer` of groups widens its row beyond the column count (wave 2E-a). Not an error. */
