@@ -109,6 +109,75 @@ class StmCompositeHeaderBandInvariantTest :
             }
         }
 
+        // PAL wave I (3): the invariant holds for any header height (line height x action rows), any flow direction
+        // and for edges that run horizontally into the band, not only for vertical ones.
+        for (lineHeight in listOf(16f, 20f, 24f, 28f, 32f)) {
+            for (rows in listOf(0, 1, 3)) {
+                for (direction in listOf(LayoutDirection.TopToBottom, LayoutDirection.LeftToRight)) {
+                    for (fromLeft in listOf(true, false)) {
+                        test("horizontal entry stays below the band: lh=$lineHeight rows=$rows $direction fromLeft=$fromLeft") {
+                            val gap = 24f
+                            val headerH = 36f + rows * lineHeight
+                            val group =
+                                LayoutGroup(
+                                    id = GroupId("g"),
+                                    padding = Insets(top = headerH + gap, right = 16f, bottom = 16f, left = 16f),
+                                    headerTextWidths =
+                                        HeaderTextWidths(
+                                            title = 60f,
+                                            actions =
+                                                if (rows >
+                                                    0
+                                                ) {
+                                                    95f
+                                                } else {
+                                                    0f
+                                                },
+                                            sideEntryGap = gap,
+                                        ),
+                                )
+                            val g = graph().copy(groups = listOf(group))
+                            val child =
+                                Rect(origin = Point(x = 300f, y = 100f + headerH + gap + 20f), size = Size(width = 80f, height = 30f))
+                            val inBand = 100f + 10f
+                            val srcX = if (fromLeft) 60f else 640f
+                            val route =
+                                EdgeRoute.OrthogonalRounded(
+                                    source = Point(x = srcX, y = inBand),
+                                    target = Point(x = 340f, y = child.origin.y),
+                                    waypoints = listOf(Point(x = 340f, y = inBand)),
+                                    cornerRadiusPx = 6f,
+                                )
+                            val before =
+                                result(sourceX = srcX - 20f, route = route).let {
+                                    it.copy(nodes = it.nodes + (NodeId("c") to NodeLayout(bounds = child)))
+                                }
+                            val header = headerRect(group = group, frame = frame)
+                            crossesHeader(pts = polylinePoints(route)!!, header = header).shouldBeTrue()
+                            val after = before.avoidCompositeHeaderBand(graph = g, direction = direction)
+                            val pts = polylinePoints(after.edges.getValue(EdgeId("e")))!!
+                            crossesHeader(pts = pts, header = header).shouldBeFalse()
+                            pts.first() shouldBe route.source
+                            pts.last() shouldBe route.target
+                            pts
+                                .zipWithNext()
+                                .all { (a, b) -> kotlin.math.abs(a.x - b.x) < 0.5f || kotlin.math.abs(a.y - b.y) < 0.5f }
+                                .shouldBeTrue()
+                        }
+                    }
+                }
+            }
+        }
+
+        test("a vertical entry through the header is fixed for a horizontal flow direction as well") {
+            val g = graph()
+            val header = headerRect(group = g.groups.single(), frame = frame)
+            val route = EdgeRoute.Direct(source = Point(x = 350f, y = 40f), target = Point(x = 340f, y = 220f))
+            val after =
+                result(sourceX = 330f, route = route).avoidCompositeHeaderBand(graph = g, direction = LayoutDirection.LeftToRight)
+            crossesHeader(pts = polylinePoints(after.edges.getValue(EdgeId("e")))!!, header = header).shouldBeFalse()
+        }
+
         test("segmentIntersectsRect handles diagonal, touching and outside segments") {
             val r = Rect(origin = Point(x = 0f, y = 0f), size = Size(width = 100f, height = 20f))
             segmentIntersectsRect(a = Point(x = -10f, y = -10f), b = Point(x = 110f, y = 30f), r = r).shouldBeTrue()

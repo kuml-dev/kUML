@@ -54,15 +54,16 @@ private const val MAX_HEADER_COMPOSITES = 64
  * (or, without action lines, left of) the header texts: the edge leaves its line above the frame, runs down beside the
  * texts and returns to the child's x below the band. The end point at the child is unchanged. Without a free x (or
  * without room between the band and the child) the edge stays as it is. Texts are placed by estimated widths
- * ([LayoutGroup.headerTextWidths]), so the pass is font independent. Other directions are not touched: there the
- * edges enter beside the header. Edges that start inside the frame, end on the frame and side entries are left alone.
+ * ([LayoutGroup.headerTextWidths]), so the pass is font independent. PAL wave I: the pass works on final screen
+ * coordinates, so it runs for every flow direction; additionally a horizontal run that enters the frame through its
+ * side at the height of the header band is lifted below the band (see [clampHorizontalEntryBelowBand]). Edges that
+ * start inside the frame or end on the frame are left alone.
  * O(edges x composites), capped.
  */
 internal fun LayoutResult.avoidCompositeHeaderBand(
     graph: LayoutGraph,
-    direction: LayoutDirection,
+    @Suppress("UNUSED_PARAMETER") direction: LayoutDirection,
 ): LayoutResult {
-    if (direction != LayoutDirection.TopToBottom) return this
     val composites = graph.groups.filter { it.headerTextWidths != null && it.id in groups }.take(MAX_HEADER_COMPOSITES)
     if (composites.isEmpty()) return this
     var changed: MutableMap<EdgeId, EdgeRoute>? = null
@@ -74,6 +75,12 @@ internal fun LayoutResult.avoidCompositeHeaderBand(
         for (g in composites) {
             val frame = groups.getValue(g.id).bounds
             if (contains(frame = frame, inner = targetBox) && !contains(frame = frame, inner = sourceBox)) {
+                val clamped = clampHorizontalEntryBelowBand(route = route, group = g, frame = frame, child = targetBox)
+                if (clamped != null) {
+                    if (changed == null) changed = edges.toMutableMap()
+                    changed[e.id] = clamped
+                    break
+                }
                 val plan =
                     sideEntryPlan(edgeId = e.id, route = route, group = g, frame = frame, child = targetBox, canvasWidth = canvas.width)
                 if (plan != null) {
@@ -111,6 +118,74 @@ internal fun LayoutResult.avoidCompositeHeaderBand(
     }
     return changed?.let { copy(edges = it) } ?: this
 }
+
+/** Distance (px) the outside jog of a clamped horizontal entry keeps from the frame's side line. */
+private const val CLAMP_JOG_OUTSIDE_PX = 10f
+
+/**
+ * Operation B (PAL wave I): a horizontal run that passes the frame's left or right side at the height of the header
+ * band is moved to y = band bottom + [HEADER_FRAME_CLEARANCE_PX]: a vertical jog outside the frame leads to the new
+ * height, the run enters the frame there and carries on towards the child. The first and the last point of the route
+ * stay. `null` when no horizontal run hits the band, when there is no room above the child or the result would still
+ * cross the band (the route then stays as it is; the caller logs).
+ */
+internal fun clampHorizontalEntryBelowBand(
+    route: EdgeRoute,
+    group: LayoutGroup,
+    frame: Rect,
+    child: Rect,
+): EdgeRoute? {
+    val pts = polylinePoints(route) ?: return null
+    if (pts.size < 3 || pts.size > MAX_ROUTE_POINTS) return null
+    val header = headerRect(group = group, frame = frame)
+    val k =
+        pts.zipWithNext().indexOfFirst { (a, b) ->
+            kotlin.math.abs(a.y - b.y) < 0.5f && segmentIntersectsRect(a = a, b = b, r = header)
+        }
+    if (k < 0) return null
+    val a = pts[k]
+    val b = pts[k + 1]
+    val left = frame.origin.x
+    val right = left + frame.size.width
+    val fromLeft = a.x < left && b.x > left
+    val fromRight = a.x > right && b.x < right
+    if (!fromLeft && !fromRight) return null
+    val clampY = header.origin.y + header.size.height + HEADER_FRAME_CLEARANCE_PX
+    if (pts.last().y - clampY < HEADER_CHILD_ROOM_PX) return null
+    val jogX = if (fromLeft) minOf(left - CLAMP_JOG_OUTSIDE_PX, b.x) else maxOf(right + CLAMP_JOG_OUTSIDE_PX, b.x)
+    if (fromLeft && jogX < a.x || fromRight && jogX > a.x) return null
+    val all =
+        buildList {
+            addAll(pts.subList(0, k + 1))
+            if (kotlin.math.abs(jogX - a.x) > 0.5f) add(Point(x = jogX, y = a.y))
+            add(Point(x = jogX, y = clampY))
+            add(Point(x = b.x, y = clampY))
+            addAll(
+                pts.subList(k + 2, pts.size).let { rest ->
+                    if (rest.isNotEmpty() &&
+                        kotlin.math.abs(rest.first().x - b.x) < 0.5f &&
+                        kotlin.math.abs(rest.first().y - clampY) < 0.5f
+                    ) {
+                        rest.drop(1)
+                    } else {
+                        rest
+                    }
+                },
+            )
+        }
+    if (crossesHeader(pts = all, header = header)) {
+        logger.debug { "Horizontal entry of ${group.id.value} could not be lifted below the band" }
+        return null
+    }
+    return EdgeRoute.OrthogonalRounded(
+        source = all.first(),
+        target = all.last(),
+        waypoints = all.subList(1, all.size - 1),
+        cornerRadiusPx = HEADER_CORNER_RADIUS_PX,
+    )
+}
+
+private const val MAX_ROUTE_POINTS = 64
 
 private fun contains(
     frame: Rect,

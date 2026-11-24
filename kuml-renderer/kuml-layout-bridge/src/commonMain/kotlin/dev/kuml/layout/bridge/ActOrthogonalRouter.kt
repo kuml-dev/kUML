@@ -49,6 +49,9 @@ internal object ActOrthogonalRouter {
     private const val CORNER = 0f
     private const val STUB = 4f
     private const val SIDE_SLACK = 4f
+    private const val MAX_MERGES = 64
+    private const val MAX_MERGE_INPUTS = 16
+    private const val MAX_PERMUTED_INPUTS = 4
     private val DOWN = Point(x = 0f, y = 1f)
     private val UP = Point(x = 0f, y = -1f)
     private val LEFT = Point(x = -1f, y = 0f)
@@ -119,6 +122,17 @@ internal object ActOrthogonalRouter {
             out[EdgeId(e.id)] = toRoute(routeEdge(nodes = nodes, e = e, p0 = p0, d0 = d0, p1 = p1, d1 = d1))
         }
 
+        reorderMergeInputs(
+            nodes = nodes,
+            kinds = kinds,
+            inBy = inBy,
+            sideEntries = sideEntries,
+            start = start,
+            end = end,
+            out = out,
+            cx = ::cx,
+        )
+
         // Back edges: right side of the source, corridor of its lane, back into the target.
         val perLane = HashMap<String, Int>()
         for (e in live.filter { it.id in backEdges }) {
@@ -161,6 +175,68 @@ internal object ActOrthogonalRouter {
         }
         return out
     }
+
+    /**
+     * PAL wave I (4): the inputs of a merge take their slots at the top edge in the order of their sources' x. When the
+     * routes then cross because they approach from a different side, the slots are re-assigned in the order of the
+     * routes' approach coordinate (x of the last bend before the slot; ties by id). Adopted only if the number of
+     * crossings among all routes strictly drops, so already clean merges stay byte-identical.
+     */
+    private fun reorderMergeInputs(
+        nodes: Map<String, Rect>,
+        kinds: Map<String, ActivityNodeKind>,
+        inBy: Map<String, List<ActEdgeEnds>>,
+        sideEntries: Map<String, Pair<Point, Point>>,
+        start: Map<String, Pair<Point, Point>>,
+        end: MutableMap<String, Pair<Point, Point>>,
+        out: MutableMap<EdgeId, EdgeRoute>,
+        cx: (String) -> Float,
+    ) {
+        for ((t, list) in inBy.entries.take(MAX_MERGES)) {
+            if (kinds[t] != ActivityNodeKind.Merge) continue
+            val inputs = list.filter { it.id !in sideEntries }.take(MAX_MERGE_INPUTS)
+            if (inputs.size < 2) continue
+            val r = nodes.getValue(t)
+            val current = inputs.sortedWith(compareBy({ cx(it.source) }, { it.id }))
+
+            fun approachX(e: ActEdgeEnds): Float {
+                val pts = polylinePoints(out.getValue(EdgeId(e.id))) ?: return cx(e.source)
+                val last = pts.last()
+                return pts.asReversed().firstOrNull { kotlin.math.abs(it.x - last.x) > 1f }?.x ?: last.x
+            }
+            val heuristic = inputs.sortedWith(compareBy({ approachX(it) }, { it.id }))
+            val orders =
+                (if (inputs.size <= MAX_PERMUTED_INPUTS) permutations(current) else emptyList()) + listOf(heuristic)
+            val currentIds = current.map { it.id }
+            val crossingsBefore = countCrossings(out.values.mapNotNull { polylinePoints(it) })
+            if (crossingsBefore == 0) continue
+            var best: Triple<Int, LinkedHashMap<EdgeId, EdgeRoute>, Map<String, Pair<Point, Point>>>? = null
+            for (order in orders) {
+                if (order.map { it.id } == currentIds) continue
+                val candidate = LinkedHashMap(out)
+                val newEnds = HashMap<String, Pair<Point, Point>>()
+                order.forEachIndexed { i, e ->
+                    val p1 = Point(x = spread(r = r, i = i, n = order.size, wide = true), y = r.origin.y)
+                    newEnds[e.id] = p1 to UP
+                    val (p0, d0) = start.getValue(e.id)
+                    candidate[EdgeId(e.id)] = toRoute(routeEdge(nodes = nodes, e = e, p0 = p0, d0 = d0, p1 = p1, d1 = UP))
+                }
+                val crossings = countCrossings(candidate.values.mapNotNull { polylinePoints(it) })
+                if (crossings < crossingsBefore && (best == null || crossings < best.first)) best = Triple(crossings, candidate, newEnds)
+            }
+            best?.let {
+                out.putAll(it.second)
+                end.putAll(it.third)
+            }
+        }
+    }
+
+    private fun <T> permutations(items: List<T>): List<List<T>> =
+        if (items.size <= 1) {
+            listOf(items)
+        } else {
+            items.flatMapIndexed { i, x -> permutations(items.filterIndexed { j, _ -> j != i }).map { listOf(x) + it } }
+        }
 
     /** Obstacle-routed path of one forward edge between the given end points (with the short stubs outside the boxes). */
     private fun routeEdge(

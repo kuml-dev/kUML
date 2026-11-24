@@ -6,6 +6,14 @@ All notable changes to this project are documented here. Format follows
 
 ## [Unreleased]
 
+### PAL Welle I: edge routing for STM and ACT (partial)
+
+- **STM header band in every flow direction (point 3).** `avoidCompositeHeaderBand` no longer returns early for non-vertical flow; additionally a horizontal run that enters a composite through its side at the height of the header band is lifted to band bottom + 12 px with a jog outside the frame (`clampHorizontalEntryBelowBand`). Invariant test parametrised over line height, action rows, direction and entry side.
+- **ACT merge input order (point 4).** The inputs of a merge take the slot order with the fewest route crossings (all permutations up to four inputs, otherwise an approach-coordinate heuristic); adopted only if the crossing count strictly drops. A merge where the obstacle detour itself causes a crossing keeps one crossing (test fixture documents 3 -> 1).
+- **Initial transition label (point 2, label part).** The label of a transition that leaves a small pseudo-state keeps 16 px from the arrowhead and may stand beside the initial circle.
+- **Not done in this wave:** parallel-edge lane separation and label clearance for doc 51 (point 1), note anchor line routing (point 2 anchor part) and anchor lines across foreign swimlanes (point 5).
+- Shared helpers `EdgeClearance.kt` (`countCrossings`, `parallelGap`, clearance constants).
+
 ### PAL Welle H: prefix/kind check (KUML-NOTE-W006)
 
 - **New warning `KUML-NOTE-W006` (point 22, opt-in).** A note whose text starts with a configured prefix word but whose `NoteKind` differs from the one the table expects is reported (`Notiz <id>: Präfix '<key>' erwartet Art <KIND>, die Notiz hat Art <KIND>`). The message names the table key, never the note text. This replaces the "point 22 is undefined" remark of Welle F.

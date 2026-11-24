@@ -5,6 +5,7 @@ import dev.kuml.layout.LayoutResult
 import dev.kuml.layout.Point
 import dev.kuml.layout.Rect
 import dev.kuml.layout.Size
+import dev.kuml.layout.bridge.INIT_LABEL_ARROWHEAD_GAP_PX
 import dev.kuml.layout.bridge.note.ObstacleIndex
 import dev.kuml.layout.bridge.note.ObstacleKind
 import dev.kuml.layout.bridge.note.Sysml2NotePlacement
@@ -497,10 +498,25 @@ public object Sysml2DiagramLabelPlan {
             if (pts.size < 2) continue
             lines[spec.id] = spec.lines
             val mid = arcMidpoint(pts)
+            // PAL wave I (2): the label of a transition that leaves an initial pseudo-state keeps 16 px from the arrow head.
+            val headClear =
+                if (startsAtInitial(pts = pts, nodes = nodes)) {
+                    val box = arrowHeadBox(tip = pts.last(), from = pts[pts.size - 2])
+                    listOf(
+                        rectOf(
+                            left = box.origin.x - INIT_LABEL_ARROWHEAD_GAP_PX,
+                            top = box.origin.y - INIT_LABEL_ARROWHEAD_GAP_PX,
+                            right = box.origin.x + box.size.width + INIT_LABEL_ARROWHEAD_GAP_PX,
+                            bottom = box.origin.y + box.size.height + INIT_LABEL_ARROWHEAD_GAP_PX,
+                        ),
+                    )
+                } else {
+                    emptyList()
+                }
             val avoid =
                 composites
                     .filter { c -> !c.frame.containsPoint(mid) }
-                    .map { it.frame }
+                    .map { it.frame } + headClear
             val flags =
                 (0 until pts.size - 1).map { i ->
                     var f = 0
@@ -517,6 +533,7 @@ public object Sysml2DiagramLabelPlan {
                     polyline = pts,
                     avoid = avoid,
                     segmentFlags = flags,
+                    extraCandidates = if (headClear.isEmpty()) emptyList() else besideInitial(pts = pts, size = spec.size),
                 )
         }
         if (requests.isEmpty()) return Sysml2LabelPlanResult(labels = emptyMap(), lines = emptyMap())
@@ -524,6 +541,50 @@ public object Sysml2DiagramLabelPlan {
     }
 
     private const val STM_STRIP_PX: Float = 100_000f
+
+    /** Distance (px) between the line and a label that stands beside the initial circle. */
+    private const val BESIDE_INITIAL_OFFSET_PX: Float = 14f
+
+    /** The label is centred this far (px) above the line start, i.e. level with the lower half of the circle. */
+    private const val BESIDE_INITIAL_LIFT_PX: Float = 8f
+
+    /** Candidates beside the initial pseudo-state (right, then left of the line, centred on the line's first point). */
+    private fun besideInitial(
+        pts: List<Point>,
+        size: Size,
+    ): List<Rect> {
+        val s = pts.first()
+        val n = pts[1]
+        // Only for a line that leaves vertically; a sideways start has room along the line anyway.
+        if (kotlin.math.abs(n.x - s.x) > 1f) return emptyList()
+        val cy = s.y - BESIDE_INITIAL_LIFT_PX
+        return listOf(1f, -1f).map { side ->
+            val left = if (side > 0f) s.x + BESIDE_INITIAL_OFFSET_PX else s.x - BESIDE_INITIAL_OFFSET_PX - size.width
+            rectOf(left = left, top = cy - size.height / 2f, right = left + size.width, bottom = cy + size.height / 2f)
+        }
+    }
+
+    /** Largest side (px) of a pseudo-state circle that counts as initial candidate. */
+    private const val INITIAL_MAX_SIDE_PX: Float = 26f
+
+    /**
+     * True when the line starts at a small node (a pseudo-state circle: at most 26 x 26 px). Note anchors also end at
+     * such nodes, so "never entered" cannot be tested on the drawn lines.
+     */
+    private fun startsAtInitial(
+        pts: List<Point>,
+        nodes: Map<String, Rect>,
+    ): Boolean {
+        val start = pts.first()
+        return nodes.values.any { r ->
+            r.size.width <= INITIAL_MAX_SIDE_PX &&
+                r.size.height <= INITIAL_MAX_SIDE_PX &&
+                start.x >= r.origin.x - 3f &&
+                start.x <= r.origin.x + r.size.width + 3f &&
+                start.y >= r.origin.y - 3f &&
+                start.y <= r.origin.y + r.size.height + 3f
+        }
+    }
 
     /** Half width of a drawn transition arrow head in px; its length is [PortEdgeClamp.ARROW_LEN_PX]. */
     private const val ARROW_HALF_WIDTH_PX: Float = 5f
