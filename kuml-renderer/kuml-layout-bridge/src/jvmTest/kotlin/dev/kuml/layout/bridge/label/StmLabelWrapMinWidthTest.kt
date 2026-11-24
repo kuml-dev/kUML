@@ -74,4 +74,19 @@ class StmLabelWrapMinWidthTest :
             val lines = StmLabelWrap.wrap(parts = listOf(name("T3:"), trigger("wort ".repeat(100_000))), maxWidthPx = 150f)
             (lines.size < 1000) shouldBe true
         }
+
+        test("PAL Welle L: minWordsPerLine 1 wraps narrower than the default and never splits a word") {
+            val narrow = StmLabelWrap.wrap(parts = longLabel, maxWidthPx = 100f, minWordsPerLine = 1)
+            val dflt = StmLabelWrap.wrap(parts = longLabel, maxWidthPx = 100f)
+            (StmLabelWrap.boxSize(narrow).width < StmLabelWrap.boxSize(dflt).width) shouldBe true
+            narrow.none { it.brokenInWord } shouldBe true
+        }
+
+        test("PAL Welle L: variant widths are strictly narrower, at least 60 px and descending") {
+            val w = StmLabelWrap.variantWidths(parts = longLabel, maxWidthPx = 220f)
+            w.isNotEmpty() shouldBe true
+            w.all { it < 220f && it >= StmLabelWrap.MIN_VARIANT_WIDTH_PX } shouldBe true
+            w shouldBe w.sortedDescending()
+            StmLabelWrap.variantWidths(parts = longLabel, maxWidthPx = 60f) shouldBe emptyList()
+        }
     })

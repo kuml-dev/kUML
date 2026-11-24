@@ -1736,29 +1736,90 @@ public object KumlSvgRenderer {
                     )
                 }
 
+        // PAL Welle L: narrower wraps of a label (widest first, each strictly narrower than the one before and no taller than its
+        // longest line segment), offered to the planner for the labels that find no free position at their normal wrap.
+        fun variantsOf(
+            id: String,
+            lines: List<dev.kuml.io.svg.sysml2.edge.StmLabelLine>,
+            width: Float,
+        ): List<List<dev.kuml.io.svg.sysml2.edge.StmLabelLine>> {
+            val pts =
+                routes[id]
+                    ?.let {
+                        dev.kuml.layout.bridge.label.Sysml2DiagramLabelPlan
+                            .stmPolylineOf(it)
+                    }.orEmpty()
+            var longest = 0f
+            for (i in 0 until pts.size - 1) {
+                longest = maxOf(longest, kotlin.math.hypot(pts[i + 1].x - pts[i].x, pts[i + 1].y - pts[i].y))
+            }
+            val out = ArrayList<List<dev.kuml.io.svg.sysml2.edge.StmLabelLine>>()
+            var previous =
+                dev.kuml.io.svg.sysml2.edge.StmLabelPlacer
+                    .boxSize(lines)
+                    .width
+            for (w in dev.kuml.layout.bridge.label.StmLabelWrap
+                .variantWidths(parts = parts.getValue(id), maxWidthPx = width)) {
+                val v =
+                    dev.kuml.io.svg.sysml2.edge.StmLabelPlacer
+                        .wrap(parts = parts.getValue(id), maxWidthPx = w, minWordsPerLine = 1)
+                val box =
+                    dev.kuml.io.svg.sysml2.edge.StmLabelPlacer
+                        .boxSize(v)
+                if (box.width >= previous - 0.5f) continue
+                if (box.height > longest + 2 * dev.kuml.io.svg.sysml2.edge.StmLabelPlacer.PAD) continue
+                out += v
+                previous = box.width
+            }
+            return out
+        }
+
+        // A plan together with the exact narrower wraps it was offered: `variantChosen` indexes into these lists, so the lines drawn
+        // for a chosen variant always come from the very run that produced the plan.
+        class Planned(
+            val plan: dev.kuml.layout.bridge.label.Sysml2LabelPlanResult,
+            val variants: Map<String, List<List<dev.kuml.io.svg.sysml2.edge.StmLabelLine>>>,
+        )
+
         fun planWith(
             wrapped: Map<String, List<dev.kuml.io.svg.sysml2.edge.StmLabelLine>>,
-        ): dev.kuml.layout.bridge.label.Sysml2LabelPlanResult =
-            dev.kuml.layout.bridge.label.Sysml2DiagramLabelPlan.planStmLabels(
-                edges = routes,
-                nodes = simple,
-                composites = composites,
-                labels =
-                    wrapped.entries.sortedBy { it.key }.map { (id, lines) ->
-                        dev.kuml.layout.bridge.label.StmLabelSpec(
-                            id = id,
-                            lines = lines.map { it.text },
-                            size =
-                                dev.kuml.io.svg.sysml2.edge.StmLabelPlacer
-                                    .boxSize(lines),
-                        )
-                    },
-                frameTop = STM_LABEL_FRAME_TOP_PX,
-            )
+            widths: Map<String, Float>,
+        ): Planned {
+            val offered = wrapped.mapValues { (id, lines) -> variantsOf(id = id, lines = lines, width = widths.getValue(id)) }
+            val result =
+                dev.kuml.layout.bridge.label.Sysml2DiagramLabelPlan.planStmLabels(
+                    edges = routes,
+                    nodes = simple,
+                    composites = composites,
+                    labels =
+                        wrapped.entries.sortedBy { it.key }.map { (id, lines) ->
+                            dev.kuml.layout.bridge.label.StmLabelSpec(
+                                id = id,
+                                lines = lines.map { it.text },
+                                size =
+                                    dev.kuml.io.svg.sysml2.edge.StmLabelPlacer
+                                        .boxSize(lines),
+                                variants =
+                                    offered.getValue(id).map { v ->
+                                        dev.kuml.layout.bridge.label.StmLabelVariant(
+                                            lines = v.map { it.text },
+                                            size =
+                                                dev.kuml.io.svg.sysml2.edge.StmLabelPlacer
+                                                    .boxSize(v),
+                                        )
+                                    },
+                            )
+                        },
+                    frameTop = STM_LABEL_FRAME_TOP_PX,
+                )
+            return Planned(plan = result, variants = offered)
+        }
 
         var wrapped: Map<String, List<dev.kuml.io.svg.sysml2.edge.StmLabelLine>> =
             parts.keys.sorted().associateWith { wrapAt(id = it, width = maxWidthPx) }
-        var plan = planWith(wrapped)
+        var widths: Map<String, Float> = parts.keys.associateWith { maxWidthPx }
+        var planned = planWith(wrapped, widths)
+        var plan = planned.plan
         // Nacharbeit 43: a label that has no free spot (it crosses its own line or a foreign line) is wrapped narrower and the
         // plan is repeated; the repeat is kept only when it leaves fewer such labels, so a crowded diagram never gets worse.
         val crowded = plan.labels.filter { !it.value.clean }.keys
@@ -1768,12 +1829,23 @@ public object KumlSvgRenderer {
                     if (id !in crowded) lines else wrapAt(id = id, width = maxWidthPx * STM_NARROW_WRAP_FACTOR)
                 }
             if (narrower != wrapped) {
-                val retry = planWith(narrower)
-                if (retry.labels.count { !it.value.clean } < crowded.size) {
+                val narrowerWidths = widths.mapValues { (id, w) -> if (id !in crowded) w else maxWidthPx * STM_NARROW_WRAP_FACTOR }
+                val retry = planWith(narrower, narrowerWidths)
+                if (retry.plan.labels.count { !it.value.clean } < crowded.size) {
                     wrapped = narrower
-                    plan = retry
+                    widths = narrowerWidths
+                    planned = retry
+                    plan = retry.plan
                 }
             }
+        }
+        // The labels the planner put back in a narrower wrap are drawn in exactly that wrap.
+        if (plan.variantChosen.isNotEmpty()) {
+            wrapped =
+                wrapped.mapValues { (id, lines) ->
+                    val vi = plan.variantChosen[id] ?: return@mapValues lines
+                    planned.variants[id]?.getOrNull(vi) ?: lines
+                }
         }
         val out = LinkedHashMap<String, dev.kuml.io.svg.sysml2.edge.StmLabelBlock>()
         for ((id, placed) in plan.labels) {

@@ -62,7 +62,8 @@ internal object StmLabelPlacer {
     fun wrap(
         parts: List<EdgeLabelPart>,
         maxWidthPx: Float = DEFAULT_MAX_WIDTH_PX,
-    ): List<StmLabelLine> = StmLabelWrap.wrap(parts = parts, maxWidthPx = maxWidthPx)
+        minWordsPerLine: Int = 3,
+    ): List<StmLabelLine> = StmLabelWrap.wrap(parts = parts, maxWidthPx = maxWidthPx, minWordsPerLine = minWordsPerLine)
 
     /** Width and height of the box of [lines]. */
     fun boxSize(lines: List<StmLabelLine>): Size = StmLabelWrap.boxSize(lines = lines)

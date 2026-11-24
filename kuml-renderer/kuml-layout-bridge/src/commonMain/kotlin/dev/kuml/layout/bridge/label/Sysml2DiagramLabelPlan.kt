@@ -59,6 +59,14 @@ public data class StmLabelSpec(
     val id: String,
     val lines: List<String>,
     val size: Size,
+    /** PAL Welle L: narrower wraps of the same label, widest first, each strictly narrower than [size]; tried only when the label has no free position. */
+    val variants: List<StmLabelVariant> = emptyList(),
+)
+
+/** One narrower wrap of a [StmLabelSpec]: its [lines] and the [size] of the box they need (PAL Welle L). */
+public data class StmLabelVariant(
+    val lines: List<String>,
+    val size: Size,
 )
 
 /**
@@ -79,6 +87,10 @@ public data class Sysml2LabelPlanResult(
     val lines: Map<String, List<String>>,
     /** Ids of labels that have no free position (PAL Welle J2, state machines): they keep their best compromise and are not clean. */
     val unresolved: List<String> = emptyList(),
+    /** PAL Welle L: label id to the index (into [StmLabelSpec.variants]) of the narrower wrap it was placed with; labels that kept their wrap are absent. */
+    val variantChosen: Map<String, Int> = emptyMap(),
+    /** PAL Welle L: unresolved label id to the short token of the rule that blocks most positions (`foreign-edge`, `own-edge`, `foreign-closer`, `node`, `label`, `own-far`). */
+    val unresolvedReason: Map<String, String> = emptyMap(),
 )
 
 /**
@@ -549,11 +561,26 @@ public object Sysml2DiagramLabelPlan {
         if (requests.isEmpty()) return Sysml2LabelPlanResult(labels = emptyMap(), lines = emptyMap())
         val placed = LabelPlacer.place(requests = requests, index = buildIndex(), costs = costs)
         if (!costs.hardExclusions) return Sysml2LabelPlanResult(labels = placed, lines = lines)
-        val repaired = StmLabelRepair.repair(requests = requests, placed0 = placed, base = buildIndex(), costs = costs)
+        val variants = labels.filter { it.variants.isNotEmpty() }.associate { it.id to it.variants }
+        val repaired = StmLabelRepair.repair(requests = requests, placed0 = placed, base = buildIndex(), costs = costs, variants = variants)
         for (id in repaired.unresolved) {
-            logger.warn { "${LayoutCodes.STM_LABEL_NO_FREE_SPOT}: the label of transition '${id.take(MAX_LOG_ID)}' has no free position." }
+            val why = repaired.reason[id] ?: "none"
+            logger.warn {
+                "${LayoutCodes.STM_LABEL_NO_FREE_SPOT}: the label of transition '${id.take(
+                    MAX_LOG_ID,
+                )}' has no free position (blocked by: $why)."
+            }
         }
-        return Sysml2LabelPlanResult(labels = repaired.placed, lines = lines, unresolved = repaired.unresolved)
+        for ((id, vi) in repaired.chosen) {
+            variants[id]?.getOrNull(vi)?.let { lines[id] = it.lines }
+        }
+        return Sysml2LabelPlanResult(
+            labels = repaired.placed,
+            lines = lines,
+            unresolved = repaired.unresolved,
+            variantChosen = repaired.chosen,
+            unresolvedReason = repaired.reason,
+        )
     }
 
     private const val MAX_LOG_ID: Int = 120

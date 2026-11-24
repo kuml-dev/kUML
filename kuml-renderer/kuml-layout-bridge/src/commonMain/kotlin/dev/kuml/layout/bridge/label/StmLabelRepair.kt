@@ -27,12 +27,17 @@ internal object StmLabelRepair {
     class Result(
         val placed: Map<String, PlacedLabel>,
         val unresolved: List<String>,
+        /** PAL Welle L: label id to the index of the narrower variant it was put back with (labels that kept their size are absent). */
+        val chosen: Map<String, Int> = emptyMap(),
+        /** PAL Welle L: unresolved label id to the short token of what blocks most of its positions. */
+        val reason: Map<String, String> = emptyMap(),
     )
 
-    /** One position of a label (its rectangle and the polyline segment it sits beside). */
+    /** One position of a label (its rectangle, the polyline segment it sits beside and the narrower variant it was sized for, -1 = original). */
     class Cand(
         val rect: Rect,
         val segment: Int,
+        val variant: Int = -1,
     )
 
     /** Work counter of one repair run (DoS guard). */
@@ -52,6 +57,9 @@ internal object StmLabelRepair {
     /** Distance (px) between the line and the label edge facing it, nearest first. */
     private val OFFSETS: List<Float> = listOf(3f, 6f, 10f, 14f)
 
+    /** PAL Welle L: the single last-resort stage tries one more offset and accepts a label this far from its own line. */
+    private const val LAST_RESORT_OFFSET_PX: Float = 18f
+
     private const val STEP_PX: Float = 8f
     private const val MAX_FRACTION: Float = 0.45f
     private const val MAX_STEPS: Int = 24
@@ -67,6 +75,7 @@ internal object StmLabelRepair {
         placed0: Map<String, PlacedLabel>,
         base: ObstacleIndex,
         costs: LabelCostModel,
+        variants: Map<String, List<StmLabelVariant>> = emptyMap(),
     ): Result {
         val reqs = requests.associateBy { it.id }
         val rects0 = placed0.mapValues { it.value.rect }
@@ -84,7 +93,7 @@ internal object StmLabelRepair {
         val repaired = LinkedHashMap<String, Cand>()
         val cache = HashMap<String, List<Cand>>()
 
-        fun cands(id: String): List<Cand> = cache.getOrPut(id) { repairCandidates(reqs.getValue(id)) }
+        fun cands(id: String): List<Cand> = cache.getOrPut(id) { repairCandidates(req = reqs.getValue(id)) }
 
         fun others(
             id: String,
@@ -156,12 +165,108 @@ internal object StmLabelRepair {
             }
         }
 
+        // PAL Welle L: a label that is still open is tried narrower (and once with a slightly larger distance from its line).
+        val unresolvedFinal = ArrayList<String>()
+        val reason = LinkedHashMap<String, String>()
+        for (u in stillOpen) {
+            val c =
+                if (variants[u].isNullOrEmpty()) {
+                    null
+                } else {
+                    narrower(
+                        u = u,
+                        around = others(u),
+                        reqs = reqs,
+                        variants = variants,
+                        base = base,
+                        costs = costs,
+                        budget = budget,
+                    )
+                }
+            if (c != null) {
+                repaired[u] = c
+            } else {
+                unresolvedFinal += u
+                reason[u] =
+                    dominantReason(
+                        req = reqs.getValue(u),
+                        around = others(u),
+                        cands = cands(u),
+                        base = base,
+                        costs = costs,
+                        budget = budget,
+                    )
+            }
+        }
+
         val out = LinkedHashMap<String, PlacedLabel>()
+        val chosen = LinkedHashMap<String, Int>()
         for ((id, p) in placed0) {
             val c = repaired[id]
             out[id] = if (c == null) p else PlacedLabel(rect = c.rect, onLine = false, clean = true, segment = c.segment)
+            if (c != null && c.variant >= 0) chosen[id] = c.variant
         }
-        return Result(placed = out, unresolved = stillOpen)
+        return Result(placed = out, unresolved = unresolvedFinal, chosen = chosen, reason = reason)
+    }
+
+    /**
+     * PAL Welle L: the first free position of [u] in one of its narrower [variants] (widest first), at the normal distance.
+     * If none is free, one more round over the original size and all variants with the offset [LAST_RESORT_OFFSET_PX] and a
+     * maximum distance of the same size. Every rule of [isViolation] stays; only the distance grows.
+     */
+    private fun narrower(
+        u: String,
+        around: Map<String, Rect>,
+        reqs: Map<String, LabelRequest>,
+        variants: Map<String, List<StmLabelVariant>>,
+        base: ObstacleIndex,
+        costs: LabelCostModel,
+        budget: Budget,
+    ): Cand? {
+        val req = reqs.getValue(u)
+        val vs = variants.getValue(u)
+
+        fun search(
+            variant: Int,
+            size: dev.kuml.layout.Size,
+            offsets: List<Float>,
+            c: LabelCostModel,
+        ): Cand? {
+            if (budget.left <= 0) return null
+            val r = req.copy(size = size)
+            return repairCandidates(req = r, offsets = offsets)
+                .firstOrNull {
+                    budget.left > 0 &&
+                        !isViolation(req = r, rect = it.rect, others = around, index = base, costs = c, budget = budget)
+                }?.let { Cand(rect = it.rect, segment = it.segment, variant = variant) }
+        }
+        for ((vi, v) in vs.withIndex()) search(variant = vi, size = v.size, offsets = OFFSETS, c = costs)?.let { return it }
+        val wide = costs.copy(maxDistancePx = maxOf(costs.maxDistancePx, LAST_RESORT_OFFSET_PX))
+        val offsets = OFFSETS + LAST_RESORT_OFFSET_PX
+        search(variant = -1, size = req.size, offsets = offsets, c = wide)?.let { return it }
+        for ((vi, v) in vs.withIndex()) search(variant = vi, size = v.size, offsets = offsets, c = wide)?.let { return it }
+        return null
+    }
+
+    /** The short token of the rule that rejects most of [cands] (ties: alphabetical); `none` when no position is rejected. */
+    private fun dominantReason(
+        req: LabelRequest,
+        around: Map<String, Rect>,
+        cands: List<Cand>,
+        base: ObstacleIndex,
+        costs: LabelCostModel,
+        budget: Budget,
+    ): String {
+        val count = HashMap<String, Int>()
+        for (c in cands) {
+            if (budget.left <= 0) break
+            val why = violationReason(req = req, rect = c.rect, others = around, index = base, costs = costs, budget = budget) ?: continue
+            count[why] = (count[why] ?: 0) + 1
+        }
+        return count.entries
+            .sortedWith(compareBy({ -it.value }, { it.key }))
+            .firstOrNull()
+            ?.key ?: "none"
     }
 
     private fun ripUp(
@@ -230,15 +335,28 @@ internal object StmLabelRepair {
         index: ObstacleIndex,
         costs: LabelCostModel,
         budget: Budget? = null,
-    ): Boolean {
+    ): Boolean = violationReason(req = req, rect = rect, others = others, index = index, costs = costs, budget = budget) != null
+
+    /**
+     * The first rule [rect] breaks as a short fixed token (`label`, `node`, `foreign-edge`, `own-edge`, `own-far`,
+     * `foreign-closer`), or null when it is an acceptable position. Same rules and order as [isViolation].
+     */
+    fun violationReason(
+        req: LabelRequest,
+        rect: Rect,
+        others: Map<String, Rect>,
+        index: ObstacleIndex,
+        costs: LabelCostModel,
+        budget: Budget? = null,
+    ): String? {
         budget?.let { it.left -= index.size + others.size + 1 }
-        for (r in others.values) if (tooClose(a = rect, b = r)) return true
+        for (r in others.values) if (tooClose(a = rect, b = r)) return "label"
         for (o in index.rects) {
             if (o.kind.isLabel) continue
             val other = if (costs.nodeClearance > 0f) o.core.inflated(costs.nodeClearance) else o.core
-            if (other.intersects(rect)) return true
+            if (other.intersects(rect)) return "node"
         }
-        for (a in req.avoid) if (a.intersects(rect)) return true
+        for (a in req.avoid) if (a.intersects(rect)) return "node"
         val clearOwn = rect.inflated(costs.lineClearance)
         val clearForeign = rect.inflated(costs.foreignLineClearance)
         for (l in index.lines) {
@@ -247,15 +365,15 @@ internal object StmLabelRepair {
             if (own && !costs.ownCrossUnclean) continue
             val clear = if (own) clearOwn else clearForeign
             for (i in 0 until l.points.size - 1) {
-                if (segmentIntersectsRect(a = l.points[i], b = l.points[i + 1], r = clear)) return true
+                if (segmentIntersectsRect(a = l.points[i], b = l.points[i + 1], r = clear)) return if (own) "own-edge" else "foreign-edge"
             }
         }
         if (req.polyline.size >= 2) {
             val d = LabelPlacer.rectDistanceToPolyline(r = rect, pts = req.polyline)
-            if (d > costs.maxDistancePx) return true
-            if (LabelPlacer.foreignAsClose(r = rect, own = d, ownerId = req.ownerId, index = index)) return true
+            if (d > costs.maxDistancePx) return "own-far"
+            if (LabelPlacer.foreignAsClose(r = rect, own = d, ownerId = req.ownerId, index = index)) return "foreign-closer"
         }
-        return false
+        return null
     }
 
     /**
@@ -264,7 +382,10 @@ internal object StmLabelRepair {
      * a position beside a horizontal segment comes first. At each position the nearest offset first, the right of the
      * direction of travel before the left. At most [MAX_CANDIDATES].
      */
-    fun repairCandidates(req: LabelRequest): List<Cand> {
+    fun repairCandidates(
+        req: LabelRequest,
+        offsets: List<Float> = OFFSETS,
+    ): List<Cand> {
         val pts = req.polyline
         if (pts.size < 2) return emptyList()
         val cum = FloatArray(pts.size)
@@ -310,7 +431,7 @@ internal object StmLabelRepair {
             val nx = -uy
             val ny = ux
             val half = abs(nx) * req.size.width / 2f + abs(ny) * req.size.height / 2f
-            for (off in OFFSETS) {
+            for (off in offsets) {
                 for (sign in intArrayOf(1, -1)) {
                     if (out.size >= MAX_CANDIDATES) return out
                     val d = sign * (off + half)

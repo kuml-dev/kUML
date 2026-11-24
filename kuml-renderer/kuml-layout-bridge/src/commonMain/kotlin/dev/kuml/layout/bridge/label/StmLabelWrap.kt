@@ -39,6 +39,12 @@ public object StmLabelWrap {
     /** DoS guard: at most this many characters of one part are processed. */
     private const val MAX_PART_CHARS = 1024
 
+    /** PAL Welle L: a narrower variant of a label is never wrapped to less than this text width (px). */
+    public const val MIN_VARIANT_WIDTH_PX: Float = 60f
+
+    /** PAL Welle L: wrap widths of the narrower label variants as fractions of the original wrap width, widest first. */
+    private val VARIANT_FACTORS: List<Float> = listOf(0.75f, 0.55f, 0.40f)
+
     /** Number of characters that fit a line of [maxWidthPx]. */
     public fun maxChars(maxWidthPx: Float): Int = floor(maxWidthPx / CHAR_W).toInt().coerceAtLeast(8)
 
@@ -48,10 +54,14 @@ public object StmLabelWrap {
      * `,` (the character stays at the end of the line); after `(` only for a group that does not fit otherwise;
      * and a word up to [WIDE_LINE_MAX_PX] stays whole on a widened line; only a longer word is cut hard, each non-last piece ending with `-`. `)`, `]`
      * and `,` never start a line.
+     *
+     * [minWordsPerLine] is 3 by default: the wrap width is raised so that every line but the last holds at least three
+     * words. The narrower variants of PAL Welle L pass 1 and so give up this rule (never the rule of not splitting a word).
      */
     public fun wrap(
         parts: List<EdgeLabelPart>,
         maxWidthPx: Float = DEFAULT_MAX_WIDTH_PX,
+        minWordsPerLine: Int = 3,
     ): List<StmLabelLine> {
         if (parts.isEmpty()) return emptyList()
         val maxC = maxChars(maxWidthPx)
@@ -64,7 +74,13 @@ public object StmLabelWrap {
             val next = parts.getOrNull(i + 1)
             if (p.kind == EdgeLabelKind.Name && p.text.endsWith(":") && next != null) {
                 // The name (`T19:`) sticks to the first word of the next part and never stands alone on a line.
-                val wrapped = wrapText(text = next.text.take(MAX_PART_CHARS), maxC = maxC, prefix = p.text.take(MAX_PART_CHARS))
+                val wrapped =
+                    wrapText(
+                        text = next.text.take(MAX_PART_CHARS),
+                        maxC = maxC,
+                        minWords = minWordsPerLine,
+                        prefix = p.text.take(MAX_PART_CHARS),
+                    )
                 for ((k, wl) in wrapped.withIndex()) {
                     val (line, broken) = wl
                     if (k == 0) {
@@ -82,12 +98,32 @@ public object StmLabelWrap {
                 continue
             }
             val text = p.text.take(MAX_PART_CHARS)
-            for ((line, broken) in wrapText(text = text, maxC = maxC)) {
+            for ((line, broken) in wrapText(text = text, maxC = maxC, minWords = minWordsPerLine)) {
                 out += StmLabelLine(parts = listOf(p.copy(text = line)), brokenInWord = broken)
             }
             i++
         }
         return out
+    }
+
+    /**
+     * PAL Welle L: the wrap widths (px, widest first) of the narrower variants of a label that was wrapped to [maxWidthPx]:
+     * 0.75, 0.55 and 0.40 times that width, never below [MIN_VARIANT_WIDTH_PX] and never below the longest word of
+     * [parts] (a word is never split). Widths that do not end up narrower than [maxWidthPx], and duplicates, are dropped.
+     */
+    public fun variantWidths(
+        parts: List<EdgeLabelPart>,
+        maxWidthPx: Float = DEFAULT_MAX_WIDTH_PX,
+    ): List<Float> {
+        val longest =
+            parts.maxOfOrNull { p ->
+                p.text
+                    .take(MAX_PART_CHARS)
+                    .split(' ')
+                    .maxOfOrNull { it.length } ?: 0
+            } ?: 0
+        val floor = maxOf(MIN_VARIANT_WIDTH_PX, longest * CHAR_W)
+        return VARIANT_FACTORS.map { maxOf(floor, maxWidthPx * it) }.filter { it < maxWidthPx }.distinct()
     }
 
     /** Width and height of the box of [lines]. */
@@ -104,6 +140,7 @@ public object StmLabelWrap {
     private fun wrapText(
         text: String,
         maxC: Int,
+        minWords: Int = 3,
         prefix: String? = null,
     ): List<Pair<String, Boolean>> {
         val plain = glue(text.split(' ').filter { it.isNotEmpty() })
@@ -116,6 +153,7 @@ public object StmLabelWrap {
                 listOf("$prefix ${plain[0]}") + plain.drop(1)
             }
         if (words.isEmpty()) return listOf("" to false)
+        if (minWords <= 1) return wrapWords(words = words, maxC = maxC)
         val threeWords =
             words
                 .windowed(size = 3, partialWindows = true)
