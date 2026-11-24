@@ -128,6 +128,13 @@ public object WorkspaceScanner {
         return scripts.sortedBy { it.relativeTo(scanRoot).invariantSeparatorsPath }
     }
 
+    /** The parsed `.kuml-workspace.toml` marker of [root], or `null` when there is none (or it cannot be read). */
+    public fun readMarker(root: File): WorkspaceMarker? {
+        val markerFile = File(canonicalRoot(root), ".kuml-workspace.toml")
+        if (!markerFile.isFile) return null
+        return runCatching { WorkspaceMarkerParser.parse(markerFile.readText()) }.getOrNull()
+    }
+
     public fun scan(
         root: File,
         excludeDirs: Set<File> = emptySet(),

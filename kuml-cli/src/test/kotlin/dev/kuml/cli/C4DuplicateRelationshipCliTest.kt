@@ -52,7 +52,11 @@ class C4DuplicateRelationshipCliTest :
         }
 
         test("NoteChecks.of reports W002 as a non-error finding on the first relationship id") {
-            val f = NoteChecks.of(extracted(rel("r1", label = "Uses"), rel("r2", label = "uses "))).single { it.code == "KUML-C4-W002" }
+            val f =
+                NoteChecks.of(extracted = extracted(rel("r1", label = "Uses"), rel("r2", label = "uses "))).single {
+                    it.code ==
+                        "KUML-C4-W002"
+                }
             f.isError shouldBe false
             f.subjectId shouldBe "r1"
         }
@@ -81,7 +85,7 @@ class C4DuplicateRelationshipCliTest :
         }
 
         test("NoteChecks.of reports it as a non-error finding on the first relationship id") {
-            val f = NoteChecks.of(extracted(rel("r1"), rel("r2"))).single { it.code == "KUML-C4-W001" }
+            val f = NoteChecks.of(extracted = extracted(rel("r1"), rel("r2"))).single { it.code == "KUML-C4-W001" }
             f.isError shouldBe false
             f.subjectId shouldBe "r1"
         }

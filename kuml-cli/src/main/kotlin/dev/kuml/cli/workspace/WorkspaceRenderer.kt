@@ -72,6 +72,7 @@ public object WorkspaceRenderer {
         mirror: Boolean,
         strict: Boolean = false,
         themeName: String? = null,
+        prefixKinds: dev.kuml.core.model.note.NotePrefixKinds = dev.kuml.core.model.note.NotePrefixKinds.EMPTY,
     ): RenderReport {
         outputDir.mkdirs()
         if (mirror) runCatching { File(outputDir, OUTPUT_MARKER).writeText("kuml workspace render output\n", Charsets.UTF_8) }
@@ -110,6 +111,7 @@ public object WorkspaceRenderer {
                                 themeName = themeName,
                                 config = KumlConfig.DEFAULT,
                                 layoutEngineOverride = null,
+                                notePrefixKinds = prefixKinds,
                             )
                         }
                     rendered += outFile

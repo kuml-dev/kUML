@@ -220,7 +220,8 @@ internal class WorkspaceValidateCommand : CliktCommand(name = "validate") {
             findings += OkfValidator.validate(ws = ws, strictVocabulary = strictVocabulary)
         }
         if (evaluate) {
-            findings += WorkspaceBlockEvaluator.evaluateDocuments(documents = docs, strict = strict)
+            val prefixKinds = WorkspaceScanner.readMarker(root)?.notePrefixKinds ?: dev.kuml.core.model.note.NotePrefixKinds.EMPTY
+            findings += WorkspaceBlockEvaluator.evaluateDocuments(documents = docs, strict = strict, prefixKinds = prefixKinds)
         }
         val errorCount = findings.count { it.severity == OkfSeverity.ERROR }
         val label = if (scoped) docs.joinToString(", ") { it.relativePath.replace('\\', '/') } else root.name
@@ -478,6 +479,7 @@ internal class WorkspaceRenderCommand : CliktCommand(name = "render") {
                 width = width,
                 mirror = mirror,
                 strict = strict,
+                prefixKinds = WorkspaceScanner.readMarker(root)?.notePrefixKinds ?: dev.kuml.core.model.note.NotePrefixKinds.EMPTY,
             )
 
         echo(

@@ -9,6 +9,7 @@ import dev.kuml.c4.constraint.C4NearDuplicateRelationships
 import dev.kuml.core.model.note.KumlNoteCodes
 import dev.kuml.core.model.note.KumlNoteIssue
 import dev.kuml.core.model.note.NoteKind
+import dev.kuml.core.model.note.NotePrefixKinds
 import dev.kuml.core.script.ExtractedDiagram
 import dev.kuml.erm.constraint.ErmNoteChecker
 import dev.kuml.layout.bridge.NoteDiagnostics
@@ -23,6 +24,8 @@ import dev.kuml.uml.UmlComment
  * `render` (printed as warnings) and `validate` (folded into the result).
  *
  * Messages name note ids and limits, never note bodies.
+ *
+ * `KUML-NOTE-W006` (prefix/kind mismatch) is opt-in: it is only produced when a [NotePrefixKinds] table is passed (workspace marker `[note-prefixes]`).
  *
  * It also carries the Service Blueprint findings `KUML-BP-W001` (duplicate step ids) and `KUML-BP-W002` (one id used by several element kinds), because this is the single funnel
  * that both `render` and `validate` already consume, and the C4 findings `KUML-C4-W001` / `KUML-C4-W002` (duplicate and near-duplicate relationships).
@@ -92,7 +95,10 @@ public object NoteChecks {
             )
         }
 
-    public fun of(extracted: ExtractedDiagram): List<Finding> {
+    public fun of(
+        extracted: ExtractedDiagram,
+        prefixKinds: NotePrefixKinds = NotePrefixKinds.EMPTY,
+    ): List<Finding> {
         val issues: List<KumlNoteIssue>
         val truncated =
             when (extracted) {
@@ -164,7 +170,51 @@ public object NoteChecks {
             truncated.map {
                 Finding(code = it.code, isError = false, subjectId = it.noteId, message = it.message, sourceLine = lines[it.noteId])
             }
-        return structural + display + blueprintFindings(extracted) + c4Findings(extracted)
+        return structural + display + blueprintFindings(extracted) + c4Findings(extracted) +
+            prefixKindFindings(extracted = extracted, prefixKinds = prefixKinds, lines = lines)
+    }
+
+    private data class NoteView(
+        val id: String,
+        val body: String,
+        val kind: NoteKind,
+    )
+
+    /** Notes of the first diagram with a writable kind; C4 and Blueprint notes carry no kind and are not checked. */
+    private fun notesOf(extracted: ExtractedDiagram): List<NoteView> =
+        when (extracted) {
+            is ExtractedDiagram.Sysml2 -> extracted.model.comments.map { NoteView(id = it.id, body = it.note.body, kind = it.note.kind) }
+            is ExtractedDiagram.Bpmn ->
+                (
+                    extracted.model.processes.flatMap { it.textAnnotations } +
+                        extracted.model.collaborations.flatMap { it.textAnnotations }
+                ).map { NoteView(id = it.id, body = it.note.body, kind = it.note.kind) }
+            is ExtractedDiagram.Erm -> extracted.model.notes.map { NoteView(id = it.id, body = it.note.body, kind = it.note.kind) }
+            is ExtractedDiagram.Uml ->
+                extracted.diagram.elements
+                    .filterIsInstance<UmlComment>()
+                    .map { NoteView(id = it.id, body = it.body, kind = it.kind) }
+            else -> emptyList()
+        }
+
+    /** `KUML-NOTE-W006`: the note text starts with a configured prefix whose expected kind differs from the note's kind. Names the table key, never the text. */
+    private fun prefixKindFindings(
+        extracted: ExtractedDiagram,
+        prefixKinds: NotePrefixKinds,
+        lines: Map<String, Int>,
+    ): List<Finding> {
+        if (prefixKinds.isEmpty) return emptyList()
+        return notesOf(extracted).mapNotNull { note ->
+            val (key, expected) = prefixKinds.expectedKindFor(note.body) ?: return@mapNotNull null
+            if (expected == note.kind) return@mapNotNull null
+            Finding(
+                code = KumlNoteCodes.PREFIX_KIND_MISMATCH,
+                isError = false,
+                subjectId = note.id,
+                message = "Notiz ${note.id}: Präfix '$key' erwartet Art $expected, die Notiz hat Art ${note.kind}",
+                sourceLine = lines[note.id],
+            )
+        }
     }
 
     /** `KUML-BP-W001` (duplicated step id) and `KUML-BP-W002` (id shared by several element kinds): one warning each per id of a Service Blueprint model; empty for every other diagram. */

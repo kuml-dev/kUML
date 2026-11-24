@@ -318,6 +318,7 @@ internal object RenderPipeline {
         watermark: Boolean = false,
         extractedSink: ((ExtractedDiagram) -> Unit)? = null,
         latexSharedPreamble: Boolean = false,
+        notePrefixKinds: dev.kuml.core.model.note.NotePrefixKinds = dev.kuml.core.model.note.NotePrefixKinds.EMPTY,
     ): RenderOutcome {
         val latex = LatexRenderOptions(standalone = latexStandalone, sharedPreamble = latexSharedPreamble)
         // 1. Evaluate script
@@ -339,7 +340,7 @@ internal object RenderPipeline {
         extractedSink?.invoke(extracted)
         // Computed from the same evaluation (no second script run) so callers can warn about
         // diagrams beyond the first, which extractAny silently drops.
-        val noteFindings = NoteChecks.of(extracted)
+        val noteFindings = NoteChecks.of(extracted = extracted, prefixKinds = notePrefixKinds)
         val diagramCount =
             runCatching { DiagramExtractor.countRenderableDiagrams(successResult.value.returnValue) }.getOrDefault(1)
         val collected = mutableListOf<dev.kuml.layout.bridge.LayoutSpecFinding>()

@@ -230,7 +230,7 @@ internal object DesktopRenderPipeline {
             val svg = rendered.first
             val undrawnWarnings =
                 (
-                    NoteChecks.undrawn(undrawn = undrawn, alreadyReported = NoteChecks.of(ctx.extracted)) +
+                    NoteChecks.undrawn(undrawn = undrawn, alreadyReported = NoteChecks.of(extracted = ctx.extracted)) +
                         NoteChecks.placementMisses(rendered.second)
                 ).map { "[${it.code}] ${it.message}" }
             DesktopRenderResult.Svg(

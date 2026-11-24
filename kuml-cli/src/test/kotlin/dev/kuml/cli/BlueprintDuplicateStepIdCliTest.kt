@@ -41,7 +41,7 @@ class BlueprintDuplicateStepIdCliTest :
         }
 
         test("NoteChecks.of reports it as a non-error finding") {
-            val f = NoteChecks.of(extracted(listOf("a", "a"))).single { it.code == "KUML-BP-W001" }
+            val f = NoteChecks.of(extracted = extracted(listOf("a", "a"))).single { it.code == "KUML-BP-W001" }
             f.isError shouldBe false
             f.subjectId shouldBe "a"
         }

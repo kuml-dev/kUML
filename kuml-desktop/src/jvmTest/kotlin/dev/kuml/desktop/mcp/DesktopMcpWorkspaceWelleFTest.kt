@@ -175,4 +175,22 @@ class DesktopMcpWorkspaceWelleFTest :
                 f.root.deleteRecursively()
             }
         }
+
+        test("point 22: [note-prefixes] marker yields KUML-NOTE-W006 in validate evaluate=true and render_all") {
+            val f = Fix()
+            try {
+                val marker = "[workspace]\nmode = \"knowledge\"\n\n[note-prefixes]\nr1 = \"ASSUMPTION\"\n"
+                File(f.root, ".kuml-workspace.toml").writeText(marker)
+                // r1 text is "r1" and the note has kind RISK, the table expects ASSUMPTION
+                val deep = f.call("kuml_desktop_workspace_validate", buildJsonObject { put("evaluate", true) })
+                val codes = deep["findings"]!!.jsonArray.map { it.jsonObject["code"]!!.jsonPrimitive.content }
+                withClue(deep.toString()) { codes shouldContain "KUML-NOTE-W006" }
+                val all = f.call("kuml_desktop_workspace_render_all")
+                val wcodes = all["warnings"]!!.jsonArray.map { it.jsonObject["code"]!!.jsonPrimitive.content }
+                withClue(all.toString()) { wcodes shouldContain "KUML-NOTE-W006" }
+                all["noteStats"]!!.jsonObject["declared"]!!.jsonPrimitive.int shouldBe 3
+            } finally {
+                f.root.deleteRecursively()
+            }
+        }
     })

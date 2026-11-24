@@ -1,5 +1,6 @@
 package dev.kuml.workspace
 
+import dev.kuml.core.model.note.NoteKind
 import io.kotest.core.spec.style.FunSpec
 import io.kotest.matchers.shouldBe
 
@@ -109,5 +110,43 @@ class WorkspaceMarkerParserTest :
                 """.trimMargin()
             val marker = WorkspaceMarkerParser.parse(toml)
             marker.vocabulary shouldBe "dev.kuml.okf@1.0"
+        }
+
+        test("[note-prefixes] is parsed: keys lowercase, kind names case-insensitive") {
+            val toml =
+                """
+                |[workspace]
+                |mode = "knowledge"
+                |
+                |[note-prefixes]
+                |ANNAHME = "ASSUMPTION"
+                |Offen = "question"
+                |ÄNDERUNG = "DECISION"
+                """.trimMargin()
+            val marker = WorkspaceMarkerParser.parse(toml)
+            marker.mode shouldBe WorkspaceMode.KNOWLEDGE
+            marker.notePrefixKinds.expectedKindFor("annahme: x")?.second shouldBe NoteKind.ASSUMPTION
+            marker.notePrefixKinds.expectedKindFor("OFFEN: x") shouldBe ("offen" to NoteKind.QUESTION)
+            marker.notePrefixKinds.expectedKindFor("Änderung: x")?.second shouldBe NoteKind.DECISION
+        }
+
+        test("[note-prefixes] ignores unknown kind names; the last duplicate key wins") {
+            val toml =
+                """
+                |[note-prefixes]
+                |A = "NOPE"
+                |B = "RISK"
+                |B = "HINT"
+                """.trimMargin()
+            val t = WorkspaceMarkerParser.parse(toml).notePrefixKinds
+            t.expectedKindFor("a: x") shouldBe null
+            t.expectedKindFor("b: x")?.second shouldBe NoteKind.HINT
+        }
+
+        test("missing [note-prefixes] section yields an empty table and leaves other fields unchanged") {
+            val marker = WorkspaceMarkerParser.parse("[workspace]\nmode = \"knowledge\"\n\n[note-prefixes]\n")
+            marker.notePrefixKinds.isEmpty shouldBe true
+            marker.mode shouldBe WorkspaceMode.KNOWLEDGE
+            WorkspaceMarkerParser.parse("[workspace]\nmode = \"knowledge\"").notePrefixKinds.isEmpty shouldBe true
         }
     })

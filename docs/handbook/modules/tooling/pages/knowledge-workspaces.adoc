@@ -244,6 +244,11 @@ kuml-version = ">=0.30.0"
 version = "0.1"
 vocabulary = "dev.kuml.okf@1.1"
 strict = false
+
+[note-prefixes]
+ANNAHME = "ASSUMPTION"
+OFFEN = "QUESTION"
+RISIKO = "RISK"
 ----
 
 [cols="1,3"]
@@ -269,10 +274,18 @@ strict = false
 
 | `[okf] strict`
 | Declared default for `--strict-vocabulary` (informational; the CLI flag always wins).
+
+| `[note-prefixes] <PREFIX>`
+| Opt-in table "note text prefix = expected note kind" (a `NoteKind` name, case-insensitive; unknown names are
+  ignored, at most 64 entries, keys up to 40 characters, letters including umlauts, digits, `_`, `-`, `.`).
+  When the first word of a note's text (up to `:` or whitespace, case-insensitive, exact) equals a key but the
+  note has another kind, `KUML-NOTE-W006` is reported by `workspace validate --evaluate`, `workspace render` and
+  the desktop MCP `validate` (`evaluate=true`) and `render_all`. Single-file `render` and `validate` have no
+  marker and do not check. C4 and Service Blueprint notes are skipped (they carry no kind).
 |===
 
-The parser is a small hand-rolled subset of TOML — comments (`#`), `[section]` headers,
-and `key = value` lines with quoted or bare scalar values. It never throws: a malformed
+The parser is a small hand-rolled subset of TOML — comments (`#`), `[section]` headers
+(`workspace`, `okf` and `note-prefixes` are understood), and `key = value` lines (keys may contain Unicode letters) with quoted or bare scalar values. It never throws: a malformed
 or partial marker degrades to "field absent", falling back to the inference heuristic
 above rather than aborting the scan.
 

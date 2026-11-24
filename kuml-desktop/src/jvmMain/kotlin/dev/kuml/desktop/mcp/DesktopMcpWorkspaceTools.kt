@@ -88,6 +88,18 @@ internal fun interface McpWorkspaceRenderPort {
         themeName: String?,
         strict: Boolean,
     ): WorkspaceRenderer.RenderReport
+
+    /** Like [render], applying the workspace's `[note-prefixes]` table (`KUML-NOTE-W006`); ports that cannot do so ignore the table. */
+    fun renderWithPrefixKinds(
+        documents: List<OkfDocument>,
+        outputDir: File,
+        format: String,
+        width: Int,
+        themeName: String?,
+        strict: Boolean,
+        prefixKinds: dev.kuml.core.model.note.NotePrefixKinds,
+    ): WorkspaceRenderer.RenderReport =
+        render(documents = documents, outputDir = outputDir, format = format, width = width, themeName = themeName, strict = strict)
 }
 
 /** Evaluates the kuml blocks of documents (EXECUTES block code); production: [WorkspaceBlockEvaluator.evaluateDocuments]. */
@@ -102,6 +114,13 @@ internal fun interface McpWorkspaceEvaluatePort {
         documents: List<OkfDocument>,
         strict: Boolean,
     ): Pair<List<OkfFinding>, NoteChecks.NoteStats?> = evaluate(documents = documents, strict = strict) to null
+
+    /** Like [evaluateWithStats], applying the workspace's `[note-prefixes]` table (`KUML-NOTE-W006`); ports that cannot do so ignore the table. */
+    fun evaluateWithStats(
+        documents: List<OkfDocument>,
+        strict: Boolean,
+        prefixKinds: dev.kuml.core.model.note.NotePrefixKinds,
+    ): Pair<List<OkfFinding>, NoteChecks.NoteStats?> = evaluateWithStats(documents = documents, strict = strict)
 }
 
 /** Raised by the default PDF port when `strict` is set and the export has warnings or failed diagrams (nothing is written). */
@@ -137,16 +156,44 @@ internal val DefaultWorkspacePdfExportPort =
     }
 
 internal val DefaultWorkspaceRenderPort =
-    McpWorkspaceRenderPort { documents, outputDir, format, width, themeName, strict ->
-        WorkspaceRenderer.render(
-            documents = documents,
-            outputDir = outputDir,
-            format = format,
-            width = width,
-            mirror = false,
-            strict = strict,
-            themeName = themeName,
-        )
+    object : McpWorkspaceRenderPort {
+        override fun render(
+            documents: List<OkfDocument>,
+            outputDir: File,
+            format: String,
+            width: Int,
+            themeName: String?,
+            strict: Boolean,
+        ): WorkspaceRenderer.RenderReport =
+            renderWithPrefixKinds(
+                documents = documents,
+                outputDir = outputDir,
+                format = format,
+                width = width,
+                themeName = themeName,
+                strict = strict,
+                prefixKinds = dev.kuml.core.model.note.NotePrefixKinds.EMPTY,
+            )
+
+        override fun renderWithPrefixKinds(
+            documents: List<OkfDocument>,
+            outputDir: File,
+            format: String,
+            width: Int,
+            themeName: String?,
+            strict: Boolean,
+            prefixKinds: dev.kuml.core.model.note.NotePrefixKinds,
+        ): WorkspaceRenderer.RenderReport =
+            WorkspaceRenderer.render(
+                documents = documents,
+                outputDir = outputDir,
+                format = format,
+                width = width,
+                mirror = false,
+                strict = strict,
+                themeName = themeName,
+                prefixKinds = prefixKinds,
+            )
     }
 
 internal val DefaultWorkspaceEvaluatePort =
@@ -161,6 +208,15 @@ internal val DefaultWorkspaceEvaluatePort =
             strict: Boolean,
         ): Pair<List<OkfFinding>, NoteChecks.NoteStats?> {
             val r = WorkspaceBlockEvaluator.evaluateDocumentsWithStats(documents = documents, strict = strict)
+            return r.findings to r.noteStats
+        }
+
+        override fun evaluateWithStats(
+            documents: List<OkfDocument>,
+            strict: Boolean,
+            prefixKinds: dev.kuml.core.model.note.NotePrefixKinds,
+        ): Pair<List<OkfFinding>, NoteChecks.NoteStats?> {
+            val r = WorkspaceBlockEvaluator.evaluateDocumentsWithStats(documents = documents, strict = strict, prefixKinds = prefixKinds)
             return r.findings to r.noteStats
         }
     }
@@ -976,8 +1032,11 @@ internal class DesktopMcpWorkspaceTools(
         }
         var noteStats: NoteChecks.NoteStats? = null
         if (evaluate) {
+            val prefixKinds = WorkspaceScanner.readMarker(snap.root)?.notePrefixKinds ?: dev.kuml.core.model.note.NotePrefixKinds.EMPTY
             val (evalFindings, stats) =
-                runGated(timeoutMs = renderTimeoutMs) { evaluatePort.evaluateWithStats(documents = docs, strict = strict) }
+                runGated(timeoutMs = renderTimeoutMs) {
+                    evaluatePort.evaluateWithStats(documents = docs, strict = strict, prefixKinds = prefixKinds)
+                }
             findings += evalFindings
             noteStats = stats
         }
@@ -1323,6 +1382,7 @@ internal class DesktopMcpWorkspaceTools(
             } catch (e: Exception) {
                 throw err(code = "SCAN_FAILED", "errorClass" to e.javaClass.simpleName)
             }
+        val prefixKinds = ws.marker?.notePrefixKinds ?: dev.kuml.core.model.note.NotePrefixKinds.EMPTY
         val blockCount = ws.documents.sumOf { it.kumlBlocks.size }
         if (blockCount > MAX_RENDER_ALL_BLOCKS) throw err(code = "TOO_MANY_BLOCKS", "max" to MAX_RENDER_ALL_BLOCKS)
         val out =
@@ -1337,13 +1397,14 @@ internal class DesktopMcpWorkspaceTools(
                     for (doc in ws.documents) {
                         if (cancelled.get()) break
                         val report =
-                            renderPort.render(
+                            renderPort.renderWithPrefixKinds(
                                 documents = listOf(doc),
                                 outputDir = tmp,
                                 format = format,
                                 width = width,
                                 themeName = theme,
                                 strict = true,
+                                prefixKinds = prefixKinds,
                             )
                         skipped += report.skipped
                         failed += report.failures

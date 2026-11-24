@@ -601,6 +601,41 @@ class WorkspaceCommandTest :
             }
         }
 
+        test("validate --evaluate: [note-prefixes] yields KUML-NOTE-W006, never changes exit code, not promoted by --strict") {
+            val root = tempWorkspace()
+            try {
+                val doc =
+                    "---\ntype: Concept\ntitle: N\n---\n# N\n\n```kuml\n" +
+                        "import dev.kuml.core.model.note.NoteKind\n" +
+                        "import dev.kuml.sysml2.dsl.sysml2Model\n" +
+                        "sysml2Model(name = \"N\") {\n" +
+                        "    val v = partDef(name = \"Vehicle\")\n" +
+                        "    bdd(name = \"O\") {\n" +
+                        "        include(definition = v)\n" +
+                        "        comment(text = \"RISIKO: SECRETBODY\", \"Vehicle\", id = \"r1\", kind = NoteKind.HINT)\n" +
+                        "    }\n" +
+                        "}\n```\n"
+                File(root, "n.md").writeText(doc)
+
+                val none = KumlCli().test(listOf("workspace", "validate", root.absolutePath, "--evaluate"))
+                none.output shouldNotContain "KUML-NOTE-W006"
+
+                File(root, ".kuml-workspace.toml").writeText("[workspace]\nmode = \"knowledge\"\n\n[note-prefixes]\nRISIKO = \"RISK\"\n")
+                val eval = KumlCli().test(listOf("workspace", "validate", root.absolutePath, "--evaluate"))
+                eval.statusCode shouldBe none.statusCode
+                eval.output shouldContain "KUML-NOTE-W006"
+                eval.output shouldNotContain "SECRETBODY"
+                val strict = KumlCli().test(listOf("workspace", "validate", root.absolutePath, "--evaluate", "--strict"))
+                strict.statusCode shouldBe none.statusCode
+                strict.output shouldContain "KUML-NOTE-W006"
+
+                val render = KumlCli().test(listOf("workspace", "render", root.absolutePath))
+                render.output shouldContain "KUML-NOTE-W006"
+            } finally {
+                root.deleteRecursively()
+            }
+        }
+
         test("validate --evaluate reports OKF-W-009 for the same reqId with different text in two documents") {
             val root = tempWorkspace()
             try {

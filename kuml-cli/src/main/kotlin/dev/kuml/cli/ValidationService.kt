@@ -122,7 +122,7 @@ public object ValidationService {
     public fun findingsOf(extracted: ExtractedDiagram): List<Finding> {
         val diagramId = diagramNameOf(extracted)
         val notes =
-            NoteChecks.of(extracted).map { f ->
+            NoteChecks.of(extracted = extracted).map { f ->
                 val anchor = anchorInMessage.find(f.message)?.groupValues?.get(1)
                 Finding(
                     code = f.code,

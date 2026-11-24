@@ -43,7 +43,7 @@ class BlueprintCrossKindIdCliTest :
         }
 
         test("NoteChecks.of reports it as a non-error finding on the id") {
-            val f = NoteChecks.of(extracted(phaseId = "p", stepId = "p")).single { it.code == "KUML-BP-W002" }
+            val f = NoteChecks.of(extracted = extracted(phaseId = "p", stepId = "p")).single { it.code == "KUML-BP-W002" }
             f.isError shouldBe false
             f.subjectId shouldBe "p"
         }

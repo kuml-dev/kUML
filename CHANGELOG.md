@@ -6,11 +6,35 @@ All notable changes to this project are documented here. Format follows
 
 ## [Unreleased]
 
+### PAL Welle H: prefix/kind check (KUML-NOTE-W006)
+
+- **New warning `KUML-NOTE-W006` (point 22, opt-in).** A note whose text starts with a configured prefix word but whose `NoteKind` differs from the one the table expects is reported (`Notiz <id>: Präfix '<key>' erwartet Art <KIND>, die Notiz hat Art <KIND>`). The message names the table key, never the note text. This replaces the "point 22 is undefined" remark of Welle F.
+- **Configuration.** New marker section `[note-prefixes]` in `.kuml-workspace.toml` (`PREFIX = "KIND"`, kind names case-insensitive, unknown names ignored, last duplicate wins). The section name has no dot because the marker parser only accepts `[A-Za-z0-9_-]+` section names; keys may now contain Unicode letters (`ÄNDERUNG`). No marker section, no check: output without a table is unchanged.
+- **Matching.** Exact, case-insensitive comparison of the first word of the text (terminated by `:` or whitespace) with the table, so `ANNAHMEN` and `ANNAHME-3:` do not match `ANNAHME`. Bounded: only the first 64 characters are inspected, at most 64 table entries, keys up to 40 characters; no regular expression touches note text.
+- **Where.** Workspace mode only: `kuml workspace validate --evaluate`, `kuml workspace render`, and the desktop MCP tools `kuml_desktop_workspace_validate` (`evaluate=true`) and `kuml_desktop_workspace_render_all`. Single-file `render`/`validate`, the editor preview and the PDF export have no marker and do not check (later wave). SysML 2, BPMN, ERM and UML notes are checked; C4 and Service Blueprint notes carry no kind and are skipped. It is a warning, never an error, and `--strict` does not promote it.
+- **API.** `NotePrefixKinds` (core-model), `WorkspaceMarker.notePrefixKinds` (additive, last parameter with default), `WorkspaceScanner.readMarker`, `NoteChecks.of(extracted, prefixKinds = EMPTY)`; `RenderPipeline.run`, `WorkspaceRenderer.render` and `WorkspaceBlockEvaluator` take an optional `prefixKinds`.
+- **Tests.** `NotePrefixKindsTest`, `WorkspaceMarkerParserTest`, `NoteChecksPrefixKindTest`, `WorkspaceCommandTest` (exit code unchanged, `--strict` not promoting), `DesktopMcpWorkspaceWelleFTest` (real ports).
+- **Snippet for the PAL marker** (to be added by hand to the PAL `.kuml-workspace.toml`; adjust the kinds to the table in `index.md`):
+
+  ```toml
+  [note-prefixes]
+  ANNAHME = "ASSUMPTION"
+  OFFEN = "QUESTION"
+  WIDERSPRUCH = "WARNING"
+  MODELLHILFE = "INFO"
+  QUELLE = "INFO"
+  WICHTIG = "IMPORTANT"
+  SICHERHEIT = "WARNING"
+  RISIKO = "RISK"
+  ENTSCHEIDUNG = "DECISION"
+  LEGENDE = "INFO"
+  ```
+
 ### PAL Welle F: note statistics for workspace validate/render_all, MCP regression guards
 
 - **Declared-note statistics (21c).** `kuml_desktop_workspace_render_all` always, and `kuml_desktop_workspace_validate` with `evaluate=true`, now return an additive `noteStats {declared, blocks, scope, byKind}`: the notes DECLARED in the first diagram of each kuml block, by `NoteKind` (zero kinds omitted). Not a count of drawn notes; C4 and Service Blueprint notes have no kind and count as `NOTE`. Backed by `NoteChecks.statsOf`, `NoteChecks.NoteStats`, `WorkspaceBlockEvaluator.evaluateDocumentsWithStats` and `WorkspaceRenderer.RenderReport.noteStats` (default empty, so existing ports/mocks compile unchanged).
 - **Regression guards without a fix (20, 21a, 21b).** `DesktopMcpWorkspaceWelleFTest` runs the real default ports: `set_document` with `baseRevision` already works for `index.md`, `articles/` and `glossary/` documents (REVISION_CONFLICT on a stale revision); `render_all` already reports `KUML-NOTE-W001` through the real render pipeline; `validate` without `evaluate` already carries its explanatory `note`. Tool descriptions of `set_document`, `validate` and `render_all` were extended accordingly.
-- Not changed: layout-dependent note hints (`KUML-NOTE-W004` placement) are still reported by `render_all` only, not by `validate evaluate=true`; the "comment convention" check (point 22) is undefined in kUML and needs a specification first.
+- Not changed: layout-dependent note hints (`KUML-NOTE-W004` placement) are still reported by `render_all` only, not by `validate evaluate=true`; the "comment convention" check (point 22) was undefined at that time and is implemented in Welle H as `KUML-NOTE-W006`.
 
 ### PAL Welle E2: C4 type label, C4 canvas margin, regression guards for ACT/PAR/wrapColumns
 
