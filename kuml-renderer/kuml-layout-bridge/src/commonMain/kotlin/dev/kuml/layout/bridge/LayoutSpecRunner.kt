@@ -185,6 +185,8 @@ public object LayoutSpecRunner {
      * Runs [engine] on [graph] with [spec] applied. Values outside [LayoutLimits] are dropped and
      * reported ([LayoutCodes.OUT_OF_RANGE]); an unreachable `maxWidth` / `aspectRatio` is reported
      * ([LayoutCodes.MAX_WIDTH_UNREACHED] / [LayoutCodes.ASPECT_UNREACHED]).
+     *
+     * [clearanceGate] switches the PAL wave J second run of state-machine layouts off (inventory and comparison tests only).
      */
     public fun layout(
         engine: KumlLayoutEngine,
@@ -193,10 +195,19 @@ public object LayoutSpecRunner {
         spec: LayoutSpec?,
         kind: SpecDiagramKind = SpecDiagramKind.UML_CLASS,
         diagramName: String? = null,
+        clearanceGate: Boolean = true,
     ): SpecLayoutOutcome {
         val boundaryFlow = spec?.boundaryDirection
         if (kind != SpecDiagramKind.C4 || boundaryFlow == null) {
-            return layoutWithPins(engine = engine, graph = graph, hints = hints, spec = spec, kind = kind, diagramName = diagramName)
+            return layoutWithPins(
+                engine = engine,
+                graph = graph,
+                hints = hints,
+                spec = spec,
+                kind = kind,
+                diagramName = diagramName,
+                clearanceGate = clearanceGate,
+            )
         }
         // Nacharbeit 106: the boundary group gets its own flow direction. The engine decides whether it can honour it
         // (self-contained group) and reports `group.direction.crossEdges` otherwise; that raw warning becomes W009.
@@ -208,6 +219,7 @@ public object LayoutSpecRunner {
                 spec = spec,
                 kind = kind,
                 diagramName = diagramName,
+                clearanceGate = clearanceGate,
             )
         val crossing = outcome.result.warnings.filter { it.code == GROUP_DIRECTION_CROSS_EDGES }
         if (crossing.isEmpty()) return outcome
@@ -258,6 +270,7 @@ public object LayoutSpecRunner {
         spec: LayoutSpec?,
         kind: SpecDiagramKind,
         diagramName: String?,
+        clearanceGate: Boolean = true,
     ): SpecLayoutOutcome {
         val pinFindings = layerPinFindings(kind = kind, spec = spec, degrees = spec?.let { LayerPinCheck.edgeDegrees(graph) })
         if (kind == SpecDiagramKind.UML_CLASS) {
@@ -265,8 +278,15 @@ public object LayoutSpecRunner {
             return umlOutcome.copy(findings = umlOutcome.findings + pinFindings)
         }
         val outcome =
-            layoutInner(engine = engine, graph = graph, hints = hints, spec = spec, kind = kind, diagramName = diagramName)
-                .let { it.copy(findings = it.findings + pinFindings) }
+            layoutInner(
+                engine = engine,
+                graph = graph,
+                hints = hints,
+                spec = spec,
+                kind = kind,
+                diagramName = diagramName,
+                clearanceGate = clearanceGate,
+            ).let { it.copy(findings = it.findings + pinFindings) }
         // Wave 2E-a: every requirement diagram (grid or legacy) gets spread endpoints and nudged parallel segments.
         return when (kind) {
             SpecDiagramKind.SYSML2_REQ -> outcome.copy(result = ReqEdgeBands.apply(result = outcome.result, graph = graph))
@@ -395,6 +415,7 @@ public object LayoutSpecRunner {
         spec: LayoutSpec?,
         kind: SpecDiagramKind,
         diagramName: String?,
+        clearanceGate: Boolean = true,
     ): SpecLayoutOutcome {
         val findings = mutableListOf<LayoutSpecFinding>()
         val scope = if (kind in LayoutEffectMatrix.honouredInSelfContainedCompound) CompoundLayerScope.of(graph) else null
@@ -536,7 +557,23 @@ public object LayoutSpecRunner {
                 result
             }
 
-        val first = aligned(engine.layout(graph = graphWith(graph = engineGraph, spec = checked), hints = effectiveHints))
+        // PAL wave J: a state-machine layout with a clearance violation gets exactly one more run with roomier spacing and
+        // composite padding. It is taken only when it has fewer violations; a clean layout is never touched.
+        fun laidOut(
+            g: LayoutGraph,
+            h: LayoutHints,
+            direction: LayoutDirection = h.direction,
+        ): LayoutResult {
+            val base = aligned(result = engine.layout(graph = g, hints = h), direction = direction)
+            if (!clearanceGate || (kind != SpecDiagramKind.SYSML2_STM && kind != SpecDiagramKind.UML_STATE)) return base
+            val before = detectViolations(result = base, graph = graph).count
+            if (before == 0) return base
+            val retry = aligned(result = engine.layout(graph = g.withRoomyComposites(), hints = h.roomier()), direction = direction)
+            val chosen = if (detectViolations(result = retry, graph = graph).count < before) retry else base
+            return chosen.spreadParallelEdges(graph = graph)
+        }
+
+        val first = laidOut(g = graphWith(graph = engineGraph, spec = checked), h = effectiveHints)
         val explicit = checked?.aspectRatio != null || checked?.maxWidth != null
         if (!explicit && !effectiveHints.autoAspect) {
             return SpecLayoutOutcome(result = finished(result = first, direction = effectiveHints.direction), findings = findings)
@@ -591,11 +628,9 @@ public object LayoutSpecRunner {
             c = c.coerceIn(1, minOf(m, LayoutLimits.WRAP_COLUMNS_MAX))
             if (c < m) {
                 val second =
-                    aligned(
-                        engine.layout(
-                            graph = graphWith(graph = engineGraph, spec = (checked ?: LayoutSpec()).copy(wrapColumns = c)),
-                            hints = effectiveHints,
-                        ),
+                    laidOut(
+                        g = graphWith(graph = engineGraph, spec = (checked ?: LayoutSpec()).copy(wrapColumns = c)),
+                        h = effectiveHints,
                     )
                 if (isBetter(candidate = second, current = best, target = target, maxWidth = maxWidth, horizontal = horizontal)) {
                     best =
@@ -627,12 +662,9 @@ public object LayoutSpecRunner {
             if (missed) {
                 val rotated = orthogonal(effectiveHints.direction)
                 val candidate =
-                    aligned(
-                        result =
-                            engine.layout(
-                                graph = graphWith(graph = engineGraph, spec = checked),
-                                hints = effectiveHints.copy(direction = rotated),
-                            ),
+                    laidOut(
+                        g = graphWith(graph = engineGraph, spec = checked),
+                        h = effectiveHints.copy(direction = rotated),
                         direction = rotated,
                     )
                 if (closerToTarget(candidate = candidate, current = best, target = target, maxWidth = maxWidth)) {

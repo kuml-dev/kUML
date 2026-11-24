@@ -84,7 +84,8 @@ class StmLabelPlacerTest :
             val wide = StmLabelPlacer.wrap(parts = listOf(prose), maxWidthPx = 400f)
             (narrow.size > wide.size) shouldBe true
             narrow.forEach { it.parts.single().kind shouldBe EdgeLabelKind.GuardProse }
-            narrow.forEach { (it.text.length <= StmLabelPlacer.maxChars(120f)) shouldBe true }
+            // PAL wave J: the wrap width widens (never beyond the 220 px default) so that a line holds three words.
+            narrow.forEach { (it.text.length <= StmLabelPlacer.maxChars(220f)) shouldBe true }
         }
 
         test("box size follows the longest line") {

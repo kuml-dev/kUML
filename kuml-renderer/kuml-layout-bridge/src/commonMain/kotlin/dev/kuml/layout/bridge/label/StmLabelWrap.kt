@@ -1,6 +1,7 @@
 package dev.kuml.layout.bridge.label
 
 import dev.kuml.layout.Size
+import dev.kuml.sysml2.edge.EdgeLabelKind
 import dev.kuml.sysml2.edge.EdgeLabelPart
 import kotlin.math.floor
 
@@ -57,11 +58,34 @@ public object StmLabelWrap {
         val joined = parts.joinToString(" ") { it.text }
         if (joined.length <= maxC && joined.length * CHAR_W <= maxWidthPx) return listOf(StmLabelLine(parts = parts))
         val out = ArrayList<StmLabelLine>()
-        for (p in parts) {
+        var i = 0
+        while (i < parts.size) {
+            val p = parts[i]
+            val next = parts.getOrNull(i + 1)
+            if (p.kind == EdgeLabelKind.Name && p.text.endsWith(":") && next != null) {
+                // The name (`T19:`) sticks to the first word of the next part and never stands alone on a line.
+                val wrapped = wrapText(text = next.text.take(MAX_PART_CHARS), maxC = maxC, prefix = p.text.take(MAX_PART_CHARS))
+                for ((k, wl) in wrapped.withIndex()) {
+                    val (line, broken) = wl
+                    if (k == 0) {
+                        val rest = line.removePrefix(p.text).trim()
+                        out +=
+                            StmLabelLine(
+                                parts = listOfNotNull(p, rest.takeIf { it.isNotEmpty() }?.let { next.copy(text = it) }),
+                                brokenInWord = broken,
+                            )
+                    } else {
+                        out += StmLabelLine(parts = listOf(next.copy(text = line)), brokenInWord = broken)
+                    }
+                }
+                i += 2
+                continue
+            }
             val text = p.text.take(MAX_PART_CHARS)
             for ((line, broken) in wrapText(text = text, maxC = maxC)) {
                 out += StmLabelLine(parts = listOf(p.copy(text = line)), brokenInWord = broken)
             }
+            i++
         }
         return out
     }
@@ -72,12 +96,38 @@ public object StmLabelWrap {
         return Size(width = chars * CHAR_W + 2 * PAD, height = lines.size * LINE_H + 2 * PAD)
     }
 
+    /**
+     * Wraps [text]; with a [prefix] (a transition name) the prefix is glued to the first word. The wrap width is at
+     * least wide enough for any three consecutive words (but never above the default maximum width), so every line
+     * but the last holds at least three words.
+     */
     private fun wrapText(
         text: String,
         maxC: Int,
+        prefix: String? = null,
     ): List<Pair<String, Boolean>> {
-        val words = glue(text.split(' ').filter { it.isNotEmpty() })
+        val plain = glue(text.split(' ').filter { it.isNotEmpty() })
+        val words =
+            if (prefix == null) {
+                plain
+            } else if (plain.isEmpty()) {
+                listOf(prefix)
+            } else {
+                listOf("$prefix ${plain[0]}") + plain.drop(1)
+            }
         if (words.isEmpty()) return listOf("" to false)
+        val threeWords =
+            words
+                .windowed(size = 3, partialWindows = true)
+                .filter { w -> w.size == 3 && w.all { it.length <= maxC } }
+                .maxOfOrNull { w -> w.sumOf { it.length } + w.size - 1 } ?: 0
+        return wrapWords(words = words, maxC = maxOf(maxC, minOf(threeWords, maxChars(DEFAULT_MAX_WIDTH_PX))))
+    }
+
+    private fun wrapWords(
+        words: List<String>,
+        maxC: Int,
+    ): List<Pair<String, Boolean>> {
         val lines = ArrayList<Pair<String, Boolean>>()
         val cur = StringBuilder()
 
