@@ -567,10 +567,12 @@ public object LayoutSpecRunner {
             val base = aligned(result = engine.layout(graph = g, hints = h), direction = direction)
             if (!clearanceGate || (kind != SpecDiagramKind.SYSML2_STM && kind != SpecDiagramKind.UML_STATE)) return base
             val before = detectViolations(result = base, graph = graph).count
+            // A layout without a wave-J violation stays untouched; PAL wave P (frame standoff) runs only after the gate fired,
+            // because moving frame-hugging edges of a clean layout (sysml2-stm-d2a density) moves labels onto their lines.
             if (before == 0) return base
             val retry = aligned(result = engine.layout(graph = g.withRoomyComposites(), hints = h.roomier()), direction = direction)
             val chosen = if (detectViolations(result = retry, graph = graph).count < before) retry else base
-            return chosen.spreadParallelEdges(graph = graph)
+            return StmFrameStandoff.apply(result = chosen.spreadParallelEdges(graph = graph), graph = graph)
         }
 
         val first = laidOut(g = graphWith(graph = engineGraph, spec = checked), h = effectiveHints)

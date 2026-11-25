@@ -140,11 +140,11 @@ private fun slidesOnSide(
         moved.y >= box.origin.y + SPREAD_CORNER_MARGIN_PX && moved.y <= box.origin.y + box.size.height - SPREAD_CORNER_MARGIN_PX
     }
 
-private fun EdgeRoute.withPoints(points: List<Point>): EdgeRoute =
+internal fun EdgeRoute.withPoints(points: List<Point>): EdgeRoute =
     when (this) {
         is EdgeRoute.Direct -> copy(source = points.first(), target = points.last())
         is EdgeRoute.OrthogonalRounded -> copy(source = points.first(), target = points.last(), waypoints = points.drop(1).dropLast(1))
         else -> this
     }
 
-private fun LayoutResult.withRoutes(vararg changed: Pair<EdgeId, EdgeRoute>): LayoutResult = copy(edges = edges + changed)
+internal fun LayoutResult.withRoutes(vararg changed: Pair<EdgeId, EdgeRoute>): LayoutResult = copy(edges = edges + changed)
