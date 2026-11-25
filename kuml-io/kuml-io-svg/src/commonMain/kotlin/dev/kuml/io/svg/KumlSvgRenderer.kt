@@ -1694,15 +1694,17 @@ public object KumlSvgRenderer {
      * Wraps and places the transition labels of a state machine (PAL wave 2D-a): the lines come from
      * [dev.kuml.io.svg.sysml2.edge.StmLabelPlacer.wrap], the positions from
      * [dev.kuml.layout.bridge.label.Sysml2DiagramLabelPlan.planStmLabels]. [routes] are the final drawn routes in
-     * canvas coordinates; edges without a label take part as obstacles only.
+     * canvas coordinates; edges without a label take part as obstacles only. [onFinalPlan] receives the plan that is finally
+     * used (after the narrower-wrap retry), before the lines are chosen; it is not called when no edge has a label.
      */
-    private fun planStmBlocks(
+    internal fun planStmBlocks(
         routes: Map<String, dev.kuml.layout.EdgeRoute>,
         layoutEdgeIds: List<String>,
         obstacles: List<dev.kuml.io.svg.sysml2.edge.StmObstacleNode>,
         adapter: Sysml2EdgeAdapter,
         maxWidthPx: Float,
         report: dev.kuml.layout.bridge.label.StmUnresolvedReport? = null,
+        onFinalPlan: ((dev.kuml.layout.bridge.label.Sysml2LabelPlanResult) -> Unit)? = null,
     ): Map<String, dev.kuml.io.svg.sysml2.edge.StmLabelBlock> {
         val parts = HashMap<String, List<dev.kuml.sysml2.edge.EdgeLabelPart>>()
         val fullText = HashMap<String, String>()
@@ -1833,6 +1835,8 @@ public object KumlSvgRenderer {
         }
         // PAL Welle N: W013 once per label and render, for the plan that is finally used.
         report?.report(plan)
+        // PAL Welle O: the plan that is finally used, for the jog slide (it plans without a report and compares the results).
+        onFinalPlan?.invoke(plan)
         // The labels the planner put back in a narrower wrap are drawn in exactly that wrap.
         if (plan.variantChosen.isNotEmpty()) {
             wrapped =
@@ -3315,7 +3319,19 @@ public object KumlSvgRenderer {
             dev.kuml.io.svg.sysml2
                 .stmObstacleNodes(model = model, visibleIds = visible, layoutResult = lr, paddingPx = padding)
         }
-        val stmLayoutNoNotes = Sysml2LayoutBridge.withoutStmOrderEdges(layoutResult)
+        val stmLayoutRaw = Sysml2LayoutBridge.withoutStmOrderEdges(layoutResult)
+        // PAL Welle O: labels without a free position get a longer straight own segment by sliding the jog of their route.
+        val stmLayoutNoNotes =
+            stmJogSlideLayout(
+                model = model,
+                visible = visible,
+                layout = stmLayoutRaw,
+                adapter = StmEdgeAdapter(model = model, diagram = diagram),
+                padding = options.paddingPx,
+                obstacles = stmObstaclesOf,
+                routeTransform = stmTransform,
+                maxWidthPx = labelMaxWidthPx,
+            )
         return renderSysml2Synthetic(
             synthetic = synthetic,
             rawLayoutResult =
@@ -4637,6 +4653,138 @@ public object KumlSvgRenderer {
                 .PlacedLabel(rect = r, onLine = true)
         }
     }
+
+    /**
+     * PAL Welle O: moves the jog of transitions whose label has no free position (see [dev.kuml.layout.bridge.label.StmJogSlide]).
+     * Plans the labels on the drawn routes; for every unresolved label (at most `StmJogSlide.MAX_EDGES`, sorted by id) it tries the
+     * two fixed jog positions in order and takes the first one that passes the geometry gate, leaves every other route unchanged
+     * after the route transform, gives this label a clean position, and makes no other label worse. The slide is applied to the raw
+     * layout route (same delta, the padding is a pure translation), so the label plan, the note placement, W013 and the drawing all
+     * see the same route; no second layout run is needed. Returns [layout] itself (`===`) when nothing is taken, so diagrams
+     * without trouble stay byte-identical. The note-free plan decides: a label that only fails because of a note is not slid.
+     */
+    internal fun stmJogSlideLayout(
+        model: Sysml2Model,
+        visible: Set<String>,
+        layout: LayoutResult,
+        adapter: Sysml2EdgeAdapter,
+        padding: Float,
+        obstacles: (LayoutResult, Float) -> List<dev.kuml.io.svg.sysml2.edge.StmObstacleNode>,
+        routeTransform: (
+            (Map<String, dev.kuml.layout.EdgeRoute>, Map<String, dev.kuml.layout.Rect>) -> Map<String, dev.kuml.layout.EdgeRoute>
+        )?,
+        maxWidthPx: Float,
+    ): LayoutResult {
+        val edgeIds = layout.edges.keys.map { it.value }
+        val obstacleList = obstacles(layout, padding)
+        val nodes =
+            obstacleList
+                .filter { it.kind == dev.kuml.io.svg.sysml2.edge.StmObstacleKind.Simple }
+                .associate { it.id to it.rect }
+        val frames =
+            obstacleList
+                .filter { it.kind == dev.kuml.io.svg.sysml2.edge.StmObstacleKind.Composite }
+                .map { it.rect }
+        val ends =
+            model.usages
+                .filterIsInstance<dev.kuml.sysml2.TransitionUsage>()
+                .filter { it.id in edgeIds }
+                .associate { it.id to (it.sourceStateId to it.targetStateId) }
+
+        fun planOf(routes: Map<String, dev.kuml.layout.EdgeRoute>): dev.kuml.layout.bridge.label.Sysml2LabelPlanResult? {
+            var plan: dev.kuml.layout.bridge.label.Sysml2LabelPlanResult? = null
+            planStmBlocks(
+                routes = routes,
+                layoutEdgeIds = edgeIds,
+                obstacles = obstacleList,
+                adapter = adapter,
+                maxWidthPx = maxWidthPx,
+                onFinalPlan = { plan = it },
+            )
+            return plan
+        }
+
+        fun cleanIds(p: dev.kuml.layout.bridge.label.Sysml2LabelPlanResult): Set<String> = p.labels.filter { it.value.clean }.keys
+
+        fun sameRoute(
+            a: dev.kuml.layout.EdgeRoute?,
+            b: dev.kuml.layout.EdgeRoute,
+        ): Boolean {
+            if (a == null || a::class != b::class) return false
+            val pa =
+                dev.kuml.layout.bridge.label.Sysml2DiagramLabelPlan
+                    .stmPolylineOf(a)
+            val pb =
+                dev.kuml.layout.bridge.label.Sysml2DiagramLabelPlan
+                    .stmPolylineOf(b)
+            return pa.size == pb.size &&
+                pa.indices.all {
+                    kotlin.math.abs(pa[it].x - pb[it].x) <= STM_SLIDE_MATCH_EPS &&
+                        kotlin.math.abs(pa[it].y - pb[it].y) <= STM_SLIDE_MATCH_EPS
+                }
+        }
+        var current = sysml2ShiftedRoutes(layoutResult = layout, padding = padding, routeTransform = routeTransform)
+        var currentPlan = planOf(current) ?: return layout
+        if (currentPlan.unresolved.isEmpty()) return layout
+        var work = layout
+
+        // Tries the two jog positions of one unresolved label; true when one was taken.
+        fun slideOne(id: String): Boolean {
+            val route = current[id] ?: return false
+            val edgeId = dev.kuml.layout.EdgeId(id)
+            for (candidate in dev.kuml.layout.bridge.label.StmJogSlide
+                .candidates(route)) {
+                if (!dev.kuml.layout.bridge.label.StmJogSlide
+                        .acceptsGeometry(id = id, candidate = candidate, routes = current, ends = ends, nodes = nodes, frames = frames)
+                ) {
+                    continue
+                }
+                val delta =
+                    dev.kuml.layout.bridge.label.StmJogSlide
+                        .delta(current = route, candidate = candidate) ?: continue
+                val raw = work.edges[edgeId] ?: continue
+                val moved =
+                    dev.kuml.layout.bridge.label.StmJogSlide
+                        .shiftRaw(raw = raw, delta = delta) ?: continue
+                val trial = work.copy(edges = work.edges.toMutableMap().also { it[edgeId] = moved })
+                val trialRoutes = sysml2ShiftedRoutes(layoutResult = trial, padding = padding, routeTransform = routeTransform)
+                // The route transform (endpoint spread) must land exactly on the candidate and must not touch any other route.
+                if (!sameRoute(trialRoutes[id], candidate)) continue
+                if (trialRoutes.filterKeys { it != id } != current.filterKeys { it != id }) continue
+                val trialPlan = planOf(trialRoutes) ?: continue
+                if (id in trialPlan.unresolved || trialPlan.labels[id]?.clean != true) continue
+                if (!(currentPlan.unresolved.toSet() - id).containsAll(trialPlan.unresolved)) continue
+                if (!cleanIds(trialPlan).containsAll(cleanIds(currentPlan) + id)) continue
+                work = trial
+                current = trialRoutes
+                currentPlan = trialPlan
+                return true
+            }
+            return false
+        }
+
+        // Labels block each other: a label that stays unresolved while its neighbour is still unresolved gets another try once the
+        // neighbour has moved. The passes stop as soon as one changes nothing; the edge budget counts over all passes.
+        val tried = HashSet<String>()
+        var changed = true
+        var pass = 0
+        while (changed && pass < STM_SLIDE_MAX_PASSES) {
+            changed = false
+            pass++
+            for (id in currentPlan.unresolved.sorted()) {
+                if (id !in tried && tried.size >= dev.kuml.layout.bridge.label.StmJogSlide.MAX_EDGES) continue
+                tried += id
+                if (id in currentPlan.unresolved && slideOne(id)) changed = true
+            }
+        }
+        return work
+    }
+
+    /** PAL Welle O: tolerance (px) when the route transform's result is compared with the slid candidate. */
+    private const val STM_SLIDE_MATCH_EPS: Float = 0.01f
+
+    /** PAL Welle O: most passes over the unresolved labels (a slide can free the neighbour that blocked another label). */
+    private const val STM_SLIDE_MAX_PASSES: Int = 3
 
     /**
      * Nacharbeit 133 (STM): the wrapped label blocks as [renderSysml2Synthetic] plans them on the layout [layout] without

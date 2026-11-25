@@ -9,6 +9,9 @@ kotlin {
 dependencies {
     testImplementation(libs.kotest.runner.junit5)
     testImplementation(libs.kotest.assertions.core)
+    // PAL Welle O: Doc55StmLabelInvariantsTest listens to the W013 log events (logback ListAppender). logback-classic is already the
+    // SLF4J provider of this test runtime classpath; this only makes it visible at compile time.
+    testImplementation(libs.logback.classic)
     testImplementation(project(":kuml-core:kuml-core-script"))
     testImplementation(project(":kuml-core:kuml-core-dsl"))
     // V3.2.x — AiContextSeedingRoundtripTest: exercises AnyKumlModel.fromKumlDiagram, the

@@ -2,8 +2,13 @@
 
 package dev.kuml.vaultexamples
 
+import ch.qos.logback.classic.Level
+import ch.qos.logback.classic.Logger
+import ch.qos.logback.classic.spi.ILoggingEvent
+import ch.qos.logback.core.read.ListAppender
 import io.kotest.core.spec.style.FunSpec
 import io.kotest.matchers.shouldBe
+import org.slf4j.LoggerFactory
 
 /**
  * PAL wave L: the transition labels of the real "Doc 55" state machine (classpath fixture
@@ -15,19 +20,14 @@ import io.kotest.matchers.shouldBe
  *  * c the rectangle (4 px larger) crosses no foreign edge,
  *  * d no foreign edge is as close to the label as its own line.
  *
- * a, b, c and d hold for every label except T55 and T56. For those two, a and b hold, but c and d cannot: the routes are
- * fixed (T55 and T56 are squeezed between the nodes `Eingefroren PAL`, `Verzögerung Freigabe ausstehend`, the straight edges T35
- * and T36 and the long edges T34 and T37), and an exhaustive grid search over all label positions within 18 px of the own line
- * (box sizes 99.6 x 66/78, the narrowest wrap that keeps `T55: ANNAHME:` together, and the normal wraps) finds none that
- * is clear of every node, foreign edge and foreign line distance at once; only dropping the node rule leaves positions. So the
- * planner reports them (KUML-LAYOUT-W013) and keeps the best compromise.
- *
- * PAL Welle N: the planner now also offers a narrowest variant (the name `T55:` alone on the first line, one word per line:
- * 70.8 x 90 px). It does not solve T55 and T56 either: the free height beside the lower T55 segment (x = 518.19, y 427..517) is
- * about 86 px (the own line bends at y = 427, the node starts at y = 517, 2 px clearance each), the box is 90 px; the position
- * right of the upper segment (x = 531.45) leaves under 0.6 px of play towards T37. The render therefore still reports
- * KUML-LAYOUT-W013 for T55 and T56, now exactly once each. Fixing that needs a different edge routing (reserve the corridor for
- * the narrowest label variant), not another label position, so the exception stays.
+ * PAL Welle O: all eight labels, T55 and T56 included, now satisfy a to d and two more geometric rules: e the label rectangle
+ * (2 px larger) overlaps no state rectangle, f no two label rectangles (2 px larger) overlap. The render reports no
+ * KUML-LAYOUT-W013 any more. Two changes are in place: the narrowest label variant (the name `T55:` alone on the first line, 70.8 x 90 px)
+ * is now also offered when `labelMaxWidth` is small (this fixture: 130 px; before, the regular narrowest variant was already clamped
+ * at the longest word and the name-alone variant was never offered), and a route whose label still finds no position gets its short
+ * jog slid inside the channel (`StmJogSlide`), which gives the own segment up to 123 px instead of 90 px. In this fixture the first change
+ * already leaves no label unresolved, so the slide does not take effect here (the routes of T55 and T56 are unchanged); it is covered
+ * by its own tests.
  *
  * Only geometry, no fonts and no pixel or byte comparison.
  */
@@ -62,6 +62,16 @@ class Doc55StmLabelInvariantsTest :
                 v[1] to SvgRect(v[2].toDouble(), v[3].toDouble(), v[4].toDouble(), v[5].toDouble())
             }
 
+        // The state rectangles (`<rect ... class="kuml-class">` of the node groups; notes are paths, pseudostates circles).
+        fun stateRects(svg: String): Map<String, SvgRect> =
+            SvgGeometry
+                .nodes(svg)
+                .mapNotNull { n ->
+                    Regex("""<rect width="([-0-9.]+)" height="([-0-9.]+)"[^>]*class="kuml-class"""")
+                        .find(n.body)
+                        ?.let { m -> n.id to SvgRect(n.tx, n.ty, m.groupValues[1].toDouble(), m.groupValues[2].toDouble()) }
+                }.toMap()
+
         fun grow(
             r: SvgRect,
             m: Double,
@@ -85,6 +95,7 @@ class Doc55StmLabelInvariantsTest :
         ): List<String> {
             val ln = edges(svg)
             val ls = labels(svg)
+            val states = stateRects(svg)
             val out = ArrayList<String>()
             for (id in ids) {
                 val r =
@@ -103,6 +114,12 @@ class Doc55StmLabelInvariantsTest :
                 if (own2 <= 0.01) out += "$info: crosses its own line (a)"
                 if (d > 18.0 + 0.01) out += "$info: too far from its own line (b)"
                 if (!strict) continue
+                states.forEach { (name, rect) ->
+                    if (grow(r, 2.0).overlaps(rect)) out += "$info: overlaps the state $name (e)"
+                }
+                ls.filterKeys { it != id }.forEach { (other, rect) ->
+                    if (grow(r, 2.0).overlaps(grow(rect, 2.0))) out += "$info: overlaps the label $other (f)"
+                }
                 if (foreign.any { SvgGeometry.distance(ln.getValue(it.key), grow(r, 4.0)) <= 0.01 }) {
                     out +=
                         "$info: crosses a foreign edge (c)"
@@ -118,16 +135,28 @@ class Doc55StmLabelInvariantsTest :
             labels(svg).size shouldBe 8
         }
 
-        test("T55 and T56 sit beside their own line, never on it and at most 18 px away") {
+        test("all eight labels sit beside their own line, clear of every foreign edge, state and label") {
             val svg = render()
             SampleOutput.write(filename = "sysml2-stm-l/55-einfrieren-stm.svg", content = svg)
-            problems(svg, listOf(t55, t56), strict = false).joinToString("\n") shouldBe ""
+            val ids = labels(svg).keys.filter { edges(svg).containsKey(it) }
+            ids.size shouldBe 8
+            ids.containsAll(listOf(t55, t56)) shouldBe true
+            problems(svg, ids, strict = true).joinToString("\n") shouldBe ""
         }
 
-        test("all other labels also cross no foreign edge and have no foreign edge as close as their own") {
-            val svg = render()
-            val others = labels(svg).keys.filter { it != t55 && it != t56 && edges(svg).containsKey(it) }
-            others.size shouldBe 6
-            problems(svg, others, strict = true).joinToString("\n") shouldBe ""
+        test("the render reports no KUML-LAYOUT-W013") {
+            val logger = LoggerFactory.getLogger("dev.kuml.layout.bridge.label") as Logger
+            val appender = ListAppender<ILoggingEvent>().apply { start() }
+            logger.addAppender(appender)
+            val oldLevel = logger.level
+            logger.level = Level.TRACE
+            try {
+                render()
+                val w013 = appender.list.map { it.formattedMessage }.filter { it.contains("W013") }
+                w013.joinToString("\n") shouldBe ""
+            } finally {
+                logger.detachAppender(appender)
+                logger.level = oldLevel
+            }
         }
     })

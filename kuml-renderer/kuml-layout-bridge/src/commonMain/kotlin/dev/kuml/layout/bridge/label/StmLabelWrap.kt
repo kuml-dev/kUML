@@ -156,6 +156,13 @@ public object StmLabelWrap {
         parts: List<EdgeLabelPart>,
         maxWidthPx: Float = DEFAULT_MAX_WIDTH_PX,
     ): Float? {
+        val width = floorWidthOf(parts) ?: return null
+        val narrowest = variantWidths(parts = parts, maxWidthPx = maxWidthPx).minOrNull() ?: maxWidthPx
+        return width.takeIf { it < narrowest }
+    }
+
+    /** The wrap width (px) at which the longest unit of [parts] (the name counts as a word) just fits; null without any word. */
+    private fun floorWidthOf(parts: List<EdgeLabelPart>): Float? {
         var longest = 0
         for (p in parts) {
             for (w in glue(
@@ -169,9 +176,7 @@ public object StmLabelWrap {
         }
         if (longest == 0) return null
         // Half a character of slack keeps `floor(width / CHAR_W)` from rounding down to one character too few.
-        val width = maxOf(MIN_VARIANT_WIDTH_PX, (longest + 0.5f) * CHAR_W)
-        val narrowest = variantWidths(parts = parts, maxWidthPx = maxWidthPx).minOrNull() ?: maxWidthPx
-        return width.takeIf { it < narrowest }
+        return maxOf(MIN_VARIANT_WIDTH_PX, (longest + 0.5f) * CHAR_W)
     }
 
     /**
@@ -198,6 +203,13 @@ public object StmLabelWrap {
         }
         for (w in variantWidths(parts = parts, maxWidthPx = maxWidthPx)) offer(wrap(parts = parts, maxWidthPx = w, minWordsPerLine = 1))
         floorVariantWidth(parts = parts, maxWidthPx = maxWidthPx)?.let {
+            offer(wrap(parts = parts, maxWidthPx = it, minWordsPerLine = 1, allowNameAlone = true))
+        }
+        // PAL Welle O: with a small `maxWidthPx` (Doc 55: 130 px) the narrowest regular variant is clamped at the longest word, so
+        // its wrap width is already below the floor width and the floor variant above is not offered, although the name that stands
+        // alone gives a narrower box (the name sticks to the first word in the regular wrap). `offer` still requires a box that is
+        // strictly narrower than the last one, so nothing changes where the name-alone wrap gains nothing.
+        floorWidthOf(parts)?.takeIf { it < maxWidthPx }?.let {
             offer(wrap(parts = parts, maxWidthPx = it, minWordsPerLine = 1, allowNameAlone = true))
         }
         return out

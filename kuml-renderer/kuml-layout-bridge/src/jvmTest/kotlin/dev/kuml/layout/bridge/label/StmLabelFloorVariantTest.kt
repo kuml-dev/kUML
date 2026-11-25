@@ -92,6 +92,25 @@ class StmLabelFloorVariantTest :
             widths shouldBe widths.sortedDescending()
         }
 
+        test("PAL Welle O: with a small maxWidth (Doc 55: 130 px) the name-alone variant is offered after the regular variant") {
+            val normal = StmLabelWrap.wrap(t55, 130f)
+            val offered = StmLabelWrap.variantWraps(t55, 130f, StmLabelWrap.boxSize(normal).width, longestSegmentPx = 123f)
+            val boxes = offered.map { StmLabelWrap.boxSize(it) }
+            // The regular variants are clamped at the longest word: 99.6 x 78. The name alone gives 70.8 x 90.
+            boxes.first().width shouldBe 13 * StmLabelWrap.CHAR_W + 2 * StmLabelWrap.PAD
+            boxes.last().width shouldBe 9 * StmLabelWrap.CHAR_W + 2 * StmLabelWrap.PAD
+            boxes.last().height shouldBe 7 * StmLabelWrap.LINE_H + 2 * StmLabelWrap.PAD
+            texts(offered.last()).first() shouldBe "T55:"
+            // floorVariantWidth itself is unchanged (still null here): the extra variant comes from variantWraps only.
+            StmLabelWrap.floorVariantWidth(t55, 130f) shouldBe null
+        }
+
+        test("PAL Welle O: the name-alone variant is still dropped when it is taller than the longest segment allows") {
+            val normal = StmLabelWrap.wrap(t55, 130f)
+            val offered = StmLabelWrap.variantWraps(t55, 130f, StmLabelWrap.boxSize(normal).width, longestSegmentPx = 60f)
+            offered.none { it.first().text == "T55:" } shouldBe true
+        }
+
         test("variantWraps drops the floor variant when it is taller than the longest segment allows") {
             val offered = StmLabelWrap.variantWraps(t55, 220f, 214.8f, longestSegmentPx = 40f)
             offered.none { it.first().text == "T55:" && it.size == 7 } shouldBe true
