@@ -57,11 +57,16 @@ public object StmLabelWrap {
      *
      * [minWordsPerLine] is 3 by default: the wrap width is raised so that every line but the last holds at least three
      * words. The narrower variants of PAL Welle L pass 1 and so give up this rule (never the rule of not splitting a word).
+     *
+     * PAL Welle N: the name (`T55:`) normally sticks to the first word of the next part. With [allowNameAlone] (only the narrowest
+     * variant of a label, see [floorVariantWidth]) the name stands alone on the first line when "name + first word" would not
+     * fit [maxWidthPx]; a word is still never split.
      */
     public fun wrap(
         parts: List<EdgeLabelPart>,
         maxWidthPx: Float = DEFAULT_MAX_WIDTH_PX,
         minWordsPerLine: Int = 3,
+        allowNameAlone: Boolean = false,
     ): List<StmLabelLine> {
         if (parts.isEmpty()) return emptyList()
         val maxC = maxChars(maxWidthPx)
@@ -73,7 +78,23 @@ public object StmLabelWrap {
             val p = parts[i]
             val next = parts.getOrNull(i + 1)
             if (p.kind == EdgeLabelKind.Name && p.text.endsWith(":") && next != null) {
-                // The name (`T19:`) sticks to the first word of the next part and never stands alone on a line.
+                // The name (`T19:`) sticks to the first word of the next part and never stands alone on a line (except in the
+                // narrowest variant, PAL Welle N, when name and first word do not fit one line).
+                val firstWord =
+                    glue(
+                        next.text
+                            .take(MAX_PART_CHARS)
+                            .split(' ')
+                            .filter { it.isNotEmpty() },
+                    ).firstOrNull()
+                if (allowNameAlone && firstWord != null && p.text.take(MAX_PART_CHARS).length + 1 + firstWord.length > maxC) {
+                    out += StmLabelLine(parts = listOf(p))
+                    for ((line, broken) in wrapText(text = next.text.take(MAX_PART_CHARS), maxC = maxC, minWords = minWordsPerLine)) {
+                        out += StmLabelLine(parts = listOf(next.copy(text = line)), brokenInWord = broken)
+                    }
+                    i += 2
+                    continue
+                }
                 val wrapped =
                     wrapText(
                         text = next.text.take(MAX_PART_CHARS),
@@ -124,6 +145,62 @@ public object StmLabelWrap {
             } ?: 0
         val floor = maxOf(MIN_VARIANT_WIDTH_PX, longest * CHAR_W)
         return VARIANT_FACTORS.map { maxOf(floor, maxWidthPx * it) }.filter { it < maxWidthPx }.distinct()
+    }
+
+    /**
+     * PAL Welle N: the wrap width (px) of the narrowest variant of a label: the longest word (the transition name counts as a
+     * word, `/ effect` as one glued unit), never below [MIN_VARIANT_WIDTH_PX]. Null when that is not narrower than the narrowest
+     * of [variantWidths] (or than [maxWidthPx] without any). [variantWidths] itself is unchanged.
+     */
+    public fun floorVariantWidth(
+        parts: List<EdgeLabelPart>,
+        maxWidthPx: Float = DEFAULT_MAX_WIDTH_PX,
+    ): Float? {
+        var longest = 0
+        for (p in parts) {
+            for (w in glue(
+                p.text
+                    .take(MAX_PART_CHARS)
+                    .split(' ')
+                    .filter { it.isNotEmpty() },
+            )) {
+                longest = maxOf(longest, w.length)
+            }
+        }
+        if (longest == 0) return null
+        // Half a character of slack keeps `floor(width / CHAR_W)` from rounding down to one character too few.
+        val width = maxOf(MIN_VARIANT_WIDTH_PX, (longest + 0.5f) * CHAR_W)
+        val narrowest = variantWidths(parts = parts, maxWidthPx = maxWidthPx).minOrNull() ?: maxWidthPx
+        return width.takeIf { it < narrowest }
+    }
+
+    /**
+     * PAL Welle N: the narrower wraps offered for a label, widest first: the Welle L variants of [variantWidths] and last the
+     * narrowest one of [floorVariantWidth] (the name may stand alone there). Every variant must be strictly narrower than the
+     * one before (starting at [normalBoxWidth], the box width of the normal wrap) and no taller than [longestSegmentPx] + 2 * [PAD].
+     * Appended last, so the indexes of the older variants stay as they were.
+     */
+    public fun variantWraps(
+        parts: List<EdgeLabelPart>,
+        maxWidthPx: Float,
+        normalBoxWidth: Float,
+        longestSegmentPx: Float,
+    ): List<List<StmLabelLine>> {
+        val out = ArrayList<List<StmLabelLine>>()
+        var previous = normalBoxWidth
+
+        fun offer(v: List<StmLabelLine>) {
+            val box = boxSize(v)
+            if (box.width >= previous - 0.5f) return
+            if (box.height > longestSegmentPx + 2 * PAD) return
+            out += v
+            previous = box.width
+        }
+        for (w in variantWidths(parts = parts, maxWidthPx = maxWidthPx)) offer(wrap(parts = parts, maxWidthPx = w, minWordsPerLine = 1))
+        floorVariantWidth(parts = parts, maxWidthPx = maxWidthPx)?.let {
+            offer(wrap(parts = parts, maxWidthPx = it, minWordsPerLine = 1, allowNameAlone = true))
+        }
+        return out
     }
 
     /** Width and height of the box of [lines]. */

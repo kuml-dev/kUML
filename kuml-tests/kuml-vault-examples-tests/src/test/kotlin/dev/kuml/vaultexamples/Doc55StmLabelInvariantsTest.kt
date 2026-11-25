@@ -20,8 +20,14 @@ import io.kotest.matchers.shouldBe
  * and T36 and the long edges T34 and T37), and an exhaustive grid search over all label positions within 18 px of the own line
  * (box sizes 99.6 x 66/78, the narrowest wrap that keeps `T55: ANNAHME:` together, and the normal wraps) finds none that
  * is clear of every node, foreign edge and foreign line distance at once; only dropping the node rule leaves positions. So the
- * planner reports them (KUML-LAYOUT-W013) and keeps the best compromise. Fixing that needs a different edge routing, not another
- * label position.
+ * planner reports them (KUML-LAYOUT-W013) and keeps the best compromise.
+ *
+ * PAL Welle N: the planner now also offers a narrowest variant (the name `T55:` alone on the first line, one word per line:
+ * 70.8 x 90 px). It does not solve T55 and T56 either: the free height beside the lower T55 segment (x = 518.19, y 427..517) is
+ * about 86 px (the own line bends at y = 427, the node starts at y = 517, 2 px clearance each), the box is 90 px; the position
+ * right of the upper segment (x = 531.45) leaves under 0.6 px of play towards T37. The render therefore still reports
+ * KUML-LAYOUT-W013 for T55 and T56, now exactly once each. Fixing that needs a different edge routing (reserve the corridor for
+ * the narrowest label variant), not another label position, so the exception stays.
  *
  * Only geometry, no fonts and no pixel or byte comparison.
  */

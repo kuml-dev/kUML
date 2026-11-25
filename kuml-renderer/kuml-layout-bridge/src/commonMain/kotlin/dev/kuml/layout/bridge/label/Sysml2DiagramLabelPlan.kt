@@ -460,6 +460,7 @@ public object Sysml2DiagramLabelPlan {
      * @param edges final drawn routes in canvas coordinates (after route transforms)
      * @param nodes rectangles of simple states, pseudo-states and notes by id
      * @param labels one entry per edge carrying a label (the size is the box of the wrapped lines)
+     * @param reportUnresolved false: no `KUML-LAYOUT-W013` is logged for unresolved labels (the caller reports once, see [StmUnresolvedReport])
      */
     public fun planStmLabels(
         edges: Map<String, EdgeRoute>,
@@ -468,6 +469,7 @@ public object Sysml2DiagramLabelPlan {
         labels: List<StmLabelSpec>,
         frameTop: Float,
         costs: LabelCostModel = STM_COSTS,
+        reportUnresolved: Boolean = true,
     ): Sysml2LabelPlanResult {
         if (labels.isEmpty()) return Sysml2LabelPlanResult(labels = emptyMap(), lines = emptyMap())
         val polys = LinkedHashMap<String, List<Point>>()
@@ -565,9 +567,11 @@ public object Sysml2DiagramLabelPlan {
         if (!costs.hardExclusions) return Sysml2LabelPlanResult(labels = placed, lines = lines)
         val variants = labels.filter { it.variants.isNotEmpty() }.associate { it.id to it.variants }
         val repaired = StmLabelRepair.repair(requests = requests, placed0 = placed, base = buildIndex(), costs = costs, variants = variants)
-        for (id in repaired.unresolved) {
-            val message = noFreeSpotMessage(id = id, why = repaired.reason[id] ?: "none", who = repaired.blockers[id].orEmpty())
-            logger.warn { message }
+        if (reportUnresolved) {
+            for (id in repaired.unresolved) {
+                val message = noFreeSpotMessage(id = id, why = repaired.reason[id] ?: "none", who = repaired.blockers[id].orEmpty())
+                logger.warn { message }
+            }
         }
         for ((id, vi) in repaired.chosen) {
             variants[id]?.getOrNull(vi)?.let { lines[id] = it.lines }

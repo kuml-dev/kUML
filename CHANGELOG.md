@@ -6,6 +6,12 @@ All notable changes to this project are documented here. Format follows
 
 ## [Unreleased]
 
+### PAL Welle N: narrowest STM label variant, W013 once per label
+
+- STM transition labels get a narrowest fallback wrap, tried last: its width comes from the longest word (the transition name counts as a word, `/ effect` as one unit). Only in this variant the name (`T55:`) may stand alone on the first line; a word is never split. Labels that were already placed keep their position and wrap.
+- `KUML-LAYOUT-W013` is reported once per label and render (it was logged up to four times because the plan runs several times: normal, narrower retry, note preplan).
+- Doc 55: the narrowest variant (70.8 x 90 px) does not solve T55 and T56, the free height beside the own line is about 86 px. They stay reported as W013 until the edge routing reserves their corridor.
+
 ### PAL Welle K: note anchor lines on transitions (STM)
 
 - **Attach point keeps clear of transition labels.** The point where a note's anchor line meets a transition now keeps at least 20 px from every transition label rectangle (as drawn) and 12 px from nodes and from the ends of the transition (new `NotePlacementConfig.anchorLabelClearance` / `StrictNotePolicy.anchorLabelClearance`, on for state machines only; `0` keeps the previous choice, so every other diagram type is bit-identical). A point that already satisfies the rule never moves; otherwise the nearest admissible point along the transition is taken (candidates every 3 px, capped at 200), and when none exists the previous point is kept (debug log). On the real doc 55 the anchor of the note on `Verzögerung Freigabe ausstehend -> Eingefroren PAL` no longer runs as an underline of the transition label (label distance 15.8 px -> 21 px); the other anchor lines and all note positions are unchanged.

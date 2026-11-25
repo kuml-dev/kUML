@@ -1702,6 +1702,7 @@ public object KumlSvgRenderer {
         obstacles: List<dev.kuml.io.svg.sysml2.edge.StmObstacleNode>,
         adapter: Sysml2EdgeAdapter,
         maxWidthPx: Float,
+        report: dev.kuml.layout.bridge.label.StmUnresolvedReport? = null,
     ): Map<String, dev.kuml.io.svg.sysml2.edge.StmLabelBlock> {
         val parts = HashMap<String, List<dev.kuml.sysml2.edge.EdgeLabelPart>>()
         val fullText = HashMap<String, String>()
@@ -1753,25 +1754,15 @@ public object KumlSvgRenderer {
             for (i in 0 until pts.size - 1) {
                 longest = maxOf(longest, kotlin.math.hypot(pts[i + 1].x - pts[i].x, pts[i + 1].y - pts[i].y))
             }
-            val out = ArrayList<List<dev.kuml.io.svg.sysml2.edge.StmLabelLine>>()
-            var previous =
-                dev.kuml.io.svg.sysml2.edge.StmLabelPlacer
-                    .boxSize(lines)
-                    .width
-            for (w in dev.kuml.layout.bridge.label.StmLabelWrap
-                .variantWidths(parts = parts.getValue(id), maxWidthPx = width)) {
-                val v =
+            return dev.kuml.layout.bridge.label.StmLabelWrap.variantWraps(
+                parts = parts.getValue(id),
+                maxWidthPx = width,
+                normalBoxWidth =
                     dev.kuml.io.svg.sysml2.edge.StmLabelPlacer
-                        .wrap(parts = parts.getValue(id), maxWidthPx = w, minWordsPerLine = 1)
-                val box =
-                    dev.kuml.io.svg.sysml2.edge.StmLabelPlacer
-                        .boxSize(v)
-                if (box.width >= previous - 0.5f) continue
-                if (box.height > longest + 2 * dev.kuml.io.svg.sysml2.edge.StmLabelPlacer.PAD) continue
-                out += v
-                previous = box.width
-            }
-            return out
+                        .boxSize(lines)
+                        .width,
+                longestSegmentPx = longest,
+            )
         }
 
         // A plan together with the exact narrower wraps it was offered: `variantChosen` indexes into these lists, so the lines drawn
@@ -1811,6 +1802,7 @@ public object KumlSvgRenderer {
                             )
                         },
                     frameTop = STM_LABEL_FRAME_TOP_PX,
+                    reportUnresolved = false,
                 )
             return Planned(plan = result, variants = offered)
         }
@@ -1839,6 +1831,8 @@ public object KumlSvgRenderer {
                 }
             }
         }
+        // PAL Welle N: W013 once per label and render, for the plan that is finally used.
+        report?.report(plan)
         // The labels the planner put back in a narrower wrap are drawn in exactly that wrap.
         if (plan.variantChosen.isNotEmpty()) {
             wrapped =
@@ -2308,6 +2302,9 @@ public object KumlSvgRenderer {
                     obstacles = stmObstacleList,
                     adapter = sysml2EdgeAdapter,
                     maxWidthPx = stmLabelMaxWidthPx,
+                    report =
+                        dev.kuml.layout.bridge.label
+                            .StmUnresolvedReport(),
                 )
             val minX0 = stmBlocks.values.minOfOrNull { it.cx - it.w / 2f } ?: STM_LABEL_FRAME_LEFT_PX
             val dx = maxOf(0f, STM_LABEL_FRAME_LEFT_PX - minX0)
