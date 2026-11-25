@@ -2,8 +2,13 @@
 
 package dev.kuml.vaultexamples
 
+import ch.qos.logback.classic.Level
+import ch.qos.logback.classic.Logger
+import ch.qos.logback.classic.spi.ILoggingEvent
+import ch.qos.logback.core.read.ListAppender
 import io.kotest.core.spec.style.FunSpec
 import io.kotest.matchers.shouldBe
+import org.slf4j.LoggerFactory
 import kotlin.math.abs
 
 /**
@@ -15,6 +20,12 @@ import kotlin.math.abs
  *  * I2b a label does not straddle the frame of a composite state (it lies inside it or 2 px outside it),
  *  * I3 a label stays near its own line (rectangle distance at most 14 px; a one-line label beside a horizontal segment
  *       has its centre at most 24 px from it).
+ *
+ * PAL Welle R closes the two open W013 labels (T12 and T17) by sliding their routes sideways (`StmLateralSlide`), so there are no
+ * known open labels any more, the render reports no KUML-LAYOUT-W013, and two rules are added:
+ *
+ *  * I4 no label comes closer than 2 px to a state rectangle,
+ *  * I5 no label comes closer than 2 px to a note rectangle.
  *
  * Only geometry, no fonts and no pixel or byte comparison.
  */
@@ -138,15 +149,33 @@ class Doc51StmLabelInvariantsTest :
             labels(r.svg!!).size shouldBe 13
         }
 
-        // Open points (PAL Welle J2): these two labels sit in a corridor between parallel lines (or a line and a composite frame) that
-        // is narrower than the narrowest wrap of the label, so the planner reports them as KUML-LAYOUT-W013 and keeps a compromise.
-        // Closing them needs label-aware spreading of the routes (J1 follow-up). The test fixes exactly this set: a label that
-        // gets a free position makes the second test fail, so the entry has to be removed here.
-        val knownOpen =
-            setOf(
-                "transition:Tür Mixing offen::Beide Türen offen",
-                "transition:Tür Korridor offen::Wartezeit",
-            )
+        // PAL Welle R: no label is open any more (before: T12 and T17, reported as KUML-LAYOUT-W013).
+        val knownOpen = emptySet<String>()
+
+        class Box(
+            val id: String,
+            val rect: SvgRect,
+        )
+
+        fun states(svg: String): List<Box> =
+            SvgGeometry
+                .nodes(svg)
+                .filter { !it.body.contains("kuml-comment") }
+                .mapNotNull { n ->
+                    Regex("""<rect width="([-0-9.]+)" height="([-0-9.]+)"""").find(n.body)?.let {
+                        Box(n.id, SvgRect(n.tx, n.ty, it.groupValues[1].toDouble(), it.groupValues[2].toDouble()))
+                    }
+                }
+
+        fun notes(svg: String): List<Box> =
+            SvgGeometry
+                .nodes(svg)
+                .filter { it.body.contains("kuml-comment") }
+                .mapNotNull { n ->
+                    val d = Regex("""<path d="([^"]*)" class="kuml-comment""").find(n.body)?.groupValues?.get(1) ?: return@mapNotNull null
+                    val pts = SvgGeometry.pathPoints(d)
+                    Box(n.id, SvgRect(n.tx, n.ty, pts.maxOf { it.first }, pts.maxOf { it.second }))
+                }
 
         test("I1 to I3: every label except the known open ones touches no other label and no foreign line and stays at its line") {
             val svg = VaultExampleRenderer.render(script = script(doc51)).svg!!
@@ -167,5 +196,53 @@ class Doc51StmLabelInvariantsTest :
             val bad = problems("doc51", svg).map { it.first }.toSet()
             ("transition:Tür Korridor offen::Beide Türen offen" in bad) shouldBe false
             ("transition:Wartezeit::Tür Korridor offen" in bad) shouldBe false
+        }
+
+        test("I4: no label comes closer than 2 px to a state rectangle") {
+            val svg = VaultExampleRenderer.render(script = script(doc51)).svg!!
+            val st = states(svg)
+            (st.size >= 6) shouldBe true
+            val bad =
+                labels(svg).flatMap { l ->
+                    st
+                        .filter {
+                            l.rect.gapTo(
+                                it.rect,
+                            ) < 2.0 - 0.01
+                        }.map { "label ${l.id} is ${"%.1f".format(l.rect.gapTo(it.rect))} px from ${it.id}" }
+                }
+            bad.joinToString("\n") shouldBe ""
+        }
+
+        test("I5: no label comes closer than 2 px to a note rectangle") {
+            val svg = VaultExampleRenderer.render(script = script(doc51)).svg!!
+            val nt = notes(svg)
+            nt.size shouldBe 6
+            val bad =
+                labels(svg).flatMap { l ->
+                    nt
+                        .filter {
+                            l.rect.gapTo(
+                                it.rect,
+                            ) < 2.0 - 0.01
+                        }.map { "label ${l.id} is ${"%.1f".format(l.rect.gapTo(it.rect))} px from ${it.id}" }
+                }
+            bad.joinToString("\n") shouldBe ""
+        }
+
+        test("the render reports no KUML-LAYOUT-W013") {
+            val logger = LoggerFactory.getLogger("dev.kuml.layout.bridge.label") as Logger
+            val appender = ListAppender<ILoggingEvent>().apply { start() }
+            logger.addAppender(appender)
+            val oldLevel = logger.level
+            logger.level = Level.TRACE
+            try {
+                VaultExampleRenderer.render(script = script(doc51))
+                val w013 = appender.list.map { it.formattedMessage }.filter { it.contains("W013") }
+                w013.joinToString("\n") shouldBe ""
+            } finally {
+                logger.detachAppender(appender)
+                logger.level = oldLevel
+            }
         }
     })

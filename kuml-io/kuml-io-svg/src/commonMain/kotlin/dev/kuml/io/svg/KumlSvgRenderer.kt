@@ -4655,9 +4655,10 @@ public object KumlSvgRenderer {
     }
 
     /**
-     * PAL Welle O: moves the jog of transitions whose label has no free position (see [dev.kuml.layout.bridge.label.StmJogSlide]).
+     * PAL Welle O and R: moves the jog of transitions whose label has no free position (see [dev.kuml.layout.bridge.label.StmJogSlide])
+     * and, when that is not enough, a long segment sideways (see [dev.kuml.layout.bridge.label.StmLateralSlide]).
      * Plans the labels on the drawn routes; for every unresolved label (at most `StmJogSlide.MAX_EDGES`, sorted by id) it tries the
-     * two fixed jog positions in order and takes the first one that passes the geometry gate, leaves every other route unchanged
+     * two fixed jog positions in order, then the lateral shifts in order, and takes the first one that passes the geometry gate, leaves every other route unchanged
      * after the route transform, gives this label a clean position, and makes no other label worse. The slide is applied to the raw
      * layout route (same delta, the padding is a pure translation), so the label plan, the note placement, W013 and the drawing all
      * see the same route; no second layout run is needed. Returns [layout] itself (`===`) when nothing is taken, so diagrams
@@ -4728,10 +4729,33 @@ public object KumlSvgRenderer {
         if (currentPlan.unresolved.isEmpty()) return layout
         var work = layout
 
-        // Tries the two jog positions of one unresolved label; true when one was taken.
+        // Takes one candidate when the label plan accepts it; [moveRaw] transfers the same move to the raw layout route.
+        fun tryTake(
+            id: String,
+            candidate: dev.kuml.layout.EdgeRoute,
+            moveRaw: (dev.kuml.layout.EdgeRoute) -> dev.kuml.layout.EdgeRoute?,
+        ): Boolean {
+            val edgeId = dev.kuml.layout.EdgeId(id)
+            val raw = work.edges[edgeId] ?: return false
+            val moved = moveRaw(raw) ?: return false
+            val trial = work.copy(edges = work.edges.toMutableMap().also { it[edgeId] = moved })
+            val trialRoutes = sysml2ShiftedRoutes(layoutResult = trial, padding = padding, routeTransform = routeTransform)
+            // The route transform (endpoint spread) must land exactly on the candidate and must not touch any other route.
+            if (!sameRoute(trialRoutes[id], candidate)) return false
+            if (trialRoutes.filterKeys { it != id } != current.filterKeys { it != id }) return false
+            val trialPlan = planOf(trialRoutes) ?: return false
+            if (id in trialPlan.unresolved || trialPlan.labels[id]?.clean != true) return false
+            if (!(currentPlan.unresolved.toSet() - id).containsAll(trialPlan.unresolved)) return false
+            if (!cleanIds(trialPlan).containsAll(cleanIds(currentPlan) + id)) return false
+            work = trial
+            current = trialRoutes
+            currentPlan = trialPlan
+            return true
+        }
+
+        // Tries the jog positions (Welle O), then the lateral shifts (Welle R) of one unresolved label; true when one was taken.
         fun slideOne(id: String): Boolean {
             val route = current[id] ?: return false
-            val edgeId = dev.kuml.layout.EdgeId(id)
             for (candidate in dev.kuml.layout.bridge.label.StmJogSlide
                 .candidates(route)) {
                 if (!dev.kuml.layout.bridge.label.StmJogSlide
@@ -4742,23 +4766,31 @@ public object KumlSvgRenderer {
                 val delta =
                     dev.kuml.layout.bridge.label.StmJogSlide
                         .delta(current = route, candidate = candidate) ?: continue
-                val raw = work.edges[edgeId] ?: continue
-                val moved =
-                    dev.kuml.layout.bridge.label.StmJogSlide
-                        .shiftRaw(raw = raw, delta = delta) ?: continue
-                val trial = work.copy(edges = work.edges.toMutableMap().also { it[edgeId] = moved })
-                val trialRoutes = sysml2ShiftedRoutes(layoutResult = trial, padding = padding, routeTransform = routeTransform)
-                // The route transform (endpoint spread) must land exactly on the candidate and must not touch any other route.
-                if (!sameRoute(trialRoutes[id], candidate)) continue
-                if (trialRoutes.filterKeys { it != id } != current.filterKeys { it != id }) continue
-                val trialPlan = planOf(trialRoutes) ?: continue
-                if (id in trialPlan.unresolved || trialPlan.labels[id]?.clean != true) continue
-                if (!(currentPlan.unresolved.toSet() - id).containsAll(trialPlan.unresolved)) continue
-                if (!cleanIds(trialPlan).containsAll(cleanIds(currentPlan) + id)) continue
-                work = trial
-                current = trialRoutes
-                currentPlan = trialPlan
-                return true
+                if (tryTake(id, candidate) { raw ->
+                        dev.kuml.layout.bridge.label.StmJogSlide
+                            .shiftRaw(raw = raw, delta = delta)
+                    }
+                ) {
+                    return true
+                }
+            }
+            for (candidate in dev.kuml.layout.bridge.label.StmLateralSlide
+                .candidates(route)) {
+                if (!dev.kuml.layout.bridge.label.StmLateralSlide
+                        .acceptsGeometry(id = id, candidate = candidate, routes = current, ends = ends, nodes = nodes, frames = frames)
+                ) {
+                    continue
+                }
+                val slide =
+                    dev.kuml.layout.bridge.label.StmLateralSlide
+                        .delta(current = route, candidate = candidate) ?: continue
+                if (tryTake(id, candidate) { raw ->
+                        dev.kuml.layout.bridge.label.StmLateralSlide
+                            .shiftRaw(raw = raw, slide = slide)
+                    }
+                ) {
+                    return true
+                }
             }
             return false
         }

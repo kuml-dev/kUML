@@ -189,7 +189,7 @@ class StmJogSlideLayoutTest :
             after.canvas shouldBe before.canvas
         }
 
-        test("(c) a foreign parallel segment closer than 16 px to the target-end jog keeps the original route") {
+        test("(c) a foreign parallel segment closer than 16 px to the target-end jog keeps the jog where it is") {
             val r = run()
             // A foreign horizontal edge 10 px below the target-end jog (y = 162): the 16 px rule rejects that position, and the
             // source-end position gives the label no free spot either, so the route stays as it is.
@@ -208,7 +208,20 @@ class StmJogSlideLayoutTest :
             // Precondition: with that edge the T55 label is unresolved before any slide (so the early return for "nothing to do" is not
             // what keeps the layout unchanged).
             r.unresolved(closer) shouldContain main
-            r.slide(closer) shouldBeSameInstanceAs closer
+            // Welle R: the jog itself stays where it is (both jog positions are rejected), but the lateral slide may now free the label
+            // by moving the target segment sideways, so the layout is no longer returned unchanged here.
+            val after = r.slide(closer)
+            jogOf(after, main) shouldBe 195f
+            (
+                after.edges
+                    .getValue(EdgeId(main))
+                    .target.x !=
+                    closer.edges
+                        .getValue(EdgeId(main))
+                        .target.x
+            ) shouldBe true
+            after.edges.filterKeys { it.value != main } shouldBe closer.edges.filterKeys { it.value != main }
+            r.unresolved(after).contains(main) shouldBe false
         }
 
         test("(d) a layout without an unresolved label is returned as the same instance") {

@@ -40,7 +40,7 @@ public object StmJogSlide {
     /** Most edges one render tries to slide (every edge costs at most two further label plans). */
     public const val MAX_EDGES: Int = 16
 
-    private const val EPS = 0.5f
+    internal const val EPS = 0.5f
 
     /** A route of the shape long / jog / long on the flow axis: [vertical] flow, the jog at [jogAt], running from [from] to [to]. */
     internal data class Shape(
@@ -50,7 +50,7 @@ public object StmJogSlide {
         val to: Float,
     )
 
-    private fun waypointsOf(route: EdgeRoute): List<Point>? =
+    internal fun waypointsOf(route: EdgeRoute): List<Point>? =
         when (route) {
             is EdgeRoute.OrthogonalRounded -> route.waypoints
             is EdgeRoute.TreeRounded -> route.waypoints
@@ -151,9 +151,9 @@ public object StmJogSlide {
         return withJogAt(route = raw, shape = shape, jogAt = shape.jogAt + delta)
     }
 
-    private fun pointsOf(route: EdgeRoute): List<Point> = Sysml2DiagramLabelPlan.stmPolylineOf(route)
+    internal fun pointsOf(route: EdgeRoute): List<Point> = Sysml2DiagramLabelPlan.stmPolylineOf(route)
 
-    private fun framePolyline(r: Rect): List<Point> {
+    internal fun framePolyline(r: Rect): List<Point> {
         val x0 = r.origin.x
         val y0 = r.origin.y
         val x1 = x0 + r.size.width
@@ -202,7 +202,7 @@ public object StmJogSlide {
         return true
     }
 
-    private fun crossings(
+    internal fun crossings(
         pts: List<Point>,
         others: Map<String, List<Point>>,
         frames: List<Rect>,
@@ -213,7 +213,7 @@ public object StmJogSlide {
         return n
     }
 
-    private fun parallelViolations(
+    internal fun parallelViolations(
         id: String,
         pts: List<Point>,
         others: Map<String, List<Point>>,
@@ -263,12 +263,12 @@ public object StmJogSlide {
         return true
     }
 
-    private fun nodeViolations(
+    internal fun nodeViolations(
         pts: List<Point>,
         foreign: Map<String, Rect>,
     ): Int = foreign.values.count { r -> (edgeNodeGap(route = pts, rect = r) ?: Float.MAX_VALUE) < EDGE_NODE_MIN_GAP_PX }
 
-    private fun distanceToPolyline(
+    internal fun distanceToPolyline(
         p: Point,
         pts: List<Point>,
     ): Float {
@@ -286,7 +286,7 @@ public object StmJogSlide {
         return best
     }
 
-    private fun nodeBetween(
+    internal fun nodeBetween(
         sa: Pair<Point, Point>,
         sb: Pair<Point, Point>,
         nodes: Collection<Rect>,
