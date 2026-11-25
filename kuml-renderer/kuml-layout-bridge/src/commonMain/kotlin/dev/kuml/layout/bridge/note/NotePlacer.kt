@@ -222,9 +222,11 @@ public object NotePlacer {
         used: List<Point> = emptyList(),
         spacing: Float = 0f,
         clearance: Float = 0f,
+        /** PAL Welle Q: a fixed attach point on the connection (see [withRep]); null picks it as before. */
+        repAt: Point? = null,
     ) {
         val rep: Point =
-            when (geometry) {
+            repAt ?: when (geometry) {
                 is AnchorGeometry.At -> geometry.p
                 is AnchorGeometry.Port -> outerMidpoint(box = geometry.box, side = geometry.outward)
                 is AnchorGeometry.Stem -> Point(x = geometry.x, y = geometry.top + STEM_FIRST_OFFSET)
@@ -233,6 +235,13 @@ public object NotePlacer {
                 is AnchorGeometry.Around -> Point(x = geometry.r.cx, y = geometry.r.cy)
                 is AnchorGeometry.Ellipse -> Point(x = geometry.cx, y = geometry.cy)
             }
+
+        /** The same anchor attached at [p] (only for a connection anchor; any other geometry returns null). */
+        fun withRep(
+            p: Point,
+            obstacles: ObstacleIndex,
+        ): Anchor? =
+            if (geometry is AnchorGeometry.Along) Anchor(ref = ref, geometry = geometry, obstacles = obstacles, repAt = p) else null
 
         // A point anchor (port, lifeline stem) sits ON a box or line: that box must still not be crossed on the way.
         val exempt: Set<String> =
@@ -1097,9 +1106,129 @@ public object NotePlacer {
         // D: nothing is clean: the cheapest routed plan of all stages (old cost model), else the cheapest at all.
         val pool = (columns + listOfNotNull(bestAny, strip))
         val routed = pool.filter { it.routed }
-        val chosen = (routed.ifEmpty { pool }).minBy { it.cost }
+        val baseline = (routed.ifEmpty { pool }).minBy { it.cost }
+        // PAL Welle Q: the baseline is only replaced by a plan with strictly fewer foreign edge crossings (see improveByCrossings).
         // The strip is the last resort of the old behaviour: keep its exhausted flag when it wins.
-        return chosen
+        return improveByCrossings(
+            baseline = baseline,
+            pool = pool,
+            candidates = candidates,
+            anchors = anchors,
+            obstacles = obstacles,
+            config = config,
+            budget = budget,
+            clearance = clearance,
+        ) ?: baseline
+    }
+
+    private fun crossingsOf(
+        plan: Plan,
+        anchors: List<Anchor>,
+        obstacles: ObstacleIndex,
+        budget: ObstacleIndex.Budget,
+    ): Int =
+        plan.routes.indices.sumOf {
+            obstacles.foreignEdgeCrossings(pts = plan.routes[it], exemptOwners = anchors[it].exempt, budget = budget)
+        }
+
+    /**
+     * PAL Welle Q, stage D only: tries other attach points on the target connection (and the rectangles of the other stage
+     * plans) and returns a plan that crosses strictly fewer foreign edges than [baseline], or null. A candidate must be routed,
+     * keep the hard note rules, must not run through a node, a foreign note or a label, and its anchor lines may be at most
+     * [ANCHOR_LENGTH_FACTOR] times the baseline length plus [ANCHOR_LENGTH_SLACK_PX] long. Bounded by [budget] and [MAX_ALT_ANCHOR_POINTS].
+     */
+    private fun improveByCrossings(
+        baseline: Plan,
+        pool: List<Plan>,
+        candidates: List<Rect>,
+        anchors: List<Anchor>,
+        obstacles: ObstacleIndex,
+        config: NotePlacementConfig,
+        budget: ObstacleIndex.Budget,
+        clearance: Float,
+    ): Plan? {
+        if (budget.exhausted || !baseline.routed) return null
+        val baseCross = crossingsOf(plan = baseline, anchors = anchors, obstacles = obstacles, budget = budget)
+        if (baseCross == 0) return null
+        val maxLength = baseline.routes.sumOf { polylineLength(it).toDouble() }.toFloat() * ANCHOR_LENGTH_FACTOR + ANCHOR_LENGTH_SLACK_PX
+        // Candidate anchor sets: the original, then every connection anchor moved to an alternative attach point.
+        val variants = ArrayList<List<Anchor>>()
+        variants += anchors
+        for ((i, a) in anchors.withIndex()) {
+            val g = a.geometry as? AnchorGeometry.Along ?: continue
+            val used = anchors.filterIndexed { k, o -> k != i && o.geometry is AnchorGeometry.Along }.map { it.rep }
+            for (p in alternativeEdgePoints(
+                a = a,
+                pts = g.pts,
+                obstacles = obstacles,
+                used = used,
+                config = config,
+                clearance = clearance,
+            )) {
+                val moved = a.withRep(p = p, obstacles = obstacles) ?: continue
+                variants += anchors.mapIndexed { k, o -> if (k == i) moved else o }
+            }
+        }
+        val rects = (listOf(baseline.rect) + pool.map { it.rect } + candidates).distinctBy { it.origin to it.size }
+        var best: Plan? = null
+        var bestCross = baseCross
+        for (rect in rects) {
+            if (obstacles.overlapsNote(rect)) continue
+            if (blocked(rect = rect, obstacles = obstacles, config = config, clearance = clearance, budget = budget)) continue
+            for (variant in variants) {
+                if (budget.exhausted) return best
+                val plan = planFor(rect = rect, anchors = variant, obstacles = obstacles, config = config, budget = budget)
+                if (!plan.routed) continue
+                if (plan.routes.indices.any {
+                        obstacles.routeHitsRects(pts = plan.routes[it], exemptOwners = variant[it].exempt, budget = budget)
+                    }
+                ) {
+                    continue
+                }
+                if (plan.routes.sumOf { polylineLength(it).toDouble() }.toFloat() > maxLength) continue
+                val n = crossingsOf(plan = plan, anchors = variant, obstacles = obstacles, budget = budget)
+                val better = n < bestCross || (n == bestCross && best != null && plan.cost < best.cost - TIE_EPS)
+                if (better) {
+                    best = plan
+                    bestCross = n
+                }
+            }
+        }
+        return best
+    }
+
+    /**
+     * Up to [MAX_ALT_ANCHOR_POINTS] other attach points along a connection, evenly drawn from the admissible ones: at least
+     * [ALT_ANCHOR_END_INSET] from its ends, label clearance and node clearance as for the first pick, spaced from [used].
+     */
+    private fun alternativeEdgePoints(
+        a: Anchor,
+        pts: List<Point>,
+        obstacles: ObstacleIndex,
+        used: List<Point>,
+        config: NotePlacementConfig,
+        clearance: Float,
+    ): List<Point> {
+        if (pts.size < 2) return emptyList()
+        val total = polylineLength(pts)
+        if (total <= 2f * ALT_ANCHOR_END_INSET) return emptyList()
+        val labelClear = max(clearance, ALT_ANCHOR_LABEL_CLEARANCE)
+        val labels = obstacles.rects.filter { it.kind.isLabel }.map { it.core }
+        val nodes = obstacles.rects.filter { it.kind == ObstacleKind.NODE || it.kind == ObstacleKind.COMPOSITE_TITLE }.map { it.core }
+        val step = max(ANCHOR_CANDIDATE_STEP, (total - 2f * ALT_ANCHOR_END_INSET) / MAX_ANCHOR_CANDIDATES)
+        val ok = ArrayList<Point>()
+        var at = ALT_ANCHOR_END_INSET
+        while (at <= total - ALT_ANCHOR_END_INSET) {
+            val p = polylineAt(pts = pts, at = at)
+            at += step
+            if (distance(a = p, b = a.rep) < ANCHOR_CANDIDATE_STEP) continue
+            if (labels.any { rectDistance(r = it, p = p) < labelClear }) continue
+            if (nodes.any { rectDistance(r = it, p = p) < EDGE_ANCHOR_NODE_CLEARANCE }) continue
+            if (used.any { distance(a = it, b = p) < config.minAttachSpacing }) continue
+            ok += p
+        }
+        if (ok.size <= MAX_ALT_ANCHOR_POINTS) return ok
+        return (0 until MAX_ALT_ANCHOR_POINTS).map { ok[(it * (ok.size - 1)) / (MAX_ALT_ANCHOR_POINTS - 1)] }.distinct()
     }
 
     /** The content extent together with every lane (lanes may extend beyond the nodes). */
@@ -1785,6 +1914,11 @@ public object NotePlacer {
     private val logger = KotlinLogging.logger {}
     private const val EDGE_ANCHOR_NODE_CLEARANCE: Float = 12f
     private const val ANCHOR_CANDIDATE_STEP: Float = 3f
+    private const val MAX_ALT_ANCHOR_POINTS: Int = 12
+    private const val ALT_ANCHOR_END_INSET: Float = 16f
+    private const val ALT_ANCHOR_LABEL_CLEARANCE: Float = 8f
+    private const val ANCHOR_LENGTH_FACTOR: Float = 1.5f
+    private const val ANCHOR_LENGTH_SLACK_PX: Float = 48f
     private const val MAX_ANCHOR_CANDIDATES: Float = 200f
     private val ALONG_FRACTIONS: List<Float> = listOf(0.5f, 0.35f, 0.65f, 0.2f, 0.8f, 0.1f, 0.9f)
     private const val LONG_ROUTE_FACTOR: Float = 1.5f

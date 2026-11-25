@@ -390,6 +390,57 @@ public class ObstacleIndex {
         return true
     }
 
+    /**
+     * PAL Welle Q: the number of proper crossings between [pts] and foreign edges (kind [ObstacleKind.EDGE]). Edges owned by
+     * [exemptOwners] (the anchor's own target) are skipped; crossings within [CROSSING_END_EPS] of a segment end of [pts] are not
+     * counted. Anchor routes of other notes are not edges and do not count.
+     */
+    internal fun foreignEdgeCrossings(
+        pts: List<Point>,
+        exemptOwners: Set<String>,
+        budget: Budget,
+    ): Int {
+        var n = 0
+        for (l in lines) {
+            if (l.kind != ObstacleKind.EDGE) continue
+            if (l.ownerId != null && l.ownerId in exemptOwners) continue
+            for (i in 0 until pts.size - 1) {
+                for (j in 0 until l.points.size - 1) {
+                    budget.spend()
+                    if (!segmentsCross(a = pts[i], b = pts[i + 1], c = l.points[j], d = l.points[j + 1])) continue
+                    val c = l.points[j]
+                    val d = l.points[j + 1]
+                    if (distanceToSegment(p = pts[i], a = c, b = d) < CROSSING_END_EPS ||
+                        distanceToSegment(p = pts[i + 1], a = c, b = d) < CROSSING_END_EPS
+                    ) {
+                        continue
+                    }
+                    n++
+                }
+            }
+        }
+        return n
+    }
+
+    /** True if a segment of [pts] runs through a node, a foreign note or an edge label ([exemptOwners] are the anchor's own targets). */
+    internal fun routeHitsRects(
+        pts: List<Point>,
+        exemptOwners: Set<String>,
+        budget: Budget,
+    ): Boolean {
+        for (o in rects) {
+            if (o.kind != ObstacleKind.NODE && o.kind != ObstacleKind.NOTE && !o.kind.isLabel) continue
+            if (o.ownerId != null && o.ownerId in exemptOwners) continue
+            val inner = o.core.inflated(-1.5f)
+            if (inner.size.width <= 0f || inner.size.height <= 0f) continue
+            for (i in 0 until pts.size - 1) {
+                budget.spend()
+                if (segmentIntersectsRect(a = pts[i], b = pts[i + 1], r = inner)) return true
+            }
+        }
+        return false
+    }
+
     /** Rectangles that block routes (nodes, composite titles, labels, notes), nearest first to the segment a-b. */
     internal fun blockingRects(
         a: Point,
@@ -488,6 +539,7 @@ public class ObstacleIndex {
 
     private companion object {
         const val LABEL_INFLATE: Float = 4f
+        const val CROSSING_END_EPS: Float = 0.5f
         const val NOTE_INFLATE: Float = 8f
         const val PORT_INFLATE: Float = 4f
         const val LINE_CLEARANCE: Float = 6f
