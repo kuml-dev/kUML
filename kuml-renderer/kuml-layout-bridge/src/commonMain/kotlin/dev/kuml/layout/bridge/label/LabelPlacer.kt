@@ -658,7 +658,15 @@ public object LabelPlacer {
         own: Float,
         ownerId: String,
         index: ObstacleIndex,
-    ): Boolean {
+    ): Boolean = foreignAsCloseId(r = r, own = own, ownerId = ownerId, index = index) != null
+
+    /** PAL Welle M: the owner id of the first foreign edge that is at least as close to [r] as the own line, `""` if it has none, null if there is none. */
+    internal fun foreignAsCloseId(
+        r: Rect,
+        own: Float,
+        ownerId: String,
+        index: ObstacleIndex,
+    ): String? {
         val reach = r.inflated(own + 0.5f)
         for (l in index.lines) {
             if (l.kind != ObstacleKind.EDGE || l.ownerId == ownerId) continue
@@ -669,9 +677,9 @@ public object LabelPlacer {
                     break
                 }
             }
-            if (near && rectDistanceToPolyline(r = r, pts = l.points) <= own + 0.01f) return true
+            if (near && rectDistanceToPolyline(r = r, pts = l.points) <= own + 0.01f) return l.ownerId ?: ""
         }
-        return false
+        return null
     }
 
     /** Shortest distance between [r] and the polyline [pts]; `0` if they touch or cross. */

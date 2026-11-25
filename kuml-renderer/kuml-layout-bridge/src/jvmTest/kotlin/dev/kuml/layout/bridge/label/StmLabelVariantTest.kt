@@ -129,6 +129,58 @@ class StmLabelVariantTest :
             r.variantChosen shouldBe emptyMap()
         }
 
+        test("PAL Welle M: an unresolved label names the obstacles that block it, most frequent first") {
+            val nodes = mapOf("above" to box(-50f, 60f, 400f, 38f), "below" to box(-50f, 102f, 400f, 38f))
+            val r =
+                plan(
+                    edge = horizontal("e"),
+                    nodes = nodes,
+                    spec = StmLabelSpec(id = "e", lines = listOf("label"), size = Size(60f, 18f)),
+                )
+            r.unresolved shouldBe listOf("e")
+            val who = r.unresolvedBlockers.getValue("e")
+            who.isNotEmpty() shouldBe true
+            who.all { it == "node above" || it == "node below" || it.startsWith("own-") || it.startsWith("foreign-") } shouldBe true
+            who.first().startsWith("node ") shouldBe true
+            // The short token of Welle L is counted per kind, so it need not equal the kind of the first blocker.
+            r.unresolvedReason.getValue("e") shouldBe "node"
+        }
+
+        test("PAL Welle M: the W013 line cuts the blockers, counts the rest and has no separator without blockers") {
+            val m = Sysml2DiagramLabelPlan.noFreeSpotMessage(id = "e", why = "node", who = listOf("a 1", "b 2", "c 3", "d 4", "e 5"))
+            m.contains("(blocked by: node; a 1, b 2, c 3 +2 more).") shouldBe true
+            val three = Sysml2DiagramLabelPlan.noFreeSpotMessage(id = "e", why = "node", who = listOf("a", "b", "c"))
+            three.contains("+") shouldBe false
+            val none = Sysml2DiagramLabelPlan.noFreeSpotMessage(id = "e", why = "none", who = emptyList())
+            none.contains("(blocked by: none).") shouldBe true
+            none.contains(";") shouldBe false
+        }
+
+        test("PAL Welle M: control characters in label and obstacle ids never reach the W013 line") {
+            val m = Sysml2DiagramLabelPlan.noFreeSpotMessage(id = "x\nFAKE", why = "node", who = listOf("node y\r\nz"))
+            m.any { it.isISOControl() } shouldBe false
+            m.contains("'x?FAKE'") shouldBe true
+            m.contains("node y??z") shouldBe true
+            Sysml2DiagramLabelPlan.logSafe("a\tb") shouldBe "a?b"
+        }
+
+        test("PAL Welle M: reason counts per kind, the first blocker per obstacle, so they can differ") {
+            // Three obstacles of kind node (one position each side stacked) plus one own-edge obstacle: node wins per kind.
+            val nodes =
+                mapOf(
+                    "n1" to box(-50f, 60f, 400f, 18f),
+                    "n2" to box(-50f, 80f, 400f, 18f),
+                    "n3" to box(-50f, 102f, 400f, 18f),
+                    "n4" to box(-50f, 122f, 400f, 18f),
+                )
+            val r = plan(edge = horizontal("e"), nodes = nodes, spec = StmLabelSpec(id = "e", lines = listOf("l"), size = Size(60f, 18f)))
+            r.unresolved shouldBe listOf("e")
+            val who = r.unresolvedBlockers.getValue("e")
+            val kinds = who.map { it.substringBefore(' ') }.toSet()
+            // The reason is always one of the kinds that actually blocks, and a non-empty blocker list never yields `none`.
+            (r.unresolvedReason.getValue("e") in kinds) shouldBe true
+        }
+
         test("an exhausted work budget ends the repair without a result and without a crash") {
             val spec = wide.copy(variants = listOf(StmLabelVariant(lines = listOf("a"), size = Size(20f, 18f))))
             val r =

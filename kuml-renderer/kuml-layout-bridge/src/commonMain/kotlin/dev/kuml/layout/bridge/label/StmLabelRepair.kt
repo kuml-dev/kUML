@@ -31,6 +31,8 @@ internal object StmLabelRepair {
         val chosen: Map<String, Int> = emptyMap(),
         /** PAL Welle L: unresolved label id to the short token of what blocks most of its positions. */
         val reason: Map<String, String> = emptyMap(),
+        /** PAL Welle M: unresolved label id to its blocking obstacles as `kind id`, most frequent first (all of them; the log shortens). */
+        val blockers: Map<String, List<String>> = emptyMap(),
     )
 
     /** One position of a label (its rectangle, the polyline segment it sits beside and the narrower variant it was sized for, -1 = original). */
@@ -168,6 +170,7 @@ internal object StmLabelRepair {
         // PAL Welle L: a label that is still open is tried narrower (and once with a slightly larger distance from its line).
         val unresolvedFinal = ArrayList<String>()
         val reason = LinkedHashMap<String, String>()
+        val blockers = LinkedHashMap<String, List<String>>()
         for (u in stillOpen) {
             val c =
                 if (variants[u].isNullOrEmpty()) {
@@ -187,16 +190,22 @@ internal object StmLabelRepair {
                 repaired[u] = c
             } else {
                 unresolvedFinal += u
-                reason[u] =
-                    dominantReason(
-                        req = reqs.getValue(u),
-                        around = others(u),
-                        cands = cands(u),
-                        base = base,
-                        costs = costs,
-                        budget = budget,
-                    )
             }
+        }
+
+        // Diagnostics only after every label had its chance, so they never take budget away from a repair. One pass per label.
+        for (u in unresolvedFinal) {
+            val (who, why) =
+                diagnose(
+                    req = reqs.getValue(u),
+                    around = others(u),
+                    cands = cands(u),
+                    base = base,
+                    costs = costs,
+                    budget = budget,
+                )
+            blockers[u] = who
+            reason[u] = why
         }
 
         val out = LinkedHashMap<String, PlacedLabel>()
@@ -206,7 +215,7 @@ internal object StmLabelRepair {
             out[id] = if (c == null) p else PlacedLabel(rect = c.rect, onLine = false, clean = true, segment = c.segment)
             if (c != null && c.variant >= 0) chosen[id] = c.variant
         }
-        return Result(placed = out, unresolved = unresolvedFinal, chosen = chosen, reason = reason)
+        return Result(placed = out, unresolved = unresolvedFinal, chosen = chosen, reason = reason, blockers = blockers)
     }
 
     /**
@@ -248,25 +257,32 @@ internal object StmLabelRepair {
         return null
     }
 
-    /** The short token of the rule that rejects most of [cands] (ties: alphabetical); `none` when no position is rejected. */
-    private fun dominantReason(
+    /**
+     * PAL Welle M: one pass over [cands] of [req]. Returns the obstacles that reject the positions as `kind id` (`kind` alone
+     * without id), most frequent first, then alphabetical, and the short token of the rule that rejects most positions (ties:
+     * alphabetical; `none` when no position is rejected). Both values come from the same pass and cannot contradict each other.
+     */
+    private fun diagnose(
         req: LabelRequest,
         around: Map<String, Rect>,
         cands: List<Cand>,
         base: ObstacleIndex,
         costs: LabelCostModel,
         budget: Budget,
-    ): String {
-        val count = HashMap<String, Int>()
+    ): Pair<List<String>, String> {
+        val byObstacle = HashMap<String, Int>()
+        val byKind = HashMap<String, Int>()
         for (c in cands) {
             if (budget.left <= 0) break
-            val why = violationReason(req = req, rect = c.rect, others = around, index = base, costs = costs, budget = budget) ?: continue
-            count[why] = (count[why] ?: 0) + 1
+            val b = violationBlocker(req = req, rect = c.rect, others = around, index = base, costs = costs, budget = budget) ?: continue
+            val key = if (b.id == null) b.kind else "${b.kind} ${b.id}"
+            byObstacle[key] = (byObstacle[key] ?: 0) + 1
+            byKind[b.kind] = (byKind[b.kind] ?: 0) + 1
         }
-        return count.entries
-            .sortedWith(compareBy({ -it.value }, { it.key }))
-            .firstOrNull()
-            ?.key ?: "none"
+        val who = byObstacle.entries.sortedWith(compareBy({ -it.value }, { it.key })).map { it.key }
+        val topKind = byKind.entries.sortedWith(compareBy({ -it.value }, { it.key })).firstOrNull()
+        val why = topKind?.key ?: "none"
+        return who to why
     }
 
     private fun ripUp(
@@ -337,6 +353,12 @@ internal object StmLabelRepair {
         budget: Budget? = null,
     ): Boolean = violationReason(req = req, rect = rect, others = others, index = index, costs = costs, budget = budget) != null
 
+    /** PAL Welle M: the rule a position breaks ([kind], the short token) and the obstacle that breaks it ([id], null if it has none). */
+    data class Blocker(
+        val kind: String,
+        val id: String?,
+    )
+
     /**
      * The first rule [rect] breaks as a short fixed token (`label`, `node`, `foreign-edge`, `own-edge`, `own-far`,
      * `foreign-closer`), or null when it is an acceptable position. Same rules and order as [isViolation].
@@ -348,15 +370,25 @@ internal object StmLabelRepair {
         index: ObstacleIndex,
         costs: LabelCostModel,
         budget: Budget? = null,
-    ): String? {
+    ): String? = violationBlocker(req = req, rect = rect, others = others, index = index, costs = costs, budget = budget)?.kind
+
+    /** Like [violationReason], but also names the obstacle (PAL Welle M): a label id, a node id or `frame`, an edge id. */
+    fun violationBlocker(
+        req: LabelRequest,
+        rect: Rect,
+        others: Map<String, Rect>,
+        index: ObstacleIndex,
+        costs: LabelCostModel,
+        budget: Budget? = null,
+    ): Blocker? {
         budget?.let { it.left -= index.size + others.size + 1 }
-        for (r in others.values) if (tooClose(a = rect, b = r)) return "label"
+        for ((k, r) in others) if (tooClose(a = rect, b = r)) return Blocker(kind = "label", id = k)
         for (o in index.rects) {
             if (o.kind.isLabel) continue
             val other = if (costs.nodeClearance > 0f) o.core.inflated(costs.nodeClearance) else o.core
-            if (other.intersects(rect)) return "node"
+            if (other.intersects(rect)) return Blocker(kind = "node", id = o.ownerId)
         }
-        for (a in req.avoid) if (a.intersects(rect)) return "node"
+        for (a in req.avoid) if (a.intersects(rect)) return Blocker(kind = "node", id = null)
         val clearOwn = rect.inflated(costs.lineClearance)
         val clearForeign = rect.inflated(costs.foreignLineClearance)
         for (l in index.lines) {
@@ -365,13 +397,16 @@ internal object StmLabelRepair {
             if (own && !costs.ownCrossUnclean) continue
             val clear = if (own) clearOwn else clearForeign
             for (i in 0 until l.points.size - 1) {
-                if (segmentIntersectsRect(a = l.points[i], b = l.points[i + 1], r = clear)) return if (own) "own-edge" else "foreign-edge"
+                if (segmentIntersectsRect(a = l.points[i], b = l.points[i + 1], r = clear)) {
+                    return Blocker(kind = if (own) "own-edge" else "foreign-edge", id = l.ownerId)
+                }
             }
         }
         if (req.polyline.size >= 2) {
             val d = LabelPlacer.rectDistanceToPolyline(r = rect, pts = req.polyline)
-            if (d > costs.maxDistancePx) return "own-far"
-            if (LabelPlacer.foreignAsClose(r = rect, own = d, ownerId = req.ownerId, index = index)) return "foreign-closer"
+            if (d > costs.maxDistancePx) return Blocker(kind = "own-far", id = null)
+            val closer = LabelPlacer.foreignAsCloseId(r = rect, own = d, ownerId = req.ownerId, index = index)
+            if (closer != null) return Blocker(kind = "foreign-closer", id = closer.ifEmpty { null })
         }
         return null
     }

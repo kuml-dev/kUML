@@ -91,6 +91,8 @@ public data class Sysml2LabelPlanResult(
     val variantChosen: Map<String, Int> = emptyMap(),
     /** PAL Welle L: unresolved label id to the short token of the rule that blocks most positions (`foreign-edge`, `own-edge`, `foreign-closer`, `node`, `label`, `own-far`). */
     val unresolvedReason: Map<String, String> = emptyMap(),
+    /** PAL Welle M: unresolved label id to its blocking obstacles as `kind id` (e.g. `label T35`, `foreign-edge T37`), most frequent first. */
+    val unresolvedBlockers: Map<String, List<String>> = emptyMap(),
 )
 
 /**
@@ -564,12 +566,8 @@ public object Sysml2DiagramLabelPlan {
         val variants = labels.filter { it.variants.isNotEmpty() }.associate { it.id to it.variants }
         val repaired = StmLabelRepair.repair(requests = requests, placed0 = placed, base = buildIndex(), costs = costs, variants = variants)
         for (id in repaired.unresolved) {
-            val why = repaired.reason[id] ?: "none"
-            logger.warn {
-                "${LayoutCodes.STM_LABEL_NO_FREE_SPOT}: the label of transition '${id.take(
-                    MAX_LOG_ID,
-                )}' has no free position (blocked by: $why)."
-            }
+            val message = noFreeSpotMessage(id = id, why = repaired.reason[id] ?: "none", who = repaired.blockers[id].orEmpty())
+            logger.warn { message }
         }
         for ((id, vi) in repaired.chosen) {
             variants[id]?.getOrNull(vi)?.let { lines[id] = it.lines }
@@ -580,10 +578,30 @@ public object Sysml2DiagramLabelPlan {
             unresolved = repaired.unresolved,
             variantChosen = repaired.chosen,
             unresolvedReason = repaired.reason,
+            unresolvedBlockers = repaired.blockers,
         )
     }
 
     private const val MAX_LOG_ID: Int = 120
+
+    /** The W013 log line of an unresolved STM label: at most [MAX_LOG_BLOCKERS] blockers, `+N more` for the rest, control characters replaced. */
+    internal fun noFreeSpotMessage(
+        id: String,
+        why: String,
+        who: List<String>,
+    ): String {
+        val shown = who.take(MAX_LOG_BLOCKERS).joinToString(", ") { logSafe(it).take(MAX_LOG_ID) }
+        val more = if (who.size > MAX_LOG_BLOCKERS) " +${who.size - MAX_LOG_BLOCKERS} more" else ""
+        val detail = if (shown.isEmpty()) "" else "; $shown$more"
+        return "${LayoutCodes.STM_LABEL_NO_FREE_SPOT}: the label of transition '${logSafe(id).take(MAX_LOG_ID)}' " +
+            "has no free position (blocked by: $why$detail)."
+    }
+
+    /** PAL Welle M: at most this many blockers per W013 line. */
+    private const val MAX_LOG_BLOCKERS: Int = 3
+
+    /** Control characters of a model name replaced by `?` (log injection). */
+    internal fun logSafe(s: String): String = s.map { if (it.isISOControl()) '?' else it }.joinToString("")
 
     private const val STM_STRIP_PX: Float = 100_000f
 
