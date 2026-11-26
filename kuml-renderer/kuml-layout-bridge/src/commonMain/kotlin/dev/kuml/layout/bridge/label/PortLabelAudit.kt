@@ -39,6 +39,35 @@ public object PortLabelAudit {
         val otherLabelViolations: Int,
         /** Number of labels of every role in the run. */
         val labelCount: Int,
+        /** PAL Welle U: every placed label of the run (all roles), for measuring clearances against parts and edges. */
+        val labels: List<LabelEntry> = emptyList(),
+        /** PAL Welle U: copy of the rectangle obstacles of the run (parts, titles, pins), drawn size without clearance. */
+        val obstacles: List<ObstacleEntry> = emptyList(),
+        /** PAL Welle U: copy of the polyline obstacles of the run (edges, nested part frames). */
+        val lines: List<LineEntry> = emptyList(),
+    )
+
+    /** One placed label of a run (PAL Welle U; recording only). */
+    public data class LabelEntry(
+        val id: String,
+        val role: LabelRole,
+        val ownerId: String,
+        val parentId: String?,
+        val rect: Rect,
+    )
+
+    /** One rectangle obstacle of a run (PAL Welle U; recording only). */
+    public data class ObstacleEntry(
+        val kind: ObstacleKind,
+        val ownerId: String?,
+        val rect: Rect,
+    )
+
+    /** One polyline obstacle of a run (PAL Welle U; recording only). */
+    public data class LineEntry(
+        val kind: ObstacleKind,
+        val ownerId: String?,
+        val points: List<dev.kuml.layout.Point>,
     )
 
     /** Per-thread audit scope: the snapshot sink and whether the repair is on. */
@@ -93,7 +122,21 @@ public object PortLabelAudit {
                 other++
             }
         }
-        out += Snapshot(ports = ports, otherLabelViolations = other, labelCount = placed.size)
+        val labels =
+            requests.sortedBy { it.id }.mapNotNull { req ->
+                placed[req.id]?.let {
+                    LabelEntry(id = req.id, role = req.role, ownerId = req.ownerId, parentId = req.parentId, rect = it.rect)
+                }
+            }
+        out +=
+            Snapshot(
+                ports = ports,
+                otherLabelViolations = other,
+                labelCount = placed.size,
+                labels = labels,
+                obstacles = index.rects.map { ObstacleEntry(kind = it.kind, ownerId = it.ownerId, rect = it.core) },
+                lines = index.lines.map { LineEntry(kind = it.kind, ownerId = it.ownerId, points = it.points) },
+            )
     }
 
     /** An edge-end label that overlaps a part, pin, title, another label (core rectangles) or a foreign edge. */

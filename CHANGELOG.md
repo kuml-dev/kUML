@@ -6,6 +6,23 @@ All notable changes to this project are documented here. Format follows
 
 ## [Unreleased]
 
+### PAL Welle U: IBD label clearance measured, no layout change (one known open case in Doc 41)
+
+- **Question.** Do connector, item flow and port labels of the PAL IBD fixtures keep enough room to parts, to other labels and to foreign connectors, and does the part spacing need a second pass for it?
+- **Measurement.** New test detector `IbdLabelClearance` (test code only) on the final label plan of the production renderer (plan rectangles, no SVG glyphs, so font and platform independent). `PortLabelAudit.Snapshot` gained three additive fields (`labels`, `obstacles`, `lines`; defaults empty, recording only, placement and repair unchanged). Counters: C1 `KUML-IBD-W002`, C2 connector/flow label over a foreign part, C3 label over label, C4 label hit by a foreign connector, C5 label closer than 6.0 px to a foreign part (a part's owners and their ancestors are not foreign; overlaps above 0.5 px).
+
+| Fixture | C1 | C2 | C3 | C4 | C5 |
+|---|---|---|---|---|---|
+| `pal-ibd/41-druckregelung-ibd` | 0 | 0 | 0 | 0 | 2 |
+| `pal-ibd/42-erhitzer-ibd` | 0 | 0 | 0 | 0 | 0 |
+| `pal-ibd/46-erhitzer-sicherheit-ibd` | 0 | 0 | 0 | 0 | 0 |
+| `pal-ibd/47-erhitzer-stb-ibd` | 0 | 0 | 0 | 0 | 0 |
+| `ibd-fixtures/IBD Box-in-Box 3 Ebenen` | 0 | 0 | 0 | 0 | 0 |
+
+- **Result.** The Doc 41 finding of Welle S (`stellsignal` against `schleusenraum`, edge I8) stays at 0 collisions. `KUML-IBD-W002` remains the only IBD label warning; no new warning was added.
+- **Known open (Doc 41, C5 = 2).** The port labels `stellsignal` of the FMCS (4.5 px below `schleusenraum`) and of the RLK (2.0 px below `vsr`) stand closer than 6 px to a foreign part. A part spacing pass cannot reach them: both labels sit beside their pin at the corner of a neighbouring part and the distance of the two parts along the label axis is already larger than the label, so moving parts apart does not change the label to part distance. No layout code was changed. The place for a fix is the port label clearance in `LabelPlacer` (2 px today). `PalWelleUIbdLabelClearanceInvariantTest` pins exactly these two entries; any other or additional close label fails it.
+- **Tests.** `PalWelleUIbdLabelClearanceInvariantTest`: detector self test with synthetic plans (overlap, near, clean, label over label, foreign connector) and C1 to C5 on the five fixtures.
+
 ### PAL Welle T: IBD connector lanes (Doc 42 I13/I20) and `KUML-LAYOUT-W014` for `sameLayer`
 
 - **Defect.** In Doc 42 (fixture `pal-ibd/42-erhitzer-ibd`) the connectors I13 (FMCS `stell` to erhitzer `stell`) and I20 (versorgung `leistung` to erhitzer `leistung`) ran over the corridor between the two rows of parts on one line: distance 0 px over about 32 px common length, both on their inner (horizontal) segment, not on an end stub. The IBD router sends every connector alone; only the STM path had a parallel lane spread.
