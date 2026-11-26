@@ -245,6 +245,19 @@ Use `Owner::port`, `part.port` or a bare owner-port name as an end. `kuml valida
 Desktop render warnings report `IBD501`, `IBD502` and `IBD503`. A `connectionDef` without an explicit `id` gets a unique
 id when its name is already taken (`Name#2`); the label of a connection still shows the model name.
 
+=== IBD connector lanes and `sameLayer`
+
+Two connectors that run side by side between ports are pulled apart after routing (PAL Welle T): when two connectors of
+different ports share a corridor closer than 16 px over at least 8 px, the inner segments move to at least 16 px
+apart, in the direction that adds no crossing and hits no foreign port square. Ports are fixed anchors: an end stub never
+moves (the stub next to a moved segment gets longer or shorter, never below 12 px or its former length), and two connectors
+of the *same* port stay on one line as a fan-out stem. When both lines run side by side as end stubs of their ports, the
+layout stays as it is. A diagram without such a pair is not touched.
+
+`sameLayer` in an IBD sets the layer of its members, not their order: when an edge, a path or a `first()` / `last()` pin
+forces two members into different layers, `KUML-LAYOUT-W014` names the reason (see xref:layout.adoc[layout]). The
+layout is unchanged.
+
 == Use Case Diagrams (UC)
 
 SysML 2 use case syntax mirrors UML use case: actors, use cases, `include`/`extend`

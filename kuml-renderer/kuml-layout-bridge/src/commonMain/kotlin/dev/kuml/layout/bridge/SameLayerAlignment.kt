@@ -52,13 +52,9 @@ internal fun LayoutResult.alignSameLayerCenters(
         val anchor = members.maxBy { extent(nodes.getValue(it).bounds) }
         val anchorBounds = nodes.getValue(anchor).bounds
         val centre = start(anchorBounds) + extent(anchorBounds) / 2f
-        val sharesLayer =
-            members.all { m ->
-                val b = nodes.getValue(m).bounds
-                start(b) < start(anchorBounds) + extent(anchorBounds) && start(b) + extent(b) > start(anchorBounds)
-            }
-        if (!sharesLayer) {
-            logger.warn { "sameLayer(${group.joinToString(", ")}) could not be honoured: the members do not share a layer." }
+        if (!sharesLayerBand(members = members, nodes = nodes.mapValues { it.value.bounds }, vertical = vertical)) {
+            // reported as KUML-LAYOUT-W014 by SameLayerCheck once the layout is finished
+            logger.debug { "sameLayer(${group.joinToString(", ")}) could not be honoured: the members do not share a layer." }
             continue
         }
         for (m in members) {
@@ -92,6 +88,28 @@ internal fun LayoutResult.alignSameLayerCenters(
     }
     val moved = copy(nodes = nodes, edges = edges)
     return moved.normalised()
+}
+
+/**
+ * True when every one of [members] overlaps the band (on the flow axis) of the largest member: the members share a layer.
+ * [vertical] is `true` for top-to-bottom / bottom-to-top flows, whose flow axis is y.
+ */
+internal fun sharesLayerBand(
+    members: List<NodeId>,
+    nodes: Map<NodeId, Rect>,
+    vertical: Boolean,
+): Boolean {
+    val present = members.filter { it in nodes }
+    if (present.size < 2) return true
+
+    fun start(r: Rect) = if (vertical) r.origin.y else r.origin.x
+
+    fun extent(r: Rect) = if (vertical) r.size.height else r.size.width
+    val anchor = nodes.getValue(present.maxBy { extent(nodes.getValue(it)) })
+    return present.all { m ->
+        val b = nodes.getValue(m)
+        start(b) < start(anchor) + extent(anchor) && start(b) + extent(b) > start(anchor)
+    }
 }
 
 /** Straight line between the sides of [from] and [to] that face each other across the lane axis. */

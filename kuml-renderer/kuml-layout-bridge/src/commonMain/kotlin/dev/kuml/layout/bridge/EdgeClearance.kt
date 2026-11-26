@@ -242,6 +242,7 @@ internal data class ClearanceViolations(
 internal fun detectViolations(
     result: LayoutResult,
     graph: LayoutGraph,
+    portAware: Boolean = false,
 ): ClearanceViolations {
     val routes = LinkedHashMap<EdgeId, List<Point>>()
     for (e in graph.edges.take(MAX_ROUTES)) {
@@ -258,7 +259,9 @@ internal fun detectViolations(
             val ei = edgeById.getValue(ids[i])
             val ej = edgeById.getValue(ids[j])
             val shared = setOf(ei.source.nodeId, ei.target.nodeId).intersect(setOf(ej.source.nodeId, ej.target.nodeId))
-            val shareNode = shared.isNotEmpty()
+            // portAware (IBD, PAL wave T): only a shared port end is a bundle (Kare's fan-out stem); two ports of one part are not.
+            val shareNode = if (portAware) sharesPortEnd(ei, ej) else shared.isNotEmpty()
+            if (portAware && shareNode) continue
             var worst: Float? = null
             for (sa in routes.getValue(ids[i]).zipWithNext()) {
                 for (sb in routes.getValue(ids[j]).zipWithNext()) {
@@ -319,6 +322,26 @@ internal fun detectViolations(
     }
     return ClearanceViolations(parallel = parallel, edgeNode = edgeNode)
 }
+
+/** True when [a] and [b] end at the same port of the same node (same non-null [dev.kuml.layout.EndpointRef.portId]). */
+private fun sharesPortEnd(
+    a: dev.kuml.layout.LayoutEdge,
+    b: dev.kuml.layout.LayoutEdge,
+): Boolean =
+    listOf(a.source, a.target).any { x ->
+        x.portId != null && listOf(b.source, b.target).any { y -> y.nodeId == x.nodeId && y.portId == x.portId }
+    }
+
+/**
+ * Number of overlapping parallel segment pairs (overlap at least [PARALLEL_MIN_OVERLAP_PX], gap below
+ * [EDGE_EDGE_TARGET_GAP_PX]) of different edges, with the same exemptions as [detectViolations]; the IBD lane fix counts
+ * with it. PAL wave T.
+ */
+internal fun parallelOverlapCount(
+    result: LayoutResult,
+    graph: LayoutGraph,
+    portAware: Boolean,
+): Int = detectViolations(result = result, graph = graph, portAware = portAware).parallel.size
 
 /** True when a gate should run a second layout: the first result has at least one clearance violation. */
 internal fun needsRelayout(

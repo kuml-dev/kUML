@@ -557,6 +557,43 @@ public object LayoutSpecRunner {
                 result
             }
 
+        // PAL wave T: W014 for a sameLayer group whose members end up in different layers (the layout is not changed).
+        val checkGroups =
+            if (LayoutOption.SAME_LAYER in LayoutEffectMatrix.effectiveFor(kind) &&
+                LayoutOption.SAME_LAYER !in
+                ignoredOptions(spec = checked, kind = kind, compoundMembers = hasCompoundMembers(graph), scope = scope) &&
+                kind != SpecDiagramKind.SYSML2_ACT &&
+                kind != SpecDiagramKind.SYSML2_SEQ &&
+                kind != SpecDiagramKind.UML_SEQUENCE
+            ) {
+                checked
+                    ?.sameLayer
+                    .orEmpty()
+                    .take(LayoutLimits.GROUPS)
+                    .map { it.take(LayoutLimits.IDS_PER_GROUP) }
+                    .filter { it.size >= 2 }
+            } else {
+                emptyList()
+            }
+
+        fun done(
+            result: LayoutResult,
+            direction: LayoutDirection,
+        ): SpecLayoutOutcome {
+            val shown = finished(result = result, direction = direction)
+            val extra =
+                SameLayerCheck.findings(
+                    result = shown,
+                    groups = checkGroups,
+                    direction = direction,
+                    graph = graph,
+                    first = checked?.first.orEmpty().toSet(),
+                    last = checked?.last.orEmpty().toSet(),
+                    withheld = internalEdgeIds,
+                )
+            return SpecLayoutOutcome(result = shown, findings = findings + extra)
+        }
+
         // PAL wave J: a state-machine layout with a clearance violation gets exactly one more run with roomier spacing and
         // composite padding. It is taken only when it has fewer violations; a clean layout is never touched.
         fun laidOut(
@@ -578,14 +615,14 @@ public object LayoutSpecRunner {
         val first = laidOut(g = graphWith(graph = engineGraph, spec = checked), h = effectiveHints)
         val explicit = checked?.aspectRatio != null || checked?.maxWidth != null
         if (!explicit && !effectiveHints.autoAspect) {
-            return SpecLayoutOutcome(result = finished(result = first, direction = effectiveHints.direction), findings = findings)
+            return done(result = first, direction = effectiveHints.direction)
         }
 
         val horizontal = effectiveHints.direction == LayoutDirection.LeftToRight || effectiveHints.direction == LayoutDirection.RightToLeft
         val w = first.canvas.width.toDouble()
         val h = first.canvas.height.toDouble()
         if (w <= 0.0 || h <= 0.0) {
-            return SpecLayoutOutcome(result = finished(result = first, direction = effectiveHints.direction), findings = findings)
+            return done(result = first, direction = effectiveHints.direction)
         }
         val ratio = w / h
         val target =
@@ -601,7 +638,7 @@ public object LayoutSpecRunner {
             target != null &&
                 isOffTarget(ratio = ratio, target = target, horizontal = horizontal, bothSides = checked?.aspectRatio != null)
         if (!tooWide && !offTarget) {
-            return SpecLayoutOutcome(result = finished(result = first, direction = effectiveHints.direction), findings = findings)
+            return done(result = first, direction = effectiveHints.direction)
         }
 
         // The widest layer drives the wrap: nodes per layer without any wrapping.
@@ -686,7 +723,7 @@ public object LayoutSpecRunner {
             bothSides = checked?.aspectRatio != null,
             findings = findings,
         )
-        return SpecLayoutOutcome(result = chosen, findings = findings)
+        return done(result = best, direction = chosenDirection)
     }
 
     /** The flow direction turned by a quarter: vertical flows become horizontal and the other way round. */

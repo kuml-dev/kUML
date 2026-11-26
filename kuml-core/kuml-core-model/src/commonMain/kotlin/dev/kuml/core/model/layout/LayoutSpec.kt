@@ -175,6 +175,13 @@ object LayoutCodes {
      * foreign line (PAL Welle J2).
      */
     const val STM_LABEL_NO_FREE_SPOT = "KUML-LAYOUT-W013"
+
+    /**
+     * The members of a `sameLayer` group do not share a layer in the finished layout: an edge between them, a path through
+     * other nodes, or a `first()` / `last()` pin forces them apart. The layout is unchanged; the finding names the reason
+     * (PAL Welle T).
+     */
+    const val SAME_LAYER_NOT_HONOURED = "KUML-LAYOUT-W014"
     const val OUT_OF_RANGE = "KUML-LAYOUT-E001"
 
     /** Informational: a `sameLayer` of groups widens its row beyond the column count (wave 2E-a). Not an error. */

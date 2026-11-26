@@ -3110,7 +3110,30 @@ public object Sysml2LayoutBridge {
                     )
                 },
             )
-        return layoutResult.copy(nodes = enrichedNodes, edges = clampedEdges)
+
+        // PAL wave T (P-IBD-04): connectors that run side by side between two ports are pulled apart (inner segments only).
+        fun laneEnd(end: dev.kuml.sysml2.projection.ResolvedEnd): EndpointRef =
+            EndpointRef(
+                nodeId = NodeId(end.nodeId ?: ""),
+                portId = if (end.nodeId != null && end.steps.isNotEmpty()) IbdLaneSpread.portKey(end.steps) else null,
+            )
+        val laneWires =
+            wires.filter { (eid, _, _) -> EdgeId(eid) in clampedEdges }.map { (eid, src, tgt) ->
+                IbdLaneSpread.Wire(edgeId = EdgeId(eid), source = laneEnd(src), target = laneEnd(tgt), pinned = false)
+            }
+        val portSquares =
+            portPositions.flatMap { (nodeId, ports) ->
+                val bounds = layoutResult.nodes[nodeId]?.bounds ?: return@flatMap emptyList<Rect>()
+                ports.values.map { ibdPortSquare(boxBounds = bounds, local = it) }
+            }
+        val laneResult =
+            IbdLaneSpread.apply(
+                result = layoutResult.copy(nodes = enrichedNodes, edges = clampedEdges),
+                wires = laneWires,
+                portSquares = portSquares,
+                frame = Rect(origin = Point(x = 0f, y = 0f), size = layoutResult.canvas),
+            )
+        return laneResult
     }
 
     /**
@@ -4550,6 +4573,7 @@ public object Sysml2LayoutBridge {
         val newEdges = linkedMapOf<EdgeId, EdgeRoute>()
         val adapter = IbdEdgeAdapter(model = model, diagram = diagram)
         val wireById = wires.associateBy { it.edgeId }
+        val gatedEdges = linkedSetOf<EdgeId>()
         for ((eid, route) in layoutResult.edges) {
             val w = wireById[eid.value]
             val srcOwner = w?.src?.ownerPort?.let { ownerByNode[NodeId(it.id)] }
@@ -4617,6 +4641,7 @@ public object Sysml2LayoutBridge {
             }
             val gateS = gateOf(w.src)
             val gateT = gateOf(w.tgt)
+            if (gateS != null || gateT != null) gatedEdges += eid
 
             fun gateAttachment(g: IbdGate) =
                 PortAttachment(rect = Rect(origin = g.gate, size = Size(width = 0f, height = 0f)), face = ibdFace(side = g.side))
@@ -4673,6 +4698,38 @@ public object Sysml2LayoutBridge {
                     )
                 }
         }
+
+        // F'. PAL wave T (P-IBD-04): connectors that run side by side between ports are pulled apart (inner segments only).
+        fun laneEnd(
+            end: dev.kuml.sysml2.projection.ResolvedEnd,
+            owner: OwnerPlace?,
+        ): EndpointRef =
+            when {
+                owner != null -> EndpointRef(nodeId = owner.id, portId = PortId(owner.id.value))
+                end.nodeId != null && end.steps.isNotEmpty() ->
+                    EndpointRef(nodeId = NodeId(end.nodeId!!), portId = IbdLaneSpread.portKey(end.steps))
+                else -> EndpointRef(nodeId = NodeId(end.nodeId ?: ""))
+            }
+        val laneWires =
+            newEdges.keys.mapNotNull { eid ->
+                val w = wireById[eid.value] ?: return@mapNotNull null
+                IbdLaneSpread.Wire(
+                    edgeId = eid,
+                    source = laneEnd(w.src, w.src.ownerPort?.let { ownerByNode[NodeId(it.id)] }),
+                    target = laneEnd(w.tgt, w.tgt.ownerPort?.let { ownerByNode[NodeId(it.id)] }),
+                    pinned = eid in gatedEdges,
+                )
+            }
+        val spreadEdges =
+            IbdLaneSpread
+                .apply(
+                    result = layoutResult.copy(edges = newEdges),
+                    wires = laneWires,
+                    portSquares = (partSquareByPort.values + ownerSquareById.values).map { it.toRect() },
+                    ownerPortNodes = ownerSquareById.mapValues { it.value.toRect() },
+                    frame = IbdBox(l = x0, t = y0, r = x1, b = y1).toRect(),
+                ).edges
+        for ((eid, r) in spreadEdges) if (newEdges.containsKey(eid)) newEdges[eid] = r
 
         // G. Zeichenfläche aus dem Inhalt neu bemessen und alles so verschieben, dass das Minimum bei (margin, margin) liegt.
         val frameBox = IbdBox(l = x0, t = y0, r = x1, b = y1)

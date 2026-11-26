@@ -55,6 +55,26 @@ data class RenderResult(
 )
 
 object VaultExampleRenderer {
+    /** Test hook (PAL wave T): findings of every `LayoutSpecRunner.layout` run inside [collectingFindings]. */
+    private var findingSink: MutableList<dev.kuml.layout.bridge.LayoutSpecFinding>? = null
+
+    internal fun recorded(outcome: dev.kuml.layout.bridge.SpecLayoutOutcome): dev.kuml.layout.LayoutResult {
+        findingSink?.addAll(outcome.findings)
+        return outcome.result
+    }
+
+    /** Runs [block] and returns its value with the layout findings of all renders inside it. */
+    fun <T> collectingFindings(block: () -> T): Pair<T, List<dev.kuml.layout.bridge.LayoutSpecFinding>> {
+        val previous = findingSink
+        val mine = mutableListOf<dev.kuml.layout.bridge.LayoutSpecFinding>()
+        findingSink = mine
+        try {
+            return block() to mine.toList()
+        } finally {
+            findingSink = previous
+        }
+    }
+
     /** Lays a SysML 2 diagram out with its `layout { }` block applied, like the CLI pipeline does. */
     private fun sysml2Layout(
         engine: dev.kuml.layout.KumlLayoutEngine,
@@ -85,14 +105,16 @@ object VaultExampleRenderer {
                 is ParDiagram -> SpecDiagramKind.SYSML2_PAR
                 is dev.kuml.sysml2.Sysml2PackageDiagram -> SpecDiagramKind.SYSML2_PKG
             }
-        return LayoutSpecRunner
-            .layout(
-                engine = engine,
-                graph = graph,
-                hints = Sysml2LayoutBridge.layoutHintsFor(model = model, diagram = diagram),
-                spec = diagram.layout,
-                kind = kind,
-            ).result
+        return recorded(
+            LayoutSpecRunner
+                .layout(
+                    engine = engine,
+                    graph = graph,
+                    hints = Sysml2LayoutBridge.layoutHintsFor(model = model, diagram = diagram),
+                    spec = diagram.layout,
+                    kind = kind,
+                ),
+        )
     }
 
     private fun umlKind(type: DiagramType): SpecDiagramKind =
@@ -193,14 +215,16 @@ object VaultExampleRenderer {
                     val sizeProvider = UmlContentSizeProvider(diagram = extracted.diagram)
                     val graph = UmlLayoutBridge.toLayoutGraph(diagram = extracted.diagram, sizeProvider = sizeProvider)
                     val layout =
-                        LayoutSpecRunner
-                            .layout(
-                                engine = elkEngine,
-                                graph = graph,
-                                hints = LayoutHints.DEFAULT,
-                                spec = extracted.diagram.layout,
-                                kind = umlKind(extracted.diagram.type),
-                            ).result
+                        recorded(
+                            LayoutSpecRunner
+                                .layout(
+                                    engine = elkEngine,
+                                    graph = graph,
+                                    hints = LayoutHints.DEFAULT,
+                                    spec = extracted.diagram.layout,
+                                    kind = umlKind(extracted.diagram.type),
+                                ),
+                        )
                     val svg = KumlSvgRenderer.toSvg(diagram = extracted.diagram, layoutResult = layout, theme = theme)
                     val latex =
                         runCatching {
@@ -218,14 +242,16 @@ object VaultExampleRenderer {
                             sizeProvider = sizeProvider,
                         )
                     val layout =
-                        LayoutSpecRunner
-                            .layout(
-                                engine = elkEngine,
-                                graph = graph,
-                                hints = LayoutHints.DEFAULT,
-                                spec = extracted.diagram.layout,
-                                kind = SpecDiagramKind.C4,
-                            ).result
+                        recorded(
+                            LayoutSpecRunner
+                                .layout(
+                                    engine = elkEngine,
+                                    graph = graph,
+                                    hints = LayoutHints.DEFAULT,
+                                    spec = extracted.diagram.layout,
+                                    kind = SpecDiagramKind.C4,
+                                ),
+                        )
                     val svg =
                         KumlSvgRenderer.toSvg(
                             diagram = extracted.diagram,
@@ -506,14 +532,16 @@ object VaultExampleRenderer {
                                 )
                         }
                     val layout =
-                        LayoutSpecRunner
-                            .layout(
-                                engine = elkEngine,
-                                graph = graph,
-                                hints = ermHints,
-                                spec = extracted.diagram.layout,
-                                kind = SpecDiagramKind.ERM,
-                            ).result
+                        recorded(
+                            LayoutSpecRunner
+                                .layout(
+                                    engine = elkEngine,
+                                    graph = graph,
+                                    hints = ermHints,
+                                    spec = extracted.diagram.layout,
+                                    kind = SpecDiagramKind.ERM,
+                                ),
+                        )
                     val svg =
                         KumlSvgRenderer.toSvg(
                             model = extracted.model,
@@ -569,9 +597,16 @@ internal fun VaultExampleRenderer.umlLayoutOf(script: String): Pair<KumlDiagram,
     val engine = LayoutEngineRegistry.get("elk.layered") ?: return null
     val graph = UmlLayoutBridge.toLayoutGraph(diagram = diagram, sizeProvider = UmlContentSizeProvider(diagram = diagram))
     val layout =
-        LayoutSpecRunner
-            .layout(engine = engine, graph = graph, hints = LayoutHints.DEFAULT, spec = diagram.layout, kind = SpecDiagramKind.UML_CLASS)
-            .result
+        VaultExampleRenderer.recorded(
+            LayoutSpecRunner
+                .layout(
+                    engine = engine,
+                    graph = graph,
+                    hints = LayoutHints.DEFAULT,
+                    spec = diagram.layout,
+                    kind = SpecDiagramKind.UML_CLASS,
+                ),
+        )
     return diagram to layout
 }
 
@@ -595,6 +630,8 @@ internal fun VaultExampleRenderer.ermLayoutOf(
             sizeProvider = ErmContentSizeProvider(model = erm.model, diagram = erm.diagram, layoutDirection = hints.direction),
         )
     val layout =
-        LayoutSpecRunner.layout(engine = engine, graph = graph, hints = hints, spec = erm.diagram.layout, kind = SpecDiagramKind.ERM).result
+        VaultExampleRenderer.recorded(
+            LayoutSpecRunner.layout(engine = engine, graph = graph, hints = hints, spec = erm.diagram.layout, kind = SpecDiagramKind.ERM),
+        )
     return erm.model to layout
 }

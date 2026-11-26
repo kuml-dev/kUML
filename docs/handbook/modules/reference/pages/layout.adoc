@@ -168,6 +168,15 @@ classDiagram(name = "Zoo") {
   render differently there.
 * Unknown ids, more than 32 `sameLayer` groups or 64 ids per group, and ids in both `first` and `last`
   are reported (`KUML-LAYOUT-W004`, `KUML-LAYOUT-E001`, `KUML-LAYOUT-W001`).
+* A `sameLayer(a, b)` group whose members do not end up in one layer reports `KUML-LAYOUT-W014` (a warning, PAL Welle T) in
+  `kuml render` and in the Desktop render, also for state machines, block definition diagrams and UML state machines (where the
+  layout only logged a line before). The message names the reason, checked in this order: a direct edge between two members
+  (`edge I13 connects a and b and forces different layers`), a `first()` / `last()` pin that moves one member alone
+  (`first(a) moves a to the first layer`), a directed path through other nodes (`edge e lies on a path from a to b ...`), otherwise
+  only the statement. The layout is not changed: the layered engine fixes the layers, and a forced layer would draw edges backwards
+  through parts. Remove the `sameLayer` group, or remove or reverse the edge, to clear the warning. `kuml validate` does not run a
+  layout, so it does not report this finding. Edges between two members of one block definition or state machine group are drawn
+  straight and are not a reason.
 * `boundaryDirection` of a C4 container or component diagram reports `KUML-LAYOUT-W009` (a warning) when a relationship crosses the
   boundary: the layered engine cannot route it, so the boundary is laid out with the diagram direction and the picture is
   identical to the one without the keyword. Remove the crossing relationship from the diagram or the keyword to clear it.
