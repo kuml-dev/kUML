@@ -2794,7 +2794,12 @@ public object KumlSvgRenderer {
                 // PAL Welle B: the connector label block keeps 6 px from every bend of its line.
                 costs =
                     dev.kuml.layout.bridge.label
-                        .LabelCostModel(lineClearance = 2f, knickClearance = IBD_LABEL_KNICK_CLEARANCE_PX),
+                        .LabelCostModel(
+                            lineClearance = 2f,
+                            knickClearance = IBD_LABEL_KNICK_CLEARANCE_PX,
+                            // PAL Welle S: a port label that still touches a part, pin, title, label or line gets the bounded repair search.
+                            portRepair = dev.kuml.layout.bridge.label.PortLabelAudit.repairEnabled,
+                        ),
             )
 
         fun portRectsOf(plan: Map<String, dev.kuml.layout.bridge.label.PlacedLabel>): List<dev.kuml.layout.Rect> =
@@ -2849,6 +2854,25 @@ public object KumlSvgRenderer {
                         sourceLine = spec.hintLine,
                         code = dev.kuml.layout.bridge.note.PlacementHintMiss.PORT_LABEL_HINT_NOT_HONOURED,
                         customMessage = "port label hint not honoured: ${spec.ownerId}, wanted labelAt = $wanted, fell back to Auto",
+                    )
+                },
+        )
+        // PAL Welle S: a port label that still touches something after the repair search is reported (KUML-IBD-W002); the SVG is unchanged.
+        dev.kuml.layout.bridge.note.NotePlacementMissCollector.report(
+            portSpecs
+                .filter { (ibdFinalLabels[it.id]?.violations ?: 0) > 0 }
+                .map { spec ->
+                    val placed = ibdFinalLabels.getValue(spec.id)
+                    val by = if (placed.blockers.isEmpty()) "" else ", touching ${placed.blockers.joinToString("; ")}"
+                    val budget = if (placed.repairBudgetShort) " (repair search skipped: work budget exhausted)" else ""
+                    dev.kuml.layout.bridge.note.PlacementHintMiss(
+                        noteId = "port-label:${spec.ownerId}",
+                        wanted = dev.kuml.core.model.note.NotePlacement.NEAR,
+                        placed = dev.kuml.core.model.note.NotePlacement.NEAR,
+                        sourceLine = spec.hintLine,
+                        code = dev.kuml.layout.bridge.note.PlacementHintMiss.PORT_LABEL_NO_FREE_POSITION,
+                        customMessage =
+                            "port label without a free position: ${spec.ownerId}, ${placed.violations} collision(s) left$by$budget",
                     )
                 },
         )

@@ -172,6 +172,7 @@ public object Sysml2DiagramLabelPlan {
         }
         if (requests.isEmpty()) return emptyMap()
         val placed = LabelPlacer.place(requests = requests, index = index, costs = costs)
+        PortLabelAudit.record(requests = requests, placed = placed, index = index)
         if (!keepInsideFrames) return placed
         return guardInsideFrames(layout = layout, sizes = edgeLabelSizes, placed = placed)
     }

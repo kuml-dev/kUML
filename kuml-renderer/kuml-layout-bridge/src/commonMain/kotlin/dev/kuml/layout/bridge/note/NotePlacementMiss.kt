@@ -18,7 +18,7 @@ public data class PlacementHintMiss(
     val placed: NotePlacement,
     val sourceLine: Int? = null,
     val outsideHomeLane: Boolean = false,
-    /** Finding code override: a `labelAt` port label hint that was not honoured is `KUML-IBD-W001` (PAL Welle B), not a note finding. */
+    /** Finding code override: a `labelAt` port label hint that was not honoured is `KUML-IBD-W001` (PAL Welle B), a port label without a free position `KUML-IBD-W002` (PAL Welle S); neither is a note finding. */
     val code: String? = null,
     /** Message override for [code] findings; never a note or label body. */
     val customMessage: String? = null,
@@ -35,6 +35,9 @@ public data class PlacementHintMiss(
     public companion object {
         /** `labelAt` of a port could not be honoured (PAL Welle B). */
         public const val PORT_LABEL_HINT_NOT_HONOURED: String = "KUML-IBD-W001"
+
+        /** A port label still touches a part, pin, title, label or edge after the bounded repair search (PAL Welle S). */
+        public const val PORT_LABEL_NO_FREE_POSITION: String = "KUML-IBD-W002"
     }
 }
 

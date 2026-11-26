@@ -6,6 +6,7 @@ import dev.kuml.layout.Size
 import dev.kuml.layout.bridge.note.ObstacleIndex
 import dev.kuml.layout.bridge.note.ObstacleKind
 import dev.kuml.layout.bridge.note.bottom
+import dev.kuml.layout.bridge.note.contains
 import dev.kuml.layout.bridge.note.cx
 import dev.kuml.layout.bridge.note.cy
 import dev.kuml.layout.bridge.note.distanceToSegment
@@ -169,6 +170,13 @@ public data class LabelCostModel(
      * diagram type keeps its placement bit for bit.
      */
     val hardExclusions: Boolean = false,
+    /**
+     * PAL Welle S: a part-port label (outward side known) that still touches a part, a pin, a title, another label or an edge, or
+     * the border of its own part, after the fixed ranking gets a second, bounded search (up to 12 px from the pin) and is
+     * reported with its remaining collisions ([PlacedLabel.violations]). Off by default: only the IBD planner switches it on,
+     * so every other diagram type keeps its placement bit for bit.
+     */
+    val portRepair: Boolean = false,
 )
 
 /** A placed label: its rectangle and whether it sits on its own line (the renderer then needs the canvas-coloured halo). */
@@ -184,6 +192,12 @@ public data class PlacedLabel(
     val segment: Int = -1,
     /** A [LabelRequest.preferredTangent] was given and the label sits on the other side (or inside), see PAL Welle B. */
     val hintMissed: Boolean = false,
+    /** PAL Welle S ([LabelCostModel.portRepair]): collisions the port label still has (`0` = it keeps clear of everything). */
+    val violations: Int = 0,
+    /** PAL Welle S: what the remaining [violations] touch, as `kind id`, most frequent first, at most three (never label text). */
+    val blockers: List<String> = emptyList(),
+    /** PAL Welle S: the repair search was skipped because the work budget did not cover the whole raster (the ranked position stayed). */
+    val repairBudgetShort: Boolean = false,
 )
 
 /**
@@ -256,8 +270,38 @@ public object LabelPlacer {
                     best = c
                 }
             }
+            var chosen = best ?: candidates.firstOrNull() ?: continue
+            var repairViolations = 0
+            var repairBlockers: List<String> = emptyList()
+            var repairBudgetShort = false
+            if (costs.portRepair && req.role == LabelRole.PORT && req.outward != null && req.anchorRect != null) {
+                val v1 = portViolations(rect = chosen.rect, req = req, index = index)
+                repairViolations = v1
+                if (v1 > 0) {
+                    val budgetShort = BooleanArray(1)
+                    val repaired =
+                        repairPort(
+                            req = req,
+                            index = index,
+                            costs = costs,
+                            phase1 = candidates,
+                            workLeft = work,
+                            v1 = v1,
+                            budgetShort = budgetShort,
+                        )
+                    repairBudgetShort = budgetShort[0]
+                    if (repaired != null) {
+                        work -= repaired.work
+                        chosen = repaired.candidate
+                        bestCost = repaired.cost
+                        repairViolations = repaired.violations
+                    }
+                    val why = ArrayList<String>()
+                    portViolations(rect = chosen.rect, req = req, index = index, blockers = why)
+                    repairBlockers = topBlockers(why)
+                }
+            }
             if (perRequest != null) totalLeft -= (workAtStart - work).coerceAtLeast(0L)
-            val chosen = best ?: candidates.firstOrNull() ?: continue
             val cleanLimit =
                 if (costs.ownCrossUnclean) {
                     minOf(
@@ -271,7 +315,16 @@ public object LabelPlacer {
             val clean = !chosen.onLine && bestCost < cleanLimit
             val hintMissed = req.preferredTangent != 0 && (chosen.inner || chosen.tangentSign != req.preferredTangent)
             result[req.id] =
-                PlacedLabel(rect = chosen.rect, onLine = chosen.onLine, clean = clean, segment = chosen.segment, hintMissed = hintMissed)
+                PlacedLabel(
+                    rect = chosen.rect,
+                    onLine = chosen.onLine,
+                    clean = clean,
+                    segment = chosen.segment,
+                    hintMissed = hintMissed,
+                    violations = repairViolations,
+                    blockers = repairBlockers,
+                    repairBudgetShort = repairBudgetShort,
+                )
             if (req.role == LabelRole.MULTIPLICITY) multSign[req.ownerId to req.end] = chosen.sign
             index.addRect(kind = kindOf(req.role), r = chosen.rect, ownerId = req.ownerId)
         }
@@ -549,6 +602,276 @@ public object LabelPlacer {
                         inner = inner,
                         tangentSign = if (sgn < 0f) -1 else 1,
                     )
+            }
+        }
+        return out
+    }
+
+    // ── PAL Welle S: port label repair ───────────────────────────────────────────────────────────
+
+    /** Free space (px) a port label keeps to parts, pins, titles, edges and the border of its own part. */
+    internal const val PORT_CLEAR_PX: Float = 2f
+
+    /** Float tolerance for the 2 px rule: a label exactly 2 px away (as the ranking places it) is clear. */
+    private const val PORT_CLEAR_EPS: Float = 0.05f
+
+    /** A repaired port label stays within this rectangle distance of its pin square. */
+    internal const val PORT_REPAIR_MAX_DISTANCE_PX: Float = 12f
+
+    private val REPAIR_GAPS: List<Float> = listOf(4f, 8f, 12f)
+    private val REPAIR_BORDER_DISTANCES: List<Float> = listOf(2f, 6f, 10f, 14f)
+
+    private class Repair(
+        val candidate: Candidate,
+        val violations: Int,
+        val cost: Float,
+        val work: Long,
+    )
+
+    /**
+     * How many things a port label at [rect] still touches (PAL Welle S), one each: a foreign part, pin, title or other
+     * obstacle less than 2 px away (touching counts), another placed label (inflated by 1 px), an edge or frame line less than
+     * 2 px away, and the border of its own part (an outside label must end 2 px beyond it, an inside label 2 px before it).
+     * The own part and the own pin do not count as obstacles; the border rule replaces them, so it also holds for pins on a
+     * nested frame. [blockers] receives one `kind id` per collision.
+     */
+    internal fun portViolations(
+        rect: Rect,
+        req: LabelRequest,
+        index: ObstacleIndex,
+        blockers: MutableList<String>? = null,
+    ): Int {
+        val anchor = req.anchorRect ?: return 0
+        var n = 0
+        val clear = PORT_CLEAR_PX - PORT_CLEAR_EPS
+        val pin = anchor.inflated(1f)
+        for (o in index.rects) {
+            if (o.ownerId != null && (o.ownerId == req.ownerId || o.ownerId == req.parentId)) continue
+            if (o.kind == ObstacleKind.PORT && pin.contains(Point(x = o.core.cx, y = o.core.cy))) continue
+            val box = if (o.kind.isLabel) o.core.inflated(1f) else o.core.inflated(clear)
+            if (!box.intersects(rect)) continue
+            n++
+            blockers?.add("${blockerKind(o.kind)} ${o.ownerId ?: ""}".trim())
+        }
+        val reach = rect.inflated(clear)
+        for (l in index.lines) {
+            if (l.kind != ObstacleKind.EDGE && l.kind != ObstacleKind.LIFELINE && l.kind != ObstacleKind.FRAGMENT) continue
+            var hit = false
+            for (i in 0 until l.points.size - 1) {
+                if (segmentIntersectsRect(a = l.points[i], b = l.points[i + 1], r = reach)) {
+                    hit = true
+                    break
+                }
+            }
+            if (!hit) continue
+            n++
+            blockers?.add("${if (l.kind == ObstacleKind.EDGE) "edge" else "frame"} ${l.ownerId ?: ""}".trim())
+        }
+        if (req.outward != null && touchesOwnBorder(rect = rect, anchor = anchor, outward = req.outward)) {
+            n++
+            blockers?.add("own-border")
+        }
+        return n
+    }
+
+    /** True when [rect] sits closer than 2 px to the border line through [anchor] (or across it). */
+    private fun touchesOwnBorder(
+        rect: Rect,
+        anchor: Rect,
+        outward: LabelSide,
+    ): Boolean {
+        // Signed distances of the label's two edges from the border line, positive towards the outside of the part.
+        val lo: Float
+        val hi: Float
+        when (outward) {
+            LabelSide.NORTH -> {
+                lo = anchor.cy - rect.bottom
+                hi = anchor.cy - rect.top
+            }
+            LabelSide.SOUTH -> {
+                lo = rect.top - anchor.cy
+                hi = rect.bottom - anchor.cy
+            }
+            LabelSide.EAST -> {
+                lo = rect.left - anchor.cx
+                hi = rect.right - anchor.cx
+            }
+            LabelSide.WEST -> {
+                lo = anchor.cx - rect.right
+                hi = anchor.cx - rect.left
+            }
+        }
+        val clear = PORT_CLEAR_PX - PORT_CLEAR_EPS
+        return if (lo + hi >= 0f) lo < clear else hi > -clear
+    }
+
+    private fun blockerKind(kind: ObstacleKind): String =
+        when (kind) {
+            ObstacleKind.NODE -> "node"
+            ObstacleKind.COMPOSITE_TITLE -> "title"
+            ObstacleKind.PORT -> "pin"
+            ObstacleKind.PORT_LABEL, ObstacleKind.EDGE_LABEL, ObstacleKind.MULTIPLICITY, ObstacleKind.ROLE -> "label"
+            ObstacleKind.ARROWHEAD -> "arrowhead"
+            else -> "obstacle"
+        }
+
+    /** The three most frequent blockers, most frequent first, ties by text (deterministic). */
+    internal fun topBlockers(all: List<String>): List<String> =
+        all
+            .groupingBy { it }
+            .eachCount()
+            .entries
+            .sortedWith(compareBy({ -it.value }, { it.key }))
+            .take(3)
+            .map { it.key }
+
+    /** Rectangle distance between [r] and [pin] (`0` when they touch or overlap). */
+    internal fun rectGap(
+        r: Rect,
+        pin: Rect,
+    ): Float {
+        val dx = maxOf(pin.left - r.right, r.left - pin.right, 0f)
+        val dy = maxOf(pin.top - r.bottom, r.top - pin.bottom, 0f)
+        return sqrt(dx * dx + dy * dy)
+    }
+
+    /**
+     * The bounded second search for a port label whose ranked position still has [v1] collisions: the eight ranked
+     * candidates plus a raster beside the pin (gap 4 / 8 / 12 px along the border times 2 / 6 / 10 px from it, and 4 / 8 / 12 px
+     * straight out times three cross shifts), outside and inside, none further than 12 px from the pin. Picks by collisions,
+     * outside before inside, the `labelAt` side, the cost model, the list position. Returns `null` when no candidate has fewer
+     * collisions than [v1] or when [workLeft] does not cover the whole raster (the ranked position then stays).
+     */
+    private fun repairPort(
+        req: LabelRequest,
+        index: ObstacleIndex,
+        costs: LabelCostModel,
+        phase1: List<Candidate>,
+        workLeft: Long,
+        v1: Int,
+        budgetShort: BooleanArray,
+    ): Repair? {
+        val anchor = req.anchorRect ?: return null
+        val raster = repairCandidates(req = req, anchor = anchor)
+        val all = ArrayList<Candidate>(phase1.size + raster.size)
+        all += phase1
+        for (c in raster) if (all.none { sameRect(a = it.rect, b = c.rect) }) all += c
+        val perCandidate = index.size + 1L
+        val needed = perCandidate * all.size
+        if (workLeft < needed) {
+            budgetShort[0] = true
+            return null
+        }
+        var bestIdx = -1
+        var bestV = Int.MAX_VALUE
+        var bestInner = 1
+        var bestMiss = 1
+        var bestCost = Float.MAX_VALUE
+        for ((i, c) in all.withIndex()) {
+            if (rectGap(r = c.rect, pin = anchor) > PORT_REPAIR_MAX_DISTANCE_PX + 0.01f) continue
+            val v = portViolations(rect = c.rect, req = req, index = index)
+            val inner = if (c.inner) 1 else 0
+            val miss = if (req.preferredTangent != 0 && (c.inner || c.tangentSign != req.preferredTangent)) 1 else 0
+            val cost = cost(c = c, req = req, index = index, costs = costs)
+            val better =
+                when {
+                    v != bestV -> v < bestV
+                    inner != bestInner -> inner < bestInner
+                    miss != bestMiss -> miss < bestMiss
+                    else -> cost < bestCost
+                }
+            if (better) {
+                bestIdx = i
+                bestV = v
+                bestInner = inner
+                bestMiss = miss
+                bestCost = cost
+            }
+        }
+        if (bestIdx < 0 || bestV >= v1) return null
+        return Repair(candidate = all[bestIdx], violations = bestV, cost = bestCost, work = needed)
+    }
+
+    private fun sameRect(
+        a: Rect,
+        b: Rect,
+    ): Boolean =
+        abs(a.left - b.left) < 0.01f && abs(a.top - b.top) < 0.01f && abs(a.right - b.right) < 0.01f && abs(a.bottom - b.bottom) < 0.01f
+
+    /** The raster of [repairPort], in a fixed order (outside before inside; along the border, then straight out). */
+    private fun repairCandidates(
+        req: LabelRequest,
+        anchor: Rect,
+    ): List<Candidate> {
+        val outward = req.outward ?: return emptyList()
+        val (ox, oy, tx, ty) =
+            when (outward) {
+                LabelSide.NORTH -> listOf(0f, -1f, 1f, 0f)
+                LabelSide.EAST -> listOf(1f, 0f, 0f, 1f)
+                LabelSide.SOUTH -> listOf(0f, 1f, -1f, 0f)
+                LabelSide.WEST -> listOf(-1f, 0f, 0f, -1f)
+            }
+        val w = req.size.width
+        val h = req.size.height
+        val halfPin = anchor.size.width / 2f
+        val extO = abs(ox) * w / 2f + abs(oy) * h / 2f
+        val extT = abs(tx) * w / 2f + abs(ty) * h / 2f
+        val out = ArrayList<Candidate>(54)
+        for (inner in booleanArrayOf(false, true)) {
+            val dir = if (inner) -1f else 1f
+            val dockedOnDirection =
+                req.excludedSide != null &&
+                    req.excludedSide ==
+                    when {
+                        ox > 0f -> if (inner) LabelSide.WEST else LabelSide.EAST
+                        ox < 0f -> if (inner) LabelSide.EAST else LabelSide.WEST
+                        oy > 0f -> if (inner) LabelSide.NORTH else LabelSide.SOUTH
+                        else -> if (inner) LabelSide.SOUTH else LabelSide.NORTH
+                    }
+            for (sgn in floatArrayOf(1f, -1f)) {
+                for (gap in REPAIR_GAPS) {
+                    for (d in REPAIR_BORDER_DISTANCES) {
+                        val centreT = sgn * (halfPin + gap + extT)
+                        val centreO = dir * (d + extO)
+                        out +=
+                            Candidate(
+                                rect =
+                                    centered(
+                                        cx = anchor.cx + tx * centreT + ox * centreO,
+                                        cy = anchor.cy + ty * centreT + oy * centreO,
+                                        size = req.size,
+                                    ),
+                                onLine = false,
+                                sign = 0,
+                                t = 0f,
+                                inner = inner,
+                                tangentSign = if (sgn * (tx + ty) > 0f) 1 else -1,
+                            )
+                    }
+                }
+            }
+            if (dockedOnDirection) continue
+            for (gap in REPAIR_GAPS) {
+                for (shiftSign in floatArrayOf(-1f, 0f, 1f)) {
+                    val shift = shiftSign * extT
+                    val sx = if (ox != 0f) 0f else 1f
+                    val sy = if (oy != 0f) 0f else 1f
+                    val centreO = dir * (halfPin + gap + extO)
+                    out +=
+                        Candidate(
+                            rect =
+                                centered(
+                                    cx = anchor.cx + ox * centreO + sx * shift,
+                                    cy = anchor.cy + oy * centreO + sy * shift,
+                                    size = req.size,
+                                ),
+                            onLine = false,
+                            sign = 0,
+                            t = 0f,
+                            inner = inner,
+                            tangentSign = shiftSign.toInt(),
+                        )
+                }
             }
         }
         return out
