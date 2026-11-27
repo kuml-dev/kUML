@@ -6,6 +6,12 @@ All notable changes to this project are documented here. Format follows
 
 ## [Unreleased]
 
+### PAL Welle V: port labels keep 6 px clearance from foreign parts (Doc 41)
+
+- **Problem.** In Doc 41 the two `stellsignal` port labels (FMCS 4.5 px, RLK 2.0 px) sat too close to foreign parts; Welle U had pinned them as known open.
+- **Fix.** `LabelPlacer` gets a second placement pass that runs only for port labels violating the 6 px part clearance. It accepts a new position only if it has strictly fewer violations, so clean diagrams stay unchanged. The pass searches an extended raster (gaps and border distances up to 24 px), because the previous 12 px reach found no 6 px position for FMCS.
+- **Tests.** `PortLabelPartClearanceTest` (new). Doc 41 C1 to C5 are all 0; the Welle U known-open entries are removed. The Welle S/U invariants follow the new 24 px reach.
+
 ### PAL Welle U: IBD label clearance measured, no layout change (one known open case in Doc 41)
 
 - **Question.** Do connector, item flow and port labels of the PAL IBD fixtures keep enough room to parts, to other labels and to foreign connectors, and does the part spacing need a second pass for it?
