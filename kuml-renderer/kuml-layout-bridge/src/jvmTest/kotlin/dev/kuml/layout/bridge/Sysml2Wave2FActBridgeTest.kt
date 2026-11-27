@@ -163,7 +163,7 @@ class Sysml2Wave2FActBridgeTest :
                     Point(x = 0f, y = 120f),
                     Point(x = 40f, y = 120f),
                 )
-            val out = ActCorridorSeparation.apply(mapOf(EdgeId("a") to a, EdgeId("b") to b))
+            val out = ActCorridorSeparation.apply(routes = mapOf(EdgeId("a") to a, EdgeId("b") to b))
             out.getValue(EdgeId("b")) shouldNotBe b
             val moved = out.getValue(EdgeId("b")) as EdgeRoute.OrthogonalRounded
             val xs = moved.waypoints.map { it.x }

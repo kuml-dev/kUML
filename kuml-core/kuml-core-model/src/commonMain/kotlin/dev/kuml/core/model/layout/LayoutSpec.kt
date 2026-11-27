@@ -165,8 +165,9 @@ object LayoutCodes {
     const val FIRST_LAST_NESTED_GROUP_IGNORED = "KUML-LAYOUT-W011"
 
     /**
-     * Activity diagram with swimlanes: a layout hint the lane column pass does not honour (`wrapColumns`) is ignored,
-     * because the columns are given by the lanes (PAL Welle D2).
+     * Activity diagram with swimlanes: a layout hint the lane column pass does not honour (`wrapColumns`, `maxWidth`,
+     * `aspectRatio`) is ignored, because the columns and with them the width are given by the lanes; one finding per
+     * option (PAL Welle D2, X3).
      */
     const val ACTIVITY_HINT_UNSUPPORTED = "KUML-LAYOUT-W012"
 

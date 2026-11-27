@@ -49,7 +49,7 @@ class Sysml2AjFinalEntryTest :
                     laneOfNode = mapOf("A" to "L1", "F" to "L1", "B" to "L2", "C" to "L2"),
                     corridorX = emptyMap(),
                 )
-            return ActCorridorSeparation.apply(routes) to nodes
+            return ActCorridorSeparation.apply(routes = routes) to nodes
         }
 
         fun points(r: EdgeRoute): List<Point> =

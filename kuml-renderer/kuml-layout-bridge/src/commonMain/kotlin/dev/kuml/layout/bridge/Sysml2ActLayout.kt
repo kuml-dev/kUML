@@ -1,6 +1,7 @@
 package dev.kuml.layout.bridge
 
 import dev.kuml.core.model.layout.LayoutCodes
+import dev.kuml.layout.EdgeId
 import dev.kuml.layout.LayoutResult
 import dev.kuml.layout.LayoutWarning
 import dev.kuml.layout.NodeId
@@ -127,7 +128,8 @@ public fun Sysml2LayoutBridge.normalizeActLayout(
             corridorX = outcome.corridorX,
         )
     val edges = LinkedHashMap(outcome.result.edges)
-    for ((id, r) in ActCorridorSeparation.apply(routes)) edges[id] = r
+    val flowEnds = flows.associate { EdgeId(it.id) to setOf(it.source, it.target) }
+    for ((id, r) in ActCorridorSeparation.apply(routes = routes, obstacles = nodeRects, endpoints = flowEnds)) edges[id] = r
     val warnings = outcome.result.warnings.toMutableList()
     if (unresolved.isNotEmpty()) {
         warnings +=
@@ -137,14 +139,23 @@ public fun Sysml2LayoutBridge.normalizeActLayout(
                 affectedNodes = unresolved.sorted().map { NodeId(it) },
             )
     }
-    // PAL Welle D2 (10c): with swimlanes the columns are given by the lanes; `wrapColumns` is silently ignored otherwise.
-    if (diagram.layout?.wrapColumns != null) {
+    // PAL Welle D2 / X3 (10c): with swimlanes the columns, and with them the width, are given by the lanes; these options
+    // are silently ignored otherwise. One warning per option. `direction` and `sameLayer` are honoured, `first` / `last`
+    // pin layers (rows) which the lane pass keeps, `labelMaxWidth` is not a lane matter.
+    val spec = diagram.layout
+    val ignored =
+        buildList {
+            if (spec?.wrapColumns != null) add("wrapColumns")
+            if (spec?.maxWidth != null) add("maxWidth")
+            if (spec?.aspectRatio != null) add("aspectRatio")
+        }
+    for (option in ignored) {
         warnings +=
             LayoutWarning(
                 code = LayoutCodes.ACTIVITY_HINT_UNSUPPORTED,
                 message =
-                    "layout option 'wrapColumns' has no effect on activity diagram '${diagram.name}' with swimlanes: " +
-                        "the columns are given by the lanes. Remove wrapColumns.",
+                    "layout option '$option' has no effect on activity diagram '${diagram.name}' with swimlanes: " +
+                        "the columns are given by the lanes. Remove $option.",
                 affectedNodes = emptyList(),
             )
     }

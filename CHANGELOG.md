@@ -6,6 +6,28 @@ All notable changes to this project are documented here. Format follows
 
 ## [Unreleased]
 
+### PAL Welle X3: activity diagram remainders (o2 fixed, W012 extended, 10b, 11 and 19 not reproduced)
+
+- **Measured first.** New gate test `PalWelleX3ActGeometryGateTest` with detector `ActGeometryClearance` (vault examples module) measures five invariants on the rendered SVG rectangles and polylines (no glyphs, no byte comparison) over the four ACT vault examples (07, 48, 49, 55), the three ACT fixtures, three include orders of a new combined fixture `sysml2-act-x3/62-67-kombiniert.kuml.kts` and, when present locally, PAL Docs 60 to 63 and 65 to 67 (copied into a temp dir, the workspace stays read only; skipped on CI). A1 = node gap below 8 px, A2 = flow runs 8 px or more through (or within 4 px of) a foreign node, A3 = object flow label farther than 16 px from its line or on a node, A4 = SVG size or PNG height off the viewBox ratio, A5 = free note closer than 12 px to node, flow, lane boundary or outside the canvas.
+
+| Baseline (17 diagrams) | A1 | A2 | A3 | A4 | A5 |
+|---|---|---|---|---|---|
+| vault 48 (Signale, Regionen, Ausnahmen) | 0 | 1 | 0 | 0 | 0 |
+| `sysml2-f2/act-all-2f` | 0 | 11 | 0 | 0 | 0 |
+| combined 62/67 fixture (three include orders, each) | 0 | 1 | 0 | 0 | 0 |
+| all others (vault 07, 49, 55, `act-lanes-16`, `sysml2-c2/act`, PAL 60 to 63, 65 to 67) | 0 | 0 | 0 | 0 | 0 |
+| total | 0 | 15 | 0 | 0 | 0 |
+
+- **o2 (fixed): an object flow through the action "Betroffene Tür sperren".** Reproduced on the combined fixture, identical in all three include orders (so it is not an order effect). Cause: `ActCorridorSeparation` pushed the later of two flows whose horizontal corridors lie closer than 12 px a fixed 12 px down; where the next layer's node starts right below, that put the corridor through the node. Fix: the pass now knows the node rectangles and the endpoints of every flow. A shift that would run the moved segment or its neighbours through a foreign node (5 px margin) is replaced by the shift to the other side of the segment it overlaps; if that is no better either, the segment stays. The fewest hits win, ties keep the old behaviour, so a flow without a node in its way moves exactly as before. The same cause explained 11 hits in `act-all-2f` and 1 in vault 48. Result: A2 = 15 to 0 in all 17 diagrams. Tests: `PalWelleX3ActCorridorTest` (new, geometry unit test), the gate (include-order invariance, A1 to A5 = 0).
+- **Merge covers an action ("Merge überdeckt Fluchttüren benutzen"): not reproduced.** Doc 67 has no merge or decision at all (a chain of seven nodes) and the old combined version of Doc 62 does not exist. The synthesised fixture (decision, two branches, merge, objects flows, notes) gives A1 = 0 in all three include orders; the only defect found was o2 above. `ActMergeInputOrderTest` (merge input fan) stays as guard.
+- **10c (fixed): `KUML-LAYOUT-W012` for more ignored options.** With swimlanes the columns and so the width are given by the lanes, so `maxWidth` and `aspectRatio` are ignored like `wrapColumns` (D2). Each of the three now gets one finding, in the fixed order wrapColumns, maxWidth, aspectRatio; the SVG is unchanged. Not reported: `direction` and `sameLayer` (honoured, `sameLayer` has `KUML-LAYOUT-W014`), `first` / `last` (pin layers, which the lane pass keeps) and `labelMaxWidth` (not a lane matter). No new code. None of the 17 inventory diagrams carries one of the options (guard in the gate), so no existing diagram gets a new finding. Tests: `PalWelleD2ActHintTest` (extended: once per option, order, three at once, negative cases for `direction`, `labelMaxWidth`, no option).
+- **Note `placement` miss: already reported.** `NotePlacementMissCollector` records a miss per note (not a layout warning). Still open: one summary finding per diagram instead of one report per note.
+- **Point 19 (object flow label): not reproduced.** A3 = 0 in all 17 diagrams (label never farther than 16 px, never on a node). `PalE2ActObjectFlowLabelTest` stays as guard. Note: the closeness bound there (at most 6 px) is stricter than A3.
+- **Point 11 (PNG height): not reproduced.** A4 = 0: SVG `width` / `height` equal the viewBox and the PNG at 1200 px width has exactly the height the ratio demands, in all 17 diagrams.
+- **10b (legend in the free lower right corner): not done.** All 17 diagrams have no free note at all (free notes = 0; the legend of Doc 62 is anchored to the final node, so `looseNotesBelow` does not apply to it). A candidate cannot be measured, and a change would move the notes of existing diagrams. Still open: a placement of free notes inside the lane frame, to be taken up once a diagram with a free note exists.
+- **Still open:** one summary finding per diagram for missed note placements; free note placement (10b).
+- **Tests.** `PalWelleX3ActGeometryGateTest`, `PalWelleX3ActCorridorTest`, `PalWelleD2ActHintTest`.
+
 ### PAL Welle X2: Sequence diagram fragment and duration fixes (12a fixed, 12b and 12f measured)
 
 - **Measured first.** New gate test `SeqFrameGeometryGateTest` (vault examples module) measures four invariants on the rendered SVG rectangles and lines (no glyphs, no byte comparison) over the SEQ vault examples, the SEQ fixtures and, when present locally, PAL Docs 72, 75, 76, 77 and 78 (copied into a temp dir, the workspace stays read only; skipped on CI). Baseline over 10 diagrams: I-12a = 3, I-12b-1 = 2, I-12b-2 = 0, I-12f = 8.
