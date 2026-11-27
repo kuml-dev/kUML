@@ -129,12 +129,13 @@ class ErmNotePlacementHintTest :
             val layout = layoutOf(anchorNode = chenId, extra = mapOf(ErmChenLayoutBridge.ATTR_PREFIX + "a::id" to attr))
             val (res, misses) =
                 run(NotePlacement.ABOVE, layout, resolveTarget = ErmNotePlacement.chenTarget(layout = layout))
-            misses.shouldBeEmpty()
             val n =
                 res.layout.nodes
                     .getValue(NodeId("n1"))
                     .bounds
             (n.bottom <= item.top + 0.5f) shouldBe true
+            // PAL Welle X4: W004 is strict, so it is silent exactly when the note also overlaps the entity along the axis
+            misses.isEmpty() shouldBe NotePlacer.onSideStrict(rect = n, box = item, side = NotePlacement.ABOVE)
             // never on top of the attribute ellipse
             val overlaps = n.left < attr.right && n.right > attr.left && n.top < attr.bottom && n.bottom > attr.top
             overlaps shouldBe false

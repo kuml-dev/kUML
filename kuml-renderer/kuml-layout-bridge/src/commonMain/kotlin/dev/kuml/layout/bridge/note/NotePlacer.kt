@@ -208,6 +208,7 @@ public data class NotePlacementResult(
  */
 public object NotePlacer {
     private const val WIDTH_EPS = 0.5f
+    private const val STRICT_EPS = 1e-4f
     private const val TIE_EPS = 1f
 
     private class Exit(
@@ -468,12 +469,13 @@ public object NotePlacer {
                 val box = anchorsBox(resolved)
                 // Exactly one miss per note: the out-of-lane variant replaces the plain hint miss.
                 val outside = home != null && !insideLane(rect = plan.rect, lane = home, inset = config.laneInset)
-                if (outside || (hinted == null && !onSide(rect = plan.rect, box = box, side = hint))) {
+                // PAL Welle X4: a hint also counts as missed when the note lies on the wished side but beside the anchor (no overlap along the axis).
+                if (outside || !onSideStrict(rect = plan.rect, box = box, side = hint)) {
                     hintMisses +=
                         PlacementHintMiss(
                             noteId = note.noteId,
                             wanted = hint,
-                            placed = sideOf(rect = plan.rect, box = box),
+                            placed = sideOfStrict(rect = plan.rect, box = box),
                             outsideHomeLane = outside,
                         )
                 }
@@ -567,6 +569,48 @@ public object NotePlacer {
             NotePlacement.RIGHT -> rect.left >= box.right - WIDTH_EPS
             NotePlacement.NEAR -> true
         }
+
+    /**
+     * PAL Welle X4: true when [rect] and [box] overlap along the axis of [side] by at least [minPx] (ABOVE and BELOW: in x;
+     * LEFT and RIGHT: in y); a box thinner than [minPx] (an anchor point) only has to lie within the range of [rect].
+     * Used only to decide whether `KUML-NOTE-W004` is reported, never to filter candidates.
+     */
+    internal fun overlapsAlongAxis(
+        rect: Rect,
+        box: Rect,
+        side: NotePlacement,
+        minPx: Float = 1f,
+    ): Boolean {
+        val horizontal = side == NotePlacement.ABOVE || side == NotePlacement.BELOW
+        return when (side) {
+            NotePlacement.NEAR -> true
+            else -> {
+                val overlap =
+                    if (horizontal) {
+                        min(rect.right, box.right) - max(rect.left, box.left)
+                    } else {
+                        min(rect.bottom, box.bottom) - max(rect.top, box.top)
+                    }
+                val extent = if (horizontal) box.right - box.left else box.bottom - box.top
+                overlap >= 0f && overlap >= min(minPx, extent) - STRICT_EPS
+            }
+        }
+    }
+
+    /** [onSide] and an overlap with the box along the axis of [side] ([overlapsAlongAxis]). */
+    internal fun onSideStrict(
+        rect: Rect,
+        box: Rect,
+        side: NotePlacement,
+    ): Boolean = onSide(rect = rect, box = box, side = side) && overlapsAlongAxis(rect = rect, box = box, side = side)
+
+    /** Like [sideOf] but a side only counts when the note also overlaps the box along its axis; else NEAR. */
+    internal fun sideOfStrict(
+        rect: Rect,
+        box: Rect,
+    ): NotePlacement =
+        listOf(NotePlacement.ABOVE, NotePlacement.BELOW, NotePlacement.LEFT, NotePlacement.RIGHT)
+            .firstOrNull { onSideStrict(rect = rect, box = box, side = it) } ?: NotePlacement.NEAR
 
     /** The first side (ABOVE, BELOW, LEFT, RIGHT) [rect] lies on, or NEAR when it lies on none. */
     private fun sideOf(

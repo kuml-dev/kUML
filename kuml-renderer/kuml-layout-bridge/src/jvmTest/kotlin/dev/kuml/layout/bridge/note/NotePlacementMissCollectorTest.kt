@@ -97,4 +97,81 @@ class NotePlacementMissCollectorTest :
                 }
             none.shouldBeEmpty()
         }
+
+        // PAL Welle X4: W004 is also reported when the note sits on the wished side but beside the anchor.
+        fun hintedLayout(
+            hint: NotePlacement,
+            blockers: Map<String, Rect>,
+        ): Triple<dev.kuml.sysml2.Sysml2Model, BdDiagram, LayoutResult> {
+            val model =
+                sysml2Model("M") {
+                    val a = partDef("A")
+                    bdd("D") {
+                        include(a)
+                        comment("note", a, id = "hinted", placement = hint)
+                    }
+                }
+            val diagram = model.diagrams.filterIsInstance<BdDiagram>().single()
+            val aId = model.definitions.first().id
+            val nodes = mutableMapOf(NodeId(aId) to NodeLayout(bounds = Rect(Point(400f, 300f), Size(120f, 60f))))
+            blockers.forEach { (k, r) -> nodes[NodeId(k)] = NodeLayout(bounds = r) }
+            val layout =
+                LayoutResult(
+                    engineId = LayoutEngineId("test"),
+                    seed = null,
+                    canvas = Size(900f, 700f),
+                    nodes = nodes,
+                    edges = emptyMap(),
+                    groups = emptyMap(),
+                )
+            return Triple(model, diagram, layout)
+        }
+
+        test("a hint the placer cannot honour above the anchor is reported, and the note is not on the wished side beside the anchor") {
+            val (m0, d0, l0) = hintedLayout(NotePlacement.ABOVE, emptyMap())
+            val (_, free) = NotePlacementMissCollector.collecting { Sysml2NotePlacement.place(model = m0, diagram = d0, layout = l0) }
+            free.shouldBeEmpty()
+            val (m1, d1, l1) = hintedLayout(NotePlacement.ABOVE, mapOf("roof" to Rect(Point(430f, -400f), Size(60f, 696f))))
+            val (res, side) = NotePlacementMissCollector.collecting { Sysml2NotePlacement.place(model = m1, diagram = d1, layout = l1) }
+            val rect =
+                res.layout.nodes
+                    .getValue(NodeId("hinted"))
+                    .bounds
+            val box = Rect(Point(400f, 300f), Size(120f, 60f))
+            side.map { it.noteId } shouldBe listOf("hinted")
+            side.single().placed shouldBe NotePlacer.sideOfStrict(rect = rect, box = box)
+            NotePlacer.onSideStrict(rect = rect, box = box, side = NotePlacement.ABOVE) shouldBe false
+        }
+
+        test("strict side: the note must also overlap the anchor box along the axis by 1 px, a point anchor only has to lie inside") {
+            val box = Rect(Point(400f, 300f), Size(120f, 60f))
+
+            fun note(
+                x: Float,
+                y: Float,
+            ) = Rect(Point(x, y), Size(100f, 40f))
+            // ABOVE: on the wished side and overlapping in x
+            NotePlacer.onSideStrict(note(x = 450f, y = 200f), box, NotePlacement.ABOVE) shouldBe true
+            NotePlacer.onSideStrict(note(x = 330f, y = 200f), box, NotePlacement.ABOVE) shouldBe true // 30 px overlap
+            NotePlacer.onSideStrict(note(x = 419.5f, y = 200f), box, NotePlacement.ABOVE) shouldBe true // 0.5 px of the box overlaps
+            NotePlacer.onSideStrict(note(x = 300f, y = 200f), box, NotePlacement.ABOVE) shouldBe false // right edge 400: touches only
+            NotePlacer.onSideStrict(note(x = 100f, y = 200f), box, NotePlacement.ABOVE) shouldBe false // far left, still above
+            NotePlacer.onSideStrict(note(x = 450f, y = 280f), box, NotePlacement.ABOVE) shouldBe false // not above (bottom 320)
+            // BELOW
+            NotePlacer.onSideStrict(note(x = 450f, y = 380f), box, NotePlacement.BELOW) shouldBe true
+            NotePlacer.onSideStrict(note(x = 700f, y = 380f), box, NotePlacement.BELOW) shouldBe false
+            // LEFT / RIGHT: vertical overlap
+            NotePlacer.onSideStrict(note(x = 250f, y = 280f), box, NotePlacement.LEFT) shouldBe true
+            NotePlacer.onSideStrict(note(x = 250f, y = 100f), box, NotePlacement.LEFT) shouldBe false
+            NotePlacer.onSideStrict(note(x = 560f, y = 330f), box, NotePlacement.RIGHT) shouldBe true
+            NotePlacer.onSideStrict(note(x = 560f, y = 420f), box, NotePlacement.RIGHT) shouldBe false
+            // a point anchor lies inside the range, or it does not
+            val point = Rect(Point(450f, 340f), Size(0f, 0f))
+            NotePlacer.onSideStrict(note(x = 400f, y = 200f), point, NotePlacement.ABOVE) shouldBe true
+            NotePlacer.onSideStrict(note(x = 500f, y = 200f), point, NotePlacement.ABOVE) shouldBe false
+            // NEAR is always fine; sideOfStrict names NEAR when no side with overlap exists
+            NotePlacer.onSideStrict(note(x = 0f, y = 0f), box, NotePlacement.NEAR) shouldBe true
+            NotePlacer.sideOfStrict(note(x = 450f, y = 200f), box) shouldBe NotePlacement.ABOVE
+            NotePlacer.sideOfStrict(note(x = 100f, y = 200f), box) shouldBe NotePlacement.NEAR
+        }
     })

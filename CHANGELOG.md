@@ -6,6 +6,23 @@ All notable changes to this project are documented here. Format follows
 
 ## [Unreleased]
 
+### PAL Welle X4: note placement ABOVE/BELOW (measured, W004 made strict, no layout change)
+
+- **Measured first.** New gate test `PalWelleX4NoteHintGateTest` with detector `NoteHintClearance` (vault examples module) measures, on the rendered SVG (final layout, no glyph metrics), three values for notes with an ABOVE/BELOW hint: H1 share of honoured hints (the note lies on the wished side and overlaps the anchor box along the axis by at least 1 px; an anchor point must lie inside the note's range), H2 the width the hinted notes add (pixels, and diagram width divided by content width), H3 leader length of honoured notes (at most anchor to content edge + 12 + 24 px). Inputs: PAL IBD fixtures 41, 42, 46 (negative control, LEFT/RIGHT only) and 47, the activity fixture, all vault examples with such a hint (none today) and, when present locally, PAL documents 41, 42, 46, 47, 72, 74 (read only, skipped on CI). The measured values are the upper bounds of the gate.
+
+| Baseline | ABOVE/BELOW hints | honoured (H1) | width added (H2) | width / content | long leaders (H3) |
+|---|---|---|---|---|---|
+| PAL 41 (a6-41, m2-41 miss) | 5 | 3 | 618.6 px | 1.664 | 3 |
+| PAL 42 (a13e-42 misses) | 4 | 3 | 360.8 px | 1.457 | 3 |
+| PAL 46 (negative control) | 0 | 0 | 0 px | 2.609 | 0 |
+| PAL 47 (a13e-47 misses) | 1 | 0 | 634.2 px | 2.485 | 0 |
+
+- **Already fixed earlier (not touched).** `SeqNotePlacer` honours ABOVE/BELOW by row clearance (`hintRowGap` 12 px, Nacharbeit 102); `NotePlacer.preferredPlan` filters its candidates with `onSide` (side only). Measured on Doc 74 with a BELOW hint added in memory: the note (61 px high) stands in the right margin column, 338 px right of its lifeline head; the gap between head and first message row is 64 px, the note plus the row gap needs 73 px. That is correct for sequence diagrams (the hint means "clear of the anchor row"), so the detector uses the row definition there.
+- **`KUML-NOTE-W004` is strict (message only, every image byte identical).** The report now also fires when a note lies on the wished side but beside the anchor (no overlap along the axis): before, a13e-47 (BELOW, 600 px right of its anchor point) and a6-41 (ABOVE, left of its anchor) were silent. `placed` names the first side that also overlaps, else `NEAR`. `onSide` in the candidate search is unchanged on purpose. Result: the W004 count equals the number of not honoured hints in every measured diagram (41: 2, 42: 1, 46: 1, 47: 1), asserted by the gate.
+- **ABOVE candidates stacked above the content: tried, rejected, reverted.** `withinWidthBudget` got three mirrored positions above the content for the hint ABOVE. Measured: 0 of the 3 missed ABOVE hints gained (H1 unchanged), Doc 41 only got 4 px narrower. The anchors lie inside the content and the leader would have to cross parts, so the candidate set is not the bottleneck. Not applied. BELOW is not loosened either: `plan.clean` and `edgeClearance` stay untouched.
+- **Not built, disabled red tests with the measured values:** moving nodes (reserve note space in the ELK layer) so that all five missed hints (PAL 41, 42, 47: 3 notes widen the diagram by 618.6, 360.8 and 634.2 px) are honoured, and a sequence row reservation for BELOW. Restlisten-Haltepunkt: "Reserve note space in the ELK layer (moves nodes, needs its own wave with existing-diagram sign-off)".
+- **Tests.** `PalWelleX4NoteHintGateTest` (two `xtest` red tests), `NotePlacementMissCollectorTest` (strict side, point anchor), `ErmNotePlacementHintTest` and `NoteUndrawnCliTest` adapted to the new W004 on purpose.
+
 ### PAL Welle X3: activity diagram remainders (o2 fixed, W012 extended, 10b, 11 and 19 not reproduced)
 
 - **Measured first.** New gate test `PalWelleX3ActGeometryGateTest` with detector `ActGeometryClearance` (vault examples module) measures five invariants on the rendered SVG rectangles and polylines (no glyphs, no byte comparison) over the four ACT vault examples (07, 48, 49, 55), the three ACT fixtures, three include orders of a new combined fixture `sysml2-act-x3/62-67-kombiniert.kuml.kts` and, when present locally, PAL Docs 60 to 63 and 65 to 67 (copied into a temp dir, the workspace stays read only; skipped on CI). A1 = node gap below 8 px, A2 = flow runs 8 px or more through (or within 4 px of) a foreign node, A3 = object flow label farther than 16 px from its line or on a node, A4 = SVG size or PNG height off the viewBox ratio, A5 = free note closer than 12 px to node, flow, lane boundary or outside the canvas.

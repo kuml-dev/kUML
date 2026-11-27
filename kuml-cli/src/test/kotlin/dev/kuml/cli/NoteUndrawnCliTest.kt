@@ -94,8 +94,8 @@ class NoteUndrawnCliTest :
                         width = 800,
                         themeName = "kuml",
                     )
-                val miss = outcome.noteFindings.single { it.code == "KUML-NOTE-W004" }
-                miss.subjectId shouldBe "a13-46"
+                // PAL Welle X4: a13e-46 (ABOVE) sits beside its anchor, which the strict W004 now reports too; the line check is for a13-46.
+                val miss = outcome.noteFindings.single { it.code == "KUML-NOTE-W004" && it.subjectId == "a13-46" }
                 miss.sourceLine shouldBe 42
             } finally {
                 dir.deleteRecursively()
