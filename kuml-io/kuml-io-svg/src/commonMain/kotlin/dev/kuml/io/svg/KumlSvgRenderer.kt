@@ -4397,6 +4397,11 @@ public object KumlSvgRenderer {
                 rowReach[u.seqNo] = maxOf(rowReach[u.seqNo] ?: 0f, dev.kuml.io.svg.sysml2.SYSML2_REF_HEIGHT / 2f)
             }
             val usagesForCoverage: List<dev.kuml.sysml2.Sysml2Usage> = model.usages
+            val selfLabelEnds =
+                dev.kuml.io.svg.sysml2.selfLabelEnds(
+                    messages = messages,
+                    axisXOf = { id -> shiftedLayouts[NodeId(id)]?.let { it.bounds.origin.x + it.bounds.size.width / 2f } },
+                )
             val fragmentFrames =
                 dev.kuml.io.svg.sysml2
                     .SeqFragmentFrames()
@@ -4413,6 +4418,7 @@ public object KumlSvgRenderer {
                     coveredLayouts = coveredIds.mapNotNull { shiftedLayouts[NodeId(it)] },
                     rowReach = rowReach,
                     frames = fragmentFrames,
+                    selfLabelEnds = selfLabelEnds,
                 )
             }
 

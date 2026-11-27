@@ -289,3 +289,51 @@ internal fun fragmentFrameBounds(
     val r = if (maxRight != null && right > maxRight) maxOf(maxRight, coveredRight) else right
     return l to r
 }
+
+/** Space (px) kept between a fragment frame's vertical edge and a self-message label. */
+internal const val SEQ_FRAME_LABEL_CLEARANCE: Float = 4f
+
+/** PAL Welle X2 (12a): where the label of a self message in row [seqNo] ends (right of the lifeline axis [axisX]). */
+internal data class SeqSelfLabelEnd(
+    val seqNo: Int,
+    val axisX: Float,
+    val labelLeft: Float,
+    val labelRight: Float,
+)
+
+/**
+ * PAL Welle X2 (12a): the label ends of all self messages. A self message draws a 32 px loop right of the axis and its label
+ * 4 px further right (hPad 0, `6.5 px` per character, see `renderSelfCall`).
+ */
+internal fun selfLabelEnds(
+    messages: List<MessageUsage>,
+    axisXOf: (String) -> Float?,
+): List<SeqSelfLabelEnd> =
+    messages
+        .filter { it.sourceLifelineId == it.targetLifelineId && it.kind != MessageKind.Found && it.kind != MessageKind.Lost }
+        .mapNotNull { m ->
+            val axis = axisXOf(m.sourceLifelineId) ?: return@mapNotNull null
+            val left = axis + 32f + 4f
+            SeqSelfLabelEnd(seqNo = m.seqNo, axisX = axis, labelLeft = left, labelRight = left + m.messageLabel.length * 6.5f)
+        }
+
+/**
+ * PAL Welle X2 (12a): the right frame edge [baseRight] moved out past every self-message label of a covered lifeline in the
+ * fragment's rows that it would cut or touch (closer than [SEQ_FRAME_LABEL_CLEARANCE]). A nested level adds one indent per
+ * level below, so the child frames stay inside their parent. Returns [baseRight] unchanged when no label is in the way.
+ */
+internal fun fragmentRightPastSelfLabels(
+    baseRight: Float,
+    ends: List<SeqSelfLabelEnd>,
+    rows: IntRange,
+    axisRange: ClosedFloatingPointRange<Float>,
+    levelsBelow: Int,
+): Float {
+    var right = baseRight
+    for (e in ends) {
+        if (e.seqNo !in rows || e.axisX !in axisRange) continue
+        val inTheWay = e.labelLeft - SEQ_FRAME_LABEL_CLEARANCE < baseRight && baseRight < e.labelRight + SEQ_FRAME_LABEL_CLEARANCE
+        if (inTheWay) right = maxOf(right, e.labelRight + SEQ_FRAME_LABEL_CLEARANCE + SYSML2_FRAGMENT_INDENT * levelsBelow)
+    }
+    return right
+}

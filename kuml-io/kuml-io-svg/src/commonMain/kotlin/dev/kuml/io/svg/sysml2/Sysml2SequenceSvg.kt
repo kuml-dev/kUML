@@ -1013,6 +1013,8 @@ internal fun renderCombinedFragment(
     overlay: Boolean = false,
     /** PAL Welle D2 (12a): frames already rendered, read for the parent's extent and filled with this fragment's. */
     frames: SeqFragmentFrames = SeqFragmentFrames(),
+    /** PAL Welle X2 (12a): right ends of the self-message labels, so a frame edge never cuts one. */
+    selfLabelEnds: List<SeqSelfLabelEnd> = emptyList(),
 ) {
     if (visibleLifelineLayouts.isEmpty() || fragment.operands.isEmpty()) return
     val place = tree.places[fragment.id] ?: SeqFragmentPlace(depth = 0, height = 0, rootId = fragment.id)
@@ -1036,7 +1038,17 @@ internal fun renderCombinedFragment(
     val leftPad = tree.rootLeftPad(fragment.id)
     val rightPadRoot = FRAGMENT_COVER_MARGIN + SYSML2_FRAGMENT_INDENT * tree.heightOfRoot(fragment.id)
     val unclampedX = minLifelineX - leftPad + SYSML2_FRAGMENT_INDENT * place.depth
-    val unclampedRight = maxLifelineX + rightPadRoot - SYSML2_FRAGMENT_INDENT * place.depth
+    val baseRight = maxLifelineX + rightPadRoot - SYSML2_FRAGMENT_INDENT * place.depth
+    // PAL Welle X2 (12a): a self-message label of a covered lifeline reaches right of the lifeline box; a frame edge that
+    // would cut it (or run closer than 4 px) is pushed out past the label. Frames without such a label stay unchanged.
+    val unclampedRight =
+        fragmentRightPastSelfLabels(
+            baseRight = baseRight,
+            ends = selfLabelEnds,
+            rows = minStartSeqNo..maxEndSeqNo,
+            axisRange = minLifelineX..maxLifelineX,
+            levelsBelow = place.height,
+        )
     val cached = frames.bounds[fragment.id]
     val frameX: Float
     val frameRight: Float
@@ -1050,7 +1062,7 @@ internal fun renderCombinedFragment(
             visibleLifelineLayouts
                 .filter { v -> spanLayouts.none { it.bounds.origin.x == v.bounds.origin.x } }
                 .map { it.bounds.origin.x + it.bounds.size.width / 2f }
-        val (clampedX, clampedRight) =
+        val (clampedX, defaultRight) =
             fragmentFrameBounds(
                 left = unclampedX,
                 right = unclampedRight,
@@ -1058,6 +1070,21 @@ internal fun renderCombinedFragment(
                 coveredRight = maxLifelineX,
                 foreignAxes = foreignAxes,
             )
+        // PAL Welle X2 (12a): an edge pushed out past a self-message label may come as close as the label clearance to the
+        // next foreign axis (the layout leaves just enough room for the label, not for the usual 12 px as well).
+        val clampedRight =
+            if (unclampedRight > baseRight) {
+                fragmentFrameBounds(
+                    left = unclampedX,
+                    right = unclampedRight,
+                    coveredLeft = minLifelineX,
+                    coveredRight = maxLifelineX,
+                    foreignAxes = foreignAxes,
+                    clearance = SEQ_FRAME_LABEL_CLEARANCE,
+                ).second
+            } else {
+                defaultRight
+            }
         val parent = tree.parentOf(fragment.id)?.let { frames.bounds[it] }
         frameX = if (parent != null) maxOf(clampedX, parent.first + SYSML2_FRAGMENT_INDENT) else clampedX
         frameRight = if (parent != null) minOf(clampedRight, parent.second - SYSML2_FRAGMENT_INDENT) else clampedRight
