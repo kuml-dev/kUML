@@ -376,6 +376,8 @@ public object NotePlacer {
         val loose = mutableListOf<Pair<NotePlacementInput, Size>>()
         val placedRects = mutableListOf<Rect>()
         val usedAlong = HashMap<String, MutableList<Point>>()
+        // PAL Welle X5: where the anchor lines of the notes placed so far end (memory over all targets, only used to fan out shared ends).
+        val assignedEnds = mutableListOf<Point>()
         val hintMisses = mutableListOf<PlacementHintMiss>()
 
         for (note in limited) {
@@ -485,8 +487,11 @@ public object NotePlacer {
             obstacles.addRect(kind = ObstacleKind.NOTE, r = plan.rect, ownerId = note.noteId)
             placedRects += plan.rect
             extent = extent.union(plan.rect)
+            val fanned =
+                fanOutSharedEnds(routes = plan.routes, anchors = resolved, assigned = assignedEnds, obstacles = obstacles, budget = budget)
+            fanned.forEach { assignedEnds += it.last() }
             resolved.forEachIndexed { i, a ->
-                val pts = plan.routes[i]
+                val pts = fanned[i]
                 edges[EdgeId(a.ref.linkId)] = routeOf(pts)
                 obstacles.addPolyline(kind = ObstacleKind.ANCHOR_ROUTE, pts = pts, ownerId = a.ref.linkId)
                 pts.forEach { extent = extent.union(rectOf(left = it.x, top = it.y, right = it.x, bottom = it.y)) }
@@ -1631,6 +1636,104 @@ public object NotePlacer {
         return Plan(rect = rect, routes = routes, cost = cost, routed = routed, clean = clean)
     }
 
+    // ---------------------------------------------------------------- shared anchor ends (PAL Welle X5)
+
+    /**
+     * PAL Welle X5: two anchor lines of different notes may not end on the same point of a node frame. Only when the end of an
+     * anchor line on a rectangle ([AnchorGeometry.Around]) lies closer than [CO_ANCHOR_MIN_DIST] to an end assigned before, the
+     * end is moved [FAN_OFFSET] px along the frame (at least [FRAME_CORNER_MIN] px from a corner), the last bend follows so the
+     * line stays orthogonal; the variant with the shortest line that still hits no node, note or label is taken. Without a
+     * clash, or without a valid variant, the route is returned unchanged.
+     */
+    private fun fanOutSharedEnds(
+        routes: List<List<Point>>,
+        anchors: List<Anchor>,
+        assigned: List<Point>,
+        obstacles: ObstacleIndex,
+        budget: ObstacleIndex.Budget,
+    ): List<List<Point>> {
+        if (assigned.isEmpty()) return routes
+        val taken = assigned.toMutableList()
+        return routes.mapIndexed { i, route ->
+            val g = anchors[i].geometry
+            val end = route.last()
+            val clash = taken.any { hypotenuse(a = it, b = end) < CO_ANCHOR_MIN_DIST }
+            val fixed =
+                if (clash && g is AnchorGeometry.Around && route.size >= 2) {
+                    fanVariants(route = route, frame = g.r)
+                        .filter { v -> taken.none { hypotenuse(a = it, b = v.last()) < CO_ANCHOR_MIN_DIST } }
+                        .filter { v -> !obstacles.routeHitsRects(pts = v, exemptOwners = anchors[i].exempt, budget = budget) }
+                        .minByOrNull { polylineLength(it) } ?: route
+                } else {
+                    route
+                }
+            taken += fixed.last()
+            fixed
+        }
+    }
+
+    private fun hypotenuse(
+        a: Point,
+        b: Point,
+    ): Float = sqrt((a.x - b.x) * (a.x - b.x) + (a.y - b.y) * (a.y - b.y))
+
+    private fun polylineLength(pts: List<Point>): Float =
+        pts.zipWithNext().sumOf { (a, b) -> hypotenuse(a = a, b = b).toDouble() }.toFloat()
+
+    /** Variants of [route] whose end is moved [FAN_OFFSET] px along the border of [frame] (both directions, every border the end lies on). */
+    internal fun fanVariants(
+        route: List<Point>,
+        frame: Rect,
+    ): List<List<Point>> {
+        val p = route.last()
+        val prev = route[route.size - 2]
+        val eps = AXIS_EPS
+        val onTop = kotlin.math.abs(p.y - frame.top) < eps && p.x > frame.left - eps && p.x < frame.right + eps
+        val onBottom = kotlin.math.abs(p.y - frame.bottom) < eps && p.x > frame.left - eps && p.x < frame.right + eps
+        val onLeft = kotlin.math.abs(p.x - frame.left) < eps && p.y > frame.top - eps && p.y < frame.bottom + eps
+        val onRight = kotlin.math.abs(p.x - frame.right) < eps && p.y > frame.top - eps && p.y < frame.bottom + eps
+        val ends = mutableListOf<Point>()
+        if (onTop || onBottom) {
+            for (d in listOf(-FAN_OFFSET, FAN_OFFSET)) {
+                val x = p.x + d
+                if (x >= frame.left + FRAME_CORNER_MIN && x <= frame.right - FRAME_CORNER_MIN) ends += Point(x = x, y = p.y)
+            }
+        }
+        if (onLeft || onRight) {
+            for (d in listOf(-FAN_OFFSET, FAN_OFFSET)) {
+                val y = p.y + d
+                if (y >= frame.top + FRAME_CORNER_MIN && y <= frame.bottom - FRAME_CORNER_MIN) ends += Point(x = p.x, y = y)
+            }
+        }
+        val out = mutableListOf<List<Point>>()
+        for (q in ends) {
+            // The line must reach the new end from outside the frame, never along the border.
+            val fromOutside =
+                when {
+                    q.y == frame.top && onTop -> prev.y < frame.top - eps
+                    q.y == frame.bottom && onBottom -> prev.y > frame.bottom + eps
+                    q.x == frame.left && onLeft -> prev.x < frame.left - eps
+                    q.x == frame.right && onRight -> prev.x > frame.right + eps
+                    else -> false
+                }
+            if (!fromOutside) continue
+            val vertical = kotlin.math.abs(prev.x - p.x) < eps
+            val horizontal = kotlin.math.abs(prev.y - p.y) < eps
+            val moved = route.dropLast(1)
+            if (route.size == 2 || (!vertical && !horizontal)) {
+                out += moved + q
+            } else if (route.size >= 3) {
+                val pp = route[route.size - 3]
+                if (vertical && q.x != p.x && kotlin.math.abs(pp.y - prev.y) < eps) {
+                    out += route.dropLast(2) + Point(x = q.x, y = prev.y) + q
+                } else if (horizontal && q.y != p.y && kotlin.math.abs(pp.x - prev.x) < eps) {
+                    out += route.dropLast(2) + Point(x = prev.x, y = q.y) + q
+                }
+            }
+        }
+        return out
+    }
+
     // ---------------------------------------------------------------- exits
 
     private fun assignExits(
@@ -1957,6 +2060,9 @@ public object NotePlacer {
 
     private val logger = KotlinLogging.logger {}
     private const val EDGE_ANCHOR_NODE_CLEARANCE: Float = 12f
+    private const val CO_ANCHOR_MIN_DIST: Float = 4f
+    private const val FAN_OFFSET: Float = 16f
+    private const val FRAME_CORNER_MIN: Float = 8f
     private const val ANCHOR_CANDIDATE_STEP: Float = 3f
     private const val MAX_ALT_ANCHOR_POINTS: Int = 12
     private const val ALT_ANCHOR_END_INSET: Float = 16f

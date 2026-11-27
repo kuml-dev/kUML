@@ -144,12 +144,12 @@ internal object NoteHintClearance {
         return n.leaderLength <= toEdge + STACK_GAP + LEADER_SLACK + 0.01
     }
 
-    private val noteHead =
+    internal val noteHead =
         Regex(
             """<g id="([^"]+)" transform="translate\(([-0-9.]+),([-0-9.]+)\)">\s*<path d="M 0 0 L [-0-9.]+ 0 L ([-0-9.]+) [-0-9.]+ L [-0-9.]+ ([-0-9.]+) L 0 [-0-9.]+ Z" class="kuml-comment[ "]""",
         )
 
-    private fun nodeBox(node: SvgNode): SvgRect? {
+    internal fun nodeBox(node: SvgNode): SvgRect? {
         val tag = Regex("""<rect\b[^>]*>""").find(node.body)?.value ?: return null
 
         fun a(name: String) =
