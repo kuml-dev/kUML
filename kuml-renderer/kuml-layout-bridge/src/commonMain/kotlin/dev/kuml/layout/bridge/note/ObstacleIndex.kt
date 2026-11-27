@@ -422,6 +422,32 @@ public class ObstacleIndex {
         return n
     }
 
+    /**
+     * PAL Welle X6: number of drawn edges ([ObstacleKind.EDGE], not the anchor lines of notes) that run through the interior of
+     * [r] (shrunk by [HIT_SHRINK_PX]). Edges owned by [exemptOwners] (the anchor's own connection) are skipped. Counts against [budget].
+     */
+    internal fun foreignEdgesHitting(
+        r: Rect,
+        exemptOwners: Set<String>,
+        budget: Budget,
+    ): Int {
+        val inner = r.inflated(-HIT_SHRINK_PX)
+        if (inner.size.width <= 0f || inner.size.height <= 0f) return 0
+        var n = 0
+        for (l in lines) {
+            if (l.kind != ObstacleKind.EDGE) continue
+            if (l.ownerId != null && l.ownerId in exemptOwners) continue
+            for (i in 0 until l.points.size - 1) {
+                budget.spend()
+                if (segmentIntersectsRect(a = l.points[i], b = l.points[i + 1], r = inner)) {
+                    n++
+                    break
+                }
+            }
+        }
+        return n
+    }
+
     /** True if a segment of [pts] runs through a node, a foreign note or an edge label ([exemptOwners] are the anchor's own targets). */
     internal fun routeHitsRects(
         pts: List<Point>,
@@ -539,6 +565,7 @@ public class ObstacleIndex {
 
     private companion object {
         const val LABEL_INFLATE: Float = 4f
+        const val HIT_SHRINK_PX: Float = 1f
         const val CROSSING_END_EPS: Float = 0.5f
         const val NOTE_INFLATE: Float = 8f
         const val PORT_INFLATE: Float = 4f

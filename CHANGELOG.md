@@ -6,6 +6,24 @@ All notable changes to this project are documented here. Format follows
 
 ## [Unreleased]
 
+### PAL Welle X6: notes as obstacles for edge routing (measured, N1 fixed for requirement home strips)
+
+- **Measured first.** New gate test `PalWelleX6NoteObstacleGateTest` with detector `NoteObstacleMetrics` (vault examples module) measures, on the rendered SVG (rectangles and polylines only, no glyph metrics), three violations per note: N1 a foreign edge runs through the note (the edge the note is anchored to and anchor lines are exempt), N2 the note overlaps a foreign node, composite, requirement group frame or swimlane without lying completely inside it, N3 the note box is smaller than its text needs (characters x 6.6 px + text inset + right padding; lines x 15 px + 16 px, at least 32 px). Inputs: every vault example, the PAL IBD, STM and ACT fixtures, and, when present locally, the PAL documents 10 to 15 (requirements) and 46, 55, 62 (read only, copied into a temp dir; skipped on CI). The values measured on master 30d65078 are the upper bounds per diagram.
+
+| Baseline (33 diagrams with notes) | N1 | N2 | N3 |
+|---|---|---|---|
+| PAL 11 (a5-11) | 1 | 0 | 0 |
+| PAL 13 (wichtig-13: 2, a12-13: 1) | 3 | 0 | 0 |
+| PAL 10, 12, 14, 15 | 0 | 0 | 0 |
+| all other diagrams (vault, PAL fixtures, PAL 46, 55, 62) | 0 | 0 | 0 |
+| total | 4 | 0 | 0 |
+
+- **Fixed: N1 in requirement home strips.** A note owned by one requirement group is placed in that group's note strip (`homePlan`). The strip choice only compared costs, so a note could sit on a drawn edge although another slot of the strip was free. `homePlan` now ranks the slots by the number of foreign drawn edges through the note first (new `ObstacleIndex.foreignEdgesHitting`, same 1 px shrink as the detector), then by the old cost. With equal counts nothing changes, so every diagram whose cheapest slot was already free is byte identical (verified for all baseline-zero diagrams). Measured after: Doc 11 N1 1 to 0, Doc 13 N1 3 to 1.
+- **Not applied (measured).** Doc 13 note a12-13 (N1 = 1): it carries `placement = BELOW`, is placed by the hint path and not by the strip; this wave does not touch the hint path, the cause was not investigated further (`xtest` with the measured value). N2 and N3 measured 0 everywhere: no note overlaps a foreign node, composite, group frame or swimlane, and no note box is smaller than its text (the size comes from `NoteLayout.sizeOf`, which measures the same text). The planned changes to stage D and a stage E of `bestPlanWithClearance` were not built: no measured violation reaches stage D.
+- **Already fixed earlier (not touched).** The dog-ear column (`DOG_EAR_SIZE`, `H_PAD_RIGHT_DOG_EAR`) and `MIN_H` of the note box: N3 measures 0.
+- **Rest (later wave).** An explicit note position in the DSL (`note at`) was proposed (Kay) and is deferred.
+- **Tests.** `PalWelleX6NoteObstacleGateTest` (baseline gate per diagram, byte identity via `KUML_NOTEOBST_BASELINE_HASHES`, detector self-test on a synthetic SVG, Doc 11 and Doc 13 checks when the PAL workspace exists, one `xtest`), `NotePlacerHomeEdgeTest` (regression guard for the strip choice and the edge counter).
+
 ### PAL Welle X5: note anchor lines (leaders) measured, shared anchor ends fanned out
 
 - **Measured first.** New gate test `PalWelleX5LeaderGateTest` with detector `NoteLeaderMetrics` (vault examples module) measures, on the rendered SVG (rectangles and polylines only, no glyph metrics), five violations per note anchor line and the line length L: K1 foreign node or note crossed, K2 swimlane border crossed, K3 foreign edge label crossed or the label of the own connection touched (end point closer than 8 px), K4 foreign edge crossed, K5 two notes share an anchor end (closer than 4 px). Inputs: all vault examples, PAL fixtures 41, 42, 46, 47, the STM fixtures of waves X1 and J2 (Doc 51) and, locally, the PAL documents 46, 55 and 62. Baseline on master ef708be5: K1 = 0 and K3 = 0 everywhere, K4 = 20 (STM 50, 53, 54, 57, 58, 51), K2 = 2 (Doc 62: a5e-62, r23-62), K5 = 1 (Doc 41: a6-41 and m2-41 end in the same corner of `referenzbereich`).

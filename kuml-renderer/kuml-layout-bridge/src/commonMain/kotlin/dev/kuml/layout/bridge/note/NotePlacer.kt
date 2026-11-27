@@ -815,6 +815,10 @@ public object NotePlacer {
         val home = config.noteHomes[noteId] ?: return null
         if (size.width > home.size.width + 0.5f || size.height > home.size.height - HOME_TOP_GAP_PX + 0.5f) return null
         var best: Plan? = null
+        // PAL Welle X6: drawn edges running through the best plan's rectangle; fewer beats cheaper, so a note whose cheapest
+        // slot lies on an edge moves to a free slot of its strip. Equal counts keep the old cost order (and the old pick).
+        var bestHits = 0
+        val exempt = anchors.flatMapTo(HashSet()) { it.exempt }
         var candidates = 0
         var y = home.top + HOME_TOP_GAP_PX
         while (y + size.height <= home.bottom + 0.5f && candidates < HOME_MAX_CANDIDATES) {
@@ -825,7 +829,12 @@ public object NotePlacer {
                 val rect = Rect(origin = Point(x = x, y = y), size = size)
                 if (obstacles.overlapsNote(rect)) continue
                 val plan = planFor(rect = rect, anchors = anchors, obstacles = obstacles, config = config, budget = budget)
-                if (plan.routed && (best == null || plan.cost < best.cost)) best = plan
+                if (!plan.routed) continue
+                val hits = obstacles.foreignEdgesHitting(r = rect, exemptOwners = exempt, budget = budget)
+                if (best == null || hits < bestHits || (hits == bestHits && plan.cost < best.cost)) {
+                    best = plan
+                    bestHits = hits
+                }
             }
             y += HOME_STEP_PX
         }
