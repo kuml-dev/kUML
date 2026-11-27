@@ -442,6 +442,31 @@ public object Sysml2DiagramLabelPlan {
             hardExclusions = true,
         )
 
+    /**
+     * PAL Welle X1: [STM_COSTS] with the nearest offset 6 px instead of 3 px (a transition label keeps 6 to 16 px from its own
+     * line). Used only through the gate of [planStmLabels] (`edgeGapGate`), which keeps it per diagram only when it leaves
+     * fewer labels outside 6 to 16 px and no more unclean or unresolved labels.
+     */
+    public val STM_COSTS_X1: LabelCostModel =
+        STM_COSTS.copy(edgeOffsets = listOf(6f, 8f, 10f, 14f), repairOffsets = listOf(6f, 8f, 10f, 14f))
+
+    /** PAL Welle X1: the 6 to 16 px band (plan rectangle to own line) the edge-gap gate counts violations against. */
+    internal const val EDGE_GAP_MIN_PX: Float = 6f
+    internal const val EDGE_GAP_MAX_PX: Float = 16f
+    private const val EDGE_GAP_EPS_PX: Float = 0.5f
+
+    /** Number of labels whose rectangle is outside the 6 to 16 px band from its own line (E1 + E2 of PAL Welle X1). */
+    internal fun edgeGapViolations(
+        labels: Map<String, PlacedLabel>,
+        polys: Map<String, List<Point>>,
+    ): Int =
+        labels.count { (id, p) ->
+            val pts = polys[id] ?: return@count false
+            if (pts.size < 2) return@count false
+            val d = LabelPlacer.rectDistanceToPolyline(r = p.rect, pts = pts)
+            d < EDGE_GAP_MIN_PX - EDGE_GAP_EPS_PX || d > EDGE_GAP_MAX_PX + EDGE_GAP_EPS_PX
+        }
+
     /** Segments shorter than this carry no label by preference (PAL wave 2D-a). */
     private const val STM_SHORT_SEGMENT_PX: Float = 16f
 
@@ -471,11 +496,53 @@ public object Sysml2DiagramLabelPlan {
         frameTop: Float,
         costs: LabelCostModel = STM_COSTS,
         reportUnresolved: Boolean = true,
+        edgeGapGate: Boolean = false,
     ): Sysml2LabelPlanResult {
         if (labels.isEmpty()) return Sysml2LabelPlanResult(labels = emptyMap(), lines = emptyMap())
         val polys = LinkedHashMap<String, List<Point>>()
         for ((id, route) in edges.entries.sortedBy { it.key }) polys[id] = stmPolylineOf(route)
+        val original =
+            planStmLabelsWith(polys = polys, nodes = nodes, composites = composites, labels = labels, frameTop = frameTop, costs = costs)
+        var chosen = original
+        if (edgeGapGate && costs == STM_COSTS && original.labels.isNotEmpty()) {
+            val trial =
+                planStmLabelsWith(
+                    polys = polys,
+                    nodes = nodes,
+                    composites = composites,
+                    labels = labels,
+                    frameTop = frameTop,
+                    costs = STM_COSTS_X1,
+                )
+            // PAL Welle X1 gate: the 6 px variant is kept only for a diagram whose original plan has no unclean and no unresolved
+            // label, and only when the variant leaves strictly fewer labels outside the 6 to 16 px band and also none of them
+            // unclean or unresolved. A crowded diagram keeps its original plan, so the narrower-wrap retry of the caller and every
+            // other decision after this plan run exactly as before (byte-identical).
+            val better =
+                original.unresolved.isEmpty() &&
+                    original.labels.none { !it.value.clean } &&
+                    trial.unresolved.isEmpty() &&
+                    trial.labels.none { !it.value.clean } &&
+                    edgeGapViolations(labels = trial.labels, polys = polys) < edgeGapViolations(labels = original.labels, polys = polys)
+            if (better) chosen = trial
+        }
+        if (reportUnresolved) {
+            for (id in chosen.unresolved) {
+                val why = chosen.unresolvedReason[id] ?: "none"
+                logger.warn { noFreeSpotMessage(id = id, why = why, who = chosen.unresolvedBlockers[id].orEmpty()) }
+            }
+        }
+        return chosen
+    }
 
+    private fun planStmLabelsWith(
+        polys: Map<String, List<Point>>,
+        nodes: Map<String, Rect>,
+        composites: List<StmCompositeObstacle>,
+        labels: List<StmLabelSpec>,
+        frameTop: Float,
+        costs: LabelCostModel,
+    ): Sysml2LabelPlanResult {
         // The obstacle model without any label. Built twice: the greedy run adds the labels it places, the repair pass
         // (PAL Welle J2) needs the model without them and tests the labels itself.
         fun buildIndex(): ObstacleIndex {
@@ -568,12 +635,6 @@ public object Sysml2DiagramLabelPlan {
         if (!costs.hardExclusions) return Sysml2LabelPlanResult(labels = placed, lines = lines)
         val variants = labels.filter { it.variants.isNotEmpty() }.associate { it.id to it.variants }
         val repaired = StmLabelRepair.repair(requests = requests, placed0 = placed, base = buildIndex(), costs = costs, variants = variants)
-        if (reportUnresolved) {
-            for (id in repaired.unresolved) {
-                val message = noFreeSpotMessage(id = id, why = repaired.reason[id] ?: "none", who = repaired.blockers[id].orEmpty())
-                logger.warn { message }
-            }
-        }
         for ((id, vi) in repaired.chosen) {
             variants[id]?.getOrNull(vi)?.let { lines[id] = it.lines }
         }

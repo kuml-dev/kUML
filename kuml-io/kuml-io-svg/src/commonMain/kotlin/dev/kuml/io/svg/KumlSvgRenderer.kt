@@ -1705,6 +1705,7 @@ public object KumlSvgRenderer {
         maxWidthPx: Float,
         report: dev.kuml.layout.bridge.label.StmUnresolvedReport? = null,
         onFinalPlan: ((dev.kuml.layout.bridge.label.Sysml2LabelPlanResult) -> Unit)? = null,
+        edgeGapGate: Boolean = false,
     ): Map<String, dev.kuml.io.svg.sysml2.edge.StmLabelBlock> {
         val parts = HashMap<String, List<dev.kuml.sysml2.edge.EdgeLabelPart>>()
         val fullText = HashMap<String, String>()
@@ -1805,6 +1806,7 @@ public object KumlSvgRenderer {
                         },
                     frameTop = STM_LABEL_FRAME_TOP_PX,
                     reportUnresolved = false,
+                    edgeGapGate = edgeGapGate,
                 )
             return Planned(plan = result, variants = offered)
         }
@@ -2309,6 +2311,7 @@ public object KumlSvgRenderer {
                     report =
                         dev.kuml.layout.bridge.label
                             .StmUnresolvedReport(),
+                    edgeGapGate = true,
                 )
             val minX0 = stmBlocks.values.minOfOrNull { it.cx - it.w / 2f } ?: STM_LABEL_FRAME_LEFT_PX
             val dx = maxOf(0f, STM_LABEL_FRAME_LEFT_PX - minX0)
@@ -2632,7 +2635,7 @@ public object KumlSvgRenderer {
             )
         val bddAdapter = BddEdgeAdapter(model = model, diagram = diagram)
         // PAL 2B-c: labels are planned first, the notes then avoid the rectangles the labels are really drawn at.
-        val bddLabels = planSysml2EdgeLabels(layout = layoutResult, adapter = bddAdapter)
+        val bddLabels = planSysml2EdgeLabels(layout = layoutResult, adapter = bddAdapter, edgeGapGate = true)
         val bddNoted =
             placeSysml2NotesResult(
                 model = model,
@@ -2644,7 +2647,15 @@ public object KumlSvgRenderer {
             )
         // Second pass: with the notes in place, the labels move away from them (and from their anchor lines).
         val bddFinalLabels =
-            if (model.comments.isEmpty()) bddLabels else planSysml2EdgeLabels(layout = bddNoted.layout, adapter = bddAdapter)
+            if (model.comments.isEmpty()) {
+                bddLabels
+            } else {
+                planSysml2EdgeLabels(
+                    layout = bddNoted.layout,
+                    adapter = bddAdapter,
+                    edgeGapGate = true,
+                )
+            }
         return BddPlan(synthetic = synthetic, adapter = bddAdapter, noted = bddNoted, finalLabels = bddFinalLabels)
     }
 
@@ -4860,6 +4871,8 @@ public object KumlSvgRenderer {
     ): Map<String, dev.kuml.layout.bridge.label.PlacedLabel> {
         if (sysml2NoteElements(model).isEmpty()) return emptyMap()
         val routes = sysml2ShiftedRoutes(layoutResult = layout, padding = padding, routeTransform = routeTransform)
+        // PAL Welle X1: no edge-gap gate here. The notes are placed against the original label plan; a plan gated here moved the
+        // notes and left a transition label of the final drawing without a free spot (Doc 55).
         val blocks =
             planStmBlocks(
                 routes = routes,
@@ -5120,6 +5133,7 @@ public object KumlSvgRenderer {
         costs: dev.kuml.layout.bridge.label.LabelCostModel =
             dev.kuml.layout.bridge.label
                 .LabelCostModel(lineClearance = 2f),
+        edgeGapGate: Boolean = false,
     ): Map<String, dev.kuml.layout.bridge.label.PlacedLabel> {
         val sizes = LinkedHashMap<String, dev.kuml.layout.Size>()
         for (edgeId in layout.edges.keys) {
@@ -5129,6 +5143,11 @@ public object KumlSvgRenderer {
             sizes[edgeId.value] =
                 dev.kuml.layout.bridge.label.Sysml2LabelSizing
                     .sizeOf(lines.map { it.text })
+        }
+        if (edgeGapGate) {
+            // PAL Welle X1: block definition diagrams keep their labels 6 to 16 px from the own edge where that costs nothing else.
+            return dev.kuml.layout.bridge.label.Sysml2EdgeLabelPlan
+                .computeGated(layout = layout, labelSizes = sizes, configure = configure, keepInsideFrames = keepInsideFrames)
         }
         return dev.kuml.layout.bridge.label.Sysml2EdgeLabelPlan
             .compute(

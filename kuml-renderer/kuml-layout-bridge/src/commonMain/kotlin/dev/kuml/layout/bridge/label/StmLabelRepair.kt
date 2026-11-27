@@ -95,7 +95,14 @@ internal object StmLabelRepair {
         val repaired = LinkedHashMap<String, Cand>()
         val cache = HashMap<String, List<Cand>>()
 
-        fun cands(id: String): List<Cand> = cache.getOrPut(id) { repairCandidates(req = reqs.getValue(id)) }
+        fun cands(id: String): List<Cand> =
+            cache.getOrPut(id) {
+                repairCandidates(
+                    req = reqs.getValue(id),
+                    offsets =
+                        costs.repairOffsets ?: OFFSETS,
+                )
+            }
 
         fun others(
             id: String,
@@ -249,9 +256,10 @@ internal object StmLabelRepair {
                         !isViolation(req = r, rect = it.rect, others = around, index = base, costs = c, budget = budget)
                 }?.let { Cand(rect = it.rect, segment = it.segment, variant = variant) }
         }
-        for ((vi, v) in vs.withIndex()) search(variant = vi, size = v.size, offsets = OFFSETS, c = costs)?.let { return it }
+        val base0 = costs.repairOffsets ?: OFFSETS
+        for ((vi, v) in vs.withIndex()) search(variant = vi, size = v.size, offsets = base0, c = costs)?.let { return it }
         val wide = costs.copy(maxDistancePx = maxOf(costs.maxDistancePx, LAST_RESORT_OFFSET_PX))
-        val offsets = OFFSETS + LAST_RESORT_OFFSET_PX
+        val offsets = base0 + LAST_RESORT_OFFSET_PX
         search(variant = -1, size = req.size, offsets = offsets, c = wide)?.let { return it }
         for ((vi, v) in vs.withIndex()) search(variant = vi, size = v.size, offsets = offsets, c = wide)?.let { return it }
         return null

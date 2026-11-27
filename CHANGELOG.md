@@ -6,6 +6,15 @@ All notable changes to this project are documented here. Format follows
 
 ## [Unreleased]
 
+### PAL Welle X1: STM and BDD edge labels keep 6 to 16 px from their own edge (Docs 31, 34, 50-58)
+
+- **Measured first.** New detector `EdgeLabelClearance` on the rendered SVG: E1 = label rectangle closer than 6 px to its own line, E2 = further than 16 px, E3 = multiplicity text overlapping its arrowhead. Over 11 vault examples and 11 PAL fixtures (STM Docs 50 to 58, BDD Docs 31 and 34) the baseline was E1 = 104, E2 = 0, E3 = 4. E2 was never reproduced, so no code touches the upper bound.
+- **STM transition labels.** The nearest offset is 3 px; a second plan with 6 px (`STM_COSTS_X1`) is made per diagram and kept only when the original plan has no unclean or unresolved label, the 6 px plan has none either, and it leaves strictly fewer labels outside 6 to 16 px. Crowded diagrams (Docs 50, 51, 53, 58 and parts of 55) keep their original plan byte for byte, as does the label plan used to place notes.
+- **BDD edge labels.** Same gate with a 6 px nearest offset (`BDD_COSTS_X1`); Docs 31 and 34 go from E1 = 12 to 0.
+- **Multiplicities.** A multiplicity at an end with an arrowhead slides away from the tip along the edge until its text box clears the arrowhead box by 2 px (Doc 31: E3 = 4 to 0). Ends without an arrowhead are unchanged.
+- **Result.** E1 = 104 to 40, E2 = 0, E3 = 4 to 0. Still open: STM Docs 50, 51, 53, 58 and 55 (E1 = 13 + 9 + 3 + 13 + 1) and Doc 56 (1), where the 6 px plan would leave a label without a free spot.
+- **Tests.** `PalWelleX1EdgeLabelClearanceInvariantTest`, `EdgeLabelGapGateTest`; new classpath fixtures `sysml2-stm-x1/` and `sysml2-bdd-x1/`.
+
 ### PAL Welle V: port labels keep 6 px clearance from foreign parts (Doc 41)
 
 - **Problem.** In Doc 41 the two `stellsignal` port labels (FMCS 4.5 px, RLK 2.0 px) sat too close to foreign parts; Welle U had pinned them as known open.

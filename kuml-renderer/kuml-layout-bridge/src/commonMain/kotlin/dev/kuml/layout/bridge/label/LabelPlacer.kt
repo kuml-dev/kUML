@@ -177,6 +177,11 @@ public data class LabelCostModel(
      * so every other diagram type keeps its placement bit for bit.
      */
     val portRepair: Boolean = false,
+    /**
+     * PAL Welle X1: offsets (px, label edge to line) the state-machine repair pass ([StmLabelRepair]) tries; `null` keeps its
+     * built-in list. Only the STM edge-gap variant sets it.
+     */
+    val repairOffsets: List<Float>? = null,
 )
 
 /** A placed label: its rectangle and whether it sits on its own line (the renderer then needs the canvas-coloured halo). */

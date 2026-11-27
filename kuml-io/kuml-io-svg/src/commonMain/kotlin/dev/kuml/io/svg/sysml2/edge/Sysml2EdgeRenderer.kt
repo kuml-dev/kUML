@@ -11,6 +11,7 @@ import dev.kuml.io.svg.xmlEscapeAttr
 import dev.kuml.layout.EdgeId
 import dev.kuml.layout.EdgeRoute
 import dev.kuml.layout.Point
+import dev.kuml.layout.bridge.port.PortEdgeClamp
 import dev.kuml.renderer.theme.core.KumlTheme
 import dev.kuml.sysml2.edge.Sysml2ArrowHead
 import dev.kuml.sysml2.edge.Sysml2EdgeMetadata
@@ -316,7 +317,9 @@ internal object Sysml2EdgeRenderer {
                 )
             }
         }
-        metadata.endLabel?.let { emitEndLabel(route = route, content = it, builder = builder) }
+        metadata.endLabel?.let {
+            emitEndLabel(route = route, content = it, builder = builder, headAtTarget = arrowStyle != null && !metadata.headAtSource)
+        }
         // With a planned label the item-flow texts are part of that label block; without a plan they sit at the arrows.
         if (metadata.midArrows.isNotEmpty()) {
             emitMidArrows(route = route, arrows = metadata.midArrows, builder = builder, drawItemLabels = plannedLabel == null)
@@ -830,18 +833,48 @@ internal object Sysml2EdgeRenderer {
             is EdgeRoute.Bezier -> (controlPoints.firstOrNull() ?: target) to source
         }
 
-    /** Role / multiplicity text beside the target end (drawn `Escape`-safe via `builder.text`). */
+    /**
+     * Role / multiplicity text beside the target end (drawn `Escape`-safe via `builder.text`). PAL Welle X1: at an end that
+     * carries an arrowhead the text slides away from the tip along the edge, in [END_LABEL_SLIDE_PX] steps, until its
+     * estimated rectangle clears the arrowhead box by [END_LABEL_HEAD_CLEAR_PX] (text beside the head, never over it). An end
+     * without an arrowhead keeps its position exactly.
+     */
     private fun emitEndLabel(
         route: EdgeRoute,
         content: String,
         builder: SvgBuilder,
+        headAtTarget: Boolean = false,
     ) {
         val (prev, tip) = route.arrowDirection()
         val dx = prev.x - tip.x
         val dy = prev.y - tip.y
         val len = kotlin.math.sqrt(dx * dx + dy * dy).takeIf { it > 0.001f } ?: 1f
-        val x = tip.x + dx / len * END_LABEL_OFFSET_PX + 6f
-        val y = tip.y + dy / len * END_LABEL_OFFSET_PX + (if (dy > 0f) 10f else -2f)
+        val ux = dx / len
+        val uy = dy / len
+        var slide = 0f
+        if (headAtTarget) {
+            // Arrowhead box: tip, base (ARROW_LEN back along the edge) and the two wings (+-ARROW_WING across it).
+            val baseX = tip.x + ux * PortEdgeClamp.ARROW_LEN_PX
+            val baseY = tip.y + uy * PortEdgeClamp.ARROW_LEN_PX
+            val xs = listOf(tip.x, baseX + uy * END_LABEL_WING_PX, baseX - uy * END_LABEL_WING_PX)
+            val ys = listOf(tip.y, baseY - ux * END_LABEL_WING_PX, baseY + ux * END_LABEL_WING_PX)
+            val hl = xs.min() - END_LABEL_HEAD_CLEAR_PX
+            val hr = xs.max() + END_LABEL_HEAD_CLEAR_PX
+            val ht = ys.min() - END_LABEL_HEAD_CLEAR_PX
+            val hb = ys.max() + END_LABEL_HEAD_CLEAR_PX
+            val w = content.length * END_LABEL_CHAR_PX
+            var steps = 0
+            while (steps <= END_LABEL_MAX_SLIDE_STEPS) {
+                val l = tip.x + ux * (END_LABEL_OFFSET_PX + slide) + 6f
+                val b = tip.y + uy * (END_LABEL_OFFSET_PX + slide) + (if (dy > 0f) 10f else -2f)
+                val overlaps = l < hr && l + w > hl && b - END_LABEL_ASCENT_PX < hb && b + END_LABEL_DESCENT_PX > ht
+                if (!overlaps) break
+                slide += END_LABEL_SLIDE_PX
+                steps++
+            }
+        }
+        val x = tip.x + ux * (END_LABEL_OFFSET_PX + slide) + 6f
+        val y = tip.y + uy * (END_LABEL_OFFSET_PX + slide) + (if (dy > 0f) 10f else -2f)
         builder.tag(
             name = "text",
             attrs = mapOf("class" to "kuml-body", "x" to fmt(x), "y" to fmt(y), "text-anchor" to "start"),
@@ -923,6 +956,15 @@ internal object Sysml2EdgeRenderer {
     }
 
     private const val END_LABEL_OFFSET_PX: Float = 18f
+
+    // PAL Welle X1: heuristic text box of a multiplicity (9 px edge font) and the arrowhead clearance.
+    private const val END_LABEL_CHAR_PX: Float = 5f
+    private const val END_LABEL_ASCENT_PX: Float = 7f
+    private const val END_LABEL_DESCENT_PX: Float = 2f
+    private const val END_LABEL_WING_PX: Float = 5f
+    private const val END_LABEL_HEAD_CLEAR_PX: Float = 2f
+    private const val END_LABEL_SLIDE_PX: Float = 2f
+    private const val END_LABEL_MAX_SLIDE_STEPS: Int = 12
     private const val MID_ARROW_LEN_PX: Float = 10f
     private const val MID_ARROW_GAP_PX: Float = 14f
 
