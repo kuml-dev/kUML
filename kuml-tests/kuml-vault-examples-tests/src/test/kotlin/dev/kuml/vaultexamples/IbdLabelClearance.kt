@@ -2,6 +2,7 @@ package dev.kuml.vaultexamples
 
 import dev.kuml.layout.Point
 import dev.kuml.layout.Rect
+import dev.kuml.layout.bridge.label.LabelPlacer
 import dev.kuml.layout.bridge.label.LabelRole
 import dev.kuml.layout.bridge.label.PortLabelAudit
 import dev.kuml.layout.bridge.note.ObstacleKind
@@ -25,7 +26,7 @@ import dev.kuml.layout.bridge.note.ObstacleKind
  */
 object IbdLabelClearance {
     const val EPS: Float = 0.5f
-    const val MIN_GAP: Float = 6.0f
+    const val MIN_GAP: Float = LabelPlacer.PORT_PART_CLEAR_PX
 
     data class Counts(
         val c2: Int,

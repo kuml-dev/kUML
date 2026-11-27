@@ -23,13 +23,11 @@ import io.kotest.matchers.shouldBe
  * Source of the numbers: the final label plan the production renderer builds ([PortLabelAudit]), plan rectangles, no SVG
  * glyphs and no fonts, so the result is the same on every platform.
  *
- * Measured 2026-11-26 on Doc 41, 42, 46, 47 and the Box-in-Box fixture: C1 to C4 are 0 everywhere, C5 is 0 everywhere
- * except **known open** in Doc 41: the port labels `stellsignal` of the FMCS (4.5 px below the part `schleusenraum`) and of
- * the RLK (2.0 px below the part `vsr`) stand closer than 6 px to a foreign part. Part spacing cannot reach them: both
- * labels sit beside their pin at the corner of a neighbour part, the distance of the two parts along the label axis is
- * already larger than the label, so moving parts apart does not change the label to part distance. The place for a fix is the
- * port label clearance in the label placer (2 px today), a different change. The test pins exactly these two entries; any other
- * or any additional close label fails it, and so does a fix that removes them (then the known open entries are to be deleted).
+ * Measured 2026-11-26 on Doc 41, 42, 46, 47 and the Box-in-Box fixture: C1 to C4 are 0 everywhere. C5 was 0 everywhere except
+ * the port labels `stellsignal` of the FMCS (4.5 px below the part `schleusenraum`) and of the RLK (2.0 px below the part
+ * `vsr`). Since PAL Welle V the label placer has a second placement pass that moves a port label that stands closer than
+ * `LabelPlacer.PORT_PART_CLEAR_PX` (6 px, the value of [IbdLabelClearance.MIN_GAP]) to a foreign part, so C1 to C5 are 0 on
+ * every fixture and the test pins exactly that.
  */
 class PalWelleUIbdLabelClearanceInvariantTest :
     FunSpec({
@@ -49,16 +47,6 @@ class PalWelleUIbdLabelClearanceInvariantTest :
                     .findAll(resource("/ibd-fixtures/IBD Box-in-Box 3 Ebenen.md"))
                     .mapIndexed { i, m -> "ibd-fixtures/box-in-box-$i" to m.groupValues[1] }
                     .toList()
-
-        // The only known open entries of this wave (see the class comment): label ids of C5 findings by fixture.
-        val knownOpenC5 =
-            mapOf(
-                "pal-ibd/41-druckregelung-ibd" to
-                    listOf(
-                        "port:Teilsystem Druckregelung::fmcs::stellsignal",
-                        "port:Teilsystem Druckregelung::rlk::stellsignal",
-                    ),
-            )
 
         fun rect(
             x: Float,
@@ -138,7 +126,7 @@ class PalWelleUIbdLabelClearanceInvariantTest :
             IbdLabelClearance.measure(twin.copy(labels = listOf(crossed))).c4 shouldBe 1
         }
 
-        test("C1 to C5 on the PAL IBD fixtures: all zero except the known open Doc 41 port labels") {
+        test("C1 to C5 on the PAL IBD fixtures: all zero") {
             val rows = ArrayList<String>()
             for ((name, script) in fixtures()) {
                 val (inner, snaps) =
@@ -156,7 +144,7 @@ class PalWelleUIbdLabelClearanceInvariantTest :
                 c.c3 shouldBe 0
                 c.c4 shouldBe 0
                 val c5Labels = c.details.filter { it.startsWith("C5 ") }.map { it.removePrefix("C5 ").substringBefore(" near part") }
-                c5Labels shouldBe (knownOpenC5[name] ?: emptyList())
+                c5Labels shouldBe emptyList()
             }
             rows.forEach { println(it) }
         }

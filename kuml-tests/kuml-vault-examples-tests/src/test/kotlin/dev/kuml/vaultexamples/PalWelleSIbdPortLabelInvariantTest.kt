@@ -1,5 +1,6 @@
 package dev.kuml.vaultexamples
 
+import dev.kuml.layout.bridge.label.LabelPlacer
 import dev.kuml.layout.bridge.label.PortLabelAudit
 import dev.kuml.layout.bridge.note.NotePlacementMissCollector
 import dev.kuml.layout.bridge.note.PlacementHintMiss
@@ -24,7 +25,8 @@ class PalWelleSIbdPortLabelInvariantTest :
     FunSpec({
         timeout = 300_000L
         val docs = listOf("41-druckregelung-ibd", "46-erhitzer-sicherheit-ibd", "47-erhitzer-stb-ibd")
-        val maxPinDistance = 12.01f
+        // 12 px until Welle V, which reaches 24 px for the 6 px part clearance
+        val maxPinDistance = LabelPlacer.PART_CLEAR_MAX_DISTANCE_PX + 0.01f
 
         fun script(doc: String) =
             PalWelleSIbdPortLabelInvariantTest::class.java
@@ -62,7 +64,7 @@ class PalWelleSIbdPortLabelInvariantTest :
         }
 
         for (doc in docs) {
-            test("b) after the repair $doc: no port label collides with anything and none stands more than 12 px from its pin") {
+            test("b) after the repair $doc: no port label collides with anything and none stands more than 24 px from its pin") {
                 val before = measure(doc = doc, repair = false)
                 val after = measure(doc = doc, repair = true)
                 val bad = after.snapshot.ports.filter { it.violations > 0 }

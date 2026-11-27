@@ -1,5 +1,6 @@
 package dev.kuml.vaultexamples
 
+import dev.kuml.layout.bridge.label.LabelPlacer
 import dev.kuml.layout.bridge.label.PortLabelAudit
 import dev.kuml.layout.bridge.note.NotePlacementMissCollector
 import dev.kuml.layout.bridge.note.PlacementHintMiss
@@ -73,10 +74,10 @@ class PalWelleSIbdInventoryTest :
                         "maxPinDistance=${moved.maxOfOrNull { on.first.getValue(it).pinDistance }}",
                 )
                 for (id in moved) {
-                    // collisions per label never get worse, a moved label had a real collision before and stays within 12 px of its pin
-                    (off.first.getValue(id).violations > 0) shouldBe true
+                    // collisions per label never get worse and a moved label stays within the reach of the second pass (24 px);
+                    // since Welle V a label may also move without a 2 px collision, for 6 px clearance to a foreign part
                     (on.first.getValue(id).violations <= off.first.getValue(id).violations) shouldBe true
-                    (on.first.getValue(id).pinDistance <= 12.01f) shouldBe true
+                    (on.first.getValue(id).pinDistance <= LabelPlacer.PART_CLEAR_MAX_DISTANCE_PX + 0.01f) shouldBe true
                 }
                 (after <= before) shouldBe true
             }

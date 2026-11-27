@@ -300,6 +300,32 @@ public object LabelPlacer {
                     portViolations(rect = chosen.rect, req = req, index = index, blockers = why)
                     repairBlockers = topBlockers(why)
                 }
+                // PAL Welle V: second pass, independent of v1 (a label can be clean in the 2 px sense and still sit close to a part)
+                val p1 = partClearanceViolations(rect = chosen.rect, req = req, index = index)
+                if (p1 > 0) {
+                    val budgetShort = BooleanArray(1)
+                    val cleared =
+                        partClearPort(
+                            req = req,
+                            index = index,
+                            costs = costs,
+                            phase1 = candidates,
+                            workLeft = work,
+                            p1 = p1,
+                            vChosen = repairViolations,
+                            budgetShort = budgetShort,
+                        )
+                    repairBudgetShort = repairBudgetShort || budgetShort[0]
+                    if (cleared != null) {
+                        work -= cleared.work
+                        chosen = cleared.candidate
+                        bestCost = cleared.cost
+                        repairViolations = cleared.violations
+                        val why = ArrayList<String>()
+                        portViolations(rect = chosen.rect, req = req, index = index, blockers = why)
+                        repairBlockers = topBlockers(why)
+                    }
+                }
             }
             if (perRequest != null) totalLeft -= (workAtStart - work).coerceAtLeast(0L)
             val cleanLimit =
@@ -612,6 +638,15 @@ public object LabelPlacer {
     /** Free space (px) a port label keeps to parts, pins, titles, edges and the border of its own part. */
     internal const val PORT_CLEAR_PX: Float = 2f
 
+    /**
+     * Free space (px) a port label keeps to foreign parts (`ObstacleKind.NODE`), second placement pass (PAL Welle V). The IBD
+     * label clearance check (C5) uses the same value.
+     */
+    public const val PORT_PART_CLEAR_PX: Float = 6f
+
+    /** Float tolerance for the 6 px rule (the raster delivers exactly 6.0 px). */
+    private const val PORT_PART_CLEAR_EPS: Float = 0.001f
+
     /** Float tolerance for the 2 px rule: a label exactly 2 px away (as the ranking places it) is clear. */
     private const val PORT_CLEAR_EPS: Float = 0.05f
 
@@ -620,6 +655,15 @@ public object LabelPlacer {
 
     private val REPAIR_GAPS: List<Float> = listOf(4f, 8f, 12f)
     private val REPAIR_BORDER_DISTANCES: List<Float> = listOf(2f, 6f, 10f, 14f)
+
+    /**
+     * Reach (rectangle distance to the pin square) of the 6 px part clearance pass (PAL Welle V). Wider than
+     * [PORT_REPAIR_MAX_DISTANCE_PX] because Doc 41 fmcs::stellsignal has no position with 6 px to the neighbour inside 12 px.
+     */
+    public const val PART_CLEAR_MAX_DISTANCE_PX: Float = 24f
+
+    private val PART_CLEAR_GAPS: List<Float> = REPAIR_GAPS + listOf(16f, 20f, 24f)
+    private val PART_CLEAR_BORDER_DISTANCES: List<Float> = REPAIR_BORDER_DISTANCES + listOf(18f, 22f)
 
     private class Repair(
         val candidate: Candidate,
@@ -752,10 +796,7 @@ public object LabelPlacer {
         budgetShort: BooleanArray,
     ): Repair? {
         val anchor = req.anchorRect ?: return null
-        val raster = repairCandidates(req = req, anchor = anchor)
-        val all = ArrayList<Candidate>(phase1.size + raster.size)
-        all += phase1
-        for (c in raster) if (all.none { sameRect(a = it.rect, b = c.rect) }) all += c
+        val all = searchSpace(req = req, anchor = anchor, phase1 = phase1)
         val perCandidate = index.size + 1L
         val needed = perCandidate * all.size
         if (workLeft < needed) {
@@ -792,6 +833,113 @@ public object LabelPlacer {
         return Repair(candidate = all[bestIdx], violations = bestV, cost = bestCost, work = needed)
     }
 
+    /** The ranked candidates plus the raster of [repairCandidates], without duplicates, in a fixed order. */
+    private fun searchSpace(
+        req: LabelRequest,
+        anchor: Rect,
+        phase1: List<Candidate>,
+        gaps: List<Float> = REPAIR_GAPS,
+        borderDistances: List<Float> = REPAIR_BORDER_DISTANCES,
+    ): List<Candidate> {
+        val raster = repairCandidates(req = req, anchor = anchor, gaps = gaps, borderDistances = borderDistances)
+        val all = ArrayList<Candidate>(phase1.size + raster.size)
+        all += phase1
+        for (c in raster) if (all.none { sameRect(a = it.rect, b = c.rect) }) all += c
+        return all
+    }
+
+    /**
+     * How many foreign parts (`ObstacleKind.NODE`) a port label at [rect] stands closer to than [PORT_PART_CLEAR_PX] (PAL
+     * Welle V), one each. Owners of the label (its own part) and their ancestors (`::` path prefixes) are not foreign. Pins,
+     * titles, labels, edges and the own border are not counted here, [portViolations] covers them at 2 px.
+     */
+    internal fun partClearanceViolations(
+        rect: Rect,
+        req: LabelRequest,
+        index: ObstacleIndex,
+    ): Int {
+        var n = 0
+        val clear = PORT_PART_CLEAR_PX - PORT_PART_CLEAR_EPS
+        for (o in index.rects) {
+            if (o.kind != ObstacleKind.NODE) continue
+            val id = o.ownerId
+            if (id != null && (id == req.ownerId || id == req.parentId || isAncestorPath(id = id, of = req.parentId))) continue
+            if (o.core.inflated(clear).intersects(rect)) n++
+        }
+        return n
+    }
+
+    private fun isAncestorPath(
+        id: String,
+        of: String?,
+    ): Boolean = of != null && of.startsWith("$id::")
+
+    /**
+     * PAL Welle V, the second search for a port label whose position is clean in the 2 px sense ([portViolations] at most
+     * [vChosen]) but stands closer than [PORT_PART_CLEAR_PX] to [p1] foreign parts. Same candidates plus a wider raster, a
+     * [PART_CLEAR_MAX_DISTANCE_PX] reach and the work rule of [repairPort]; a candidate counts only when
+     * [portViolations] does not get worse. Picks by part collisions,
+     * outside before inside, the `labelAt` side, the cost model, the list position, and returns `null` unless the part
+     * collisions drop strictly below [p1] (or [workLeft] does not cover the whole search).
+     */
+    private fun partClearPort(
+        req: LabelRequest,
+        index: ObstacleIndex,
+        costs: LabelCostModel,
+        phase1: List<Candidate>,
+        workLeft: Long,
+        p1: Int,
+        vChosen: Int,
+        budgetShort: BooleanArray,
+    ): Repair? {
+        val anchor = req.anchorRect ?: return null
+        val all =
+            searchSpace(
+                req = req,
+                anchor = anchor,
+                phase1 = phase1,
+                gaps = PART_CLEAR_GAPS,
+                borderDistances = PART_CLEAR_BORDER_DISTANCES,
+            )
+        val needed = (index.size + 1L) * all.size
+        if (workLeft < needed) {
+            budgetShort[0] = true
+            return null
+        }
+        var bestIdx = -1
+        var bestP = Int.MAX_VALUE
+        var bestV = 0
+        var bestInner = 1
+        var bestMiss = 1
+        var bestCost = Float.MAX_VALUE
+        for ((i, c) in all.withIndex()) {
+            if (rectGap(r = c.rect, pin = anchor) > PART_CLEAR_MAX_DISTANCE_PX + 0.01f) continue
+            val v = portViolations(rect = c.rect, req = req, index = index)
+            if (v > vChosen) continue
+            val p = partClearanceViolations(rect = c.rect, req = req, index = index)
+            val inner = if (c.inner) 1 else 0
+            val miss = if (req.preferredTangent != 0 && (c.inner || c.tangentSign != req.preferredTangent)) 1 else 0
+            val cost = cost(c = c, req = req, index = index, costs = costs)
+            val better =
+                when {
+                    p != bestP -> p < bestP
+                    inner != bestInner -> inner < bestInner
+                    miss != bestMiss -> miss < bestMiss
+                    else -> cost < bestCost
+                }
+            if (better) {
+                bestIdx = i
+                bestP = p
+                bestV = v
+                bestInner = inner
+                bestMiss = miss
+                bestCost = cost
+            }
+        }
+        if (bestIdx < 0 || bestP >= p1) return null
+        return Repair(candidate = all[bestIdx], violations = bestV, cost = bestCost, work = needed)
+    }
+
     private fun sameRect(
         a: Rect,
         b: Rect,
@@ -802,6 +950,8 @@ public object LabelPlacer {
     private fun repairCandidates(
         req: LabelRequest,
         anchor: Rect,
+        gaps: List<Float> = REPAIR_GAPS,
+        borderDistances: List<Float> = REPAIR_BORDER_DISTANCES,
     ): List<Candidate> {
         val outward = req.outward ?: return emptyList()
         val (ox, oy, tx, ty) =
@@ -829,8 +979,8 @@ public object LabelPlacer {
                         else -> if (inner) LabelSide.SOUTH else LabelSide.NORTH
                     }
             for (sgn in floatArrayOf(1f, -1f)) {
-                for (gap in REPAIR_GAPS) {
-                    for (d in REPAIR_BORDER_DISTANCES) {
+                for (gap in gaps) {
+                    for (d in borderDistances) {
                         val centreT = sgn * (halfPin + gap + extT)
                         val centreO = dir * (d + extO)
                         out +=
@@ -851,7 +1001,7 @@ public object LabelPlacer {
                 }
             }
             if (dockedOnDirection) continue
-            for (gap in REPAIR_GAPS) {
+            for (gap in gaps) {
                 for (shiftSign in floatArrayOf(-1f, 0f, 1f)) {
                     val shift = shiftSign * extT
                     val sx = if (ox != 0f) 0f else 1f

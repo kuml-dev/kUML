@@ -172,7 +172,7 @@ class PortLabelRepairTest :
                 val before = LabelPlacer.portViolations(rect = ranked.rect, req = req, index = idx)
                 val after = LabelPlacer.place(requests = listOf(req), index = idx, costs = on).getValue("p")
                 (after.violations <= before) shouldBe true
-                (gap(after.rect) <= LabelPlacer.PORT_REPAIR_MAX_DISTANCE_PX + 0.01f) shouldBe true
+                (gap(after.rect) <= LabelPlacer.PART_CLEAR_MAX_DISTANCE_PX + 0.01f) shouldBe true
             }
         }
     })
