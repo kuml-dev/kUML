@@ -6,6 +6,25 @@ All notable changes to this project are documented here. Format follows
 
 ## [Unreleased]
 
+### PAL Welle X7: C4 notes inside the boundary frame (measured first)
+
+- **Measured first.** New gate test `PalWelleX7C4FrameNoteGateTest` with detector `C4FrameNoteMetrics` (vault examples module) measures on the rendered SVG (rectangles and polylines only, no glyph metrics): C1 a note whose anchors are all members of the system frame lies outside although a slot of its size exists inside (4 px grid, 12 px clear of nodes, edges, labels, other notes and the title strip, and reachable by a straight anchor line), C2 a note overlaps the title strip, crosses a frame line or lies inside closer than 12 px to it, C3 canvas width beyond content plus 2 x 24 px (a violation only when a C1 note causes it). The C4 renderer writes no ids on anchor lines, so the detector assigns them to notes by geometry.
+- **Finding: 30 px title obstacle vs 34 px title ink.** The shared title obstacle (`COMPOSITE_TITLE_HEIGHT = 30`) is lower than the two-line frame title (baselines at y = 14 and 30). Notes inside a frame now keep 34 + 12 = 46 px from the frame top (`C4NotePlacement.C4_FRAME_TITLE_KEEP_OUT_PX`); the shared obstacle itself is unchanged.
+
+| Baseline (master b59ccda5) | C1 | C2 | extra width |
+|---|---|---|---|
+| vault 02, 09, 23, 24, 25, 26, 58 (none has frame and notes) | 0 | 0 | unchanged |
+| fixture `c4-x7/a-inside` | 0 | 3 | 509.5 px |
+| fixture `c4-x7/b-outside` | 0 | 0 | 280.6 px |
+| PAL 35 | 0 | 0 | 420.8 px |
+| PAL 36 (9 notes) | 1 | 4 | 548.7 px |
+
+- **Fixed: C2.** `C4NotePlacement` adds hard keep-out strips of 12 px on both sides of every system frame line (top strip down to the title ink), so no note lies on a frame line. A note whose anchors are all members of the frame (a node inside it) gets the frame interior as its home (first slot 46 px below the frame top, 12 px inside) and the hard clearance rule (12 px from nodes, edges, labels, other notes). A note anchored to the boundary itself, to an element outside, to a relationship or with mixed anchors has no home and stays outside as before. In such diagrams the other notes use the strict clearance rule too, so no edge runs through a note. New config fields `noteHomeClearance` and `noteHomeMaxCandidates` (defaults keep every other diagram unchanged; the shared cap of 600 stopped after 84 px of a wide frame).
+- **Result.** PAL 36: C2 4 to 0, C1 1 to 1 (a13e-36 stays outside), no edge through a note. Fixture a: C2 3 to 0. Vault examples and fixture b are unchanged (they have no frame with member notes). Doc 36 and fixture a get wider than the baseline (PAL 36: +12 px extra width, fixture a: +71 px) because notes that straddled the frame line now keep 12 px clear of it; the width bound is enforced only for diagrams the wave leaves alone.
+- **Not applied (measured, `xtest`).** `X7: needs frame growth (layout change)`: PAL 36 note a13e-36 has a free slot inside but none its anchor line can reach by the placer's routing, so C1 stays 1; removing the added width needs frame growth. An alternative without the strict rule put the remaining notes on edges (N1 = 5 on PAL 36), so it was not used.
+- **Already fixed earlier (not touched).** E2: the C4 canvas keeps 24 px around the content (see the PAL wave E2 entry).
+- **Tests.** Detector self-tests on synthetic SVGs, detector/placer constant equality, fixture a (a note at a member with room is inside, no note touches a frame line), fixture b (boundary, external and mixed anchors stay outside, note rectangles unchanged), per-diagram baseline gate, Doc 36 check when the PAL workspace exists (skipped on CI).
+
 ### PAL Welle X6: notes as obstacles for edge routing (measured, N1 fixed for requirement home strips)
 
 - **Measured first.** New gate test `PalWelleX6NoteObstacleGateTest` with detector `NoteObstacleMetrics` (vault examples module) measures, on the rendered SVG (rectangles and polylines only, no glyph metrics), three violations per note: N1 a foreign edge runs through the note (the edge the note is anchored to and anchor lines are exempt), N2 the note overlaps a foreign node, composite, requirement group frame or swimlane without lying completely inside it, N3 the note box is smaller than its text needs (characters x 6.6 px + text inset + right padding; lines x 15 px + 16 px, at least 32 px). Inputs: every vault example, the PAL IBD, STM and ACT fixtures, and, when present locally, the PAL documents 10 to 15 (requirements) and 46, 55, 62 (read only, copied into a temp dir; skipped on CI). The values measured on master 30d65078 are the upper bounds per diagram.

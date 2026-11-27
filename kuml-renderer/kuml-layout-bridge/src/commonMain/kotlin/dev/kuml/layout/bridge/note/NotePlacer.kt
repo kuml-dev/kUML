@@ -151,6 +151,13 @@ public data class NotePlacementConfig(
      */
     val noteHomes: Map<String, Rect> = emptyMap(),
     /**
+     * PAL Welle X7: when above 0, a position in a note home must keep this distance from part boxes, drawn edges, labels and
+     * other notes (the hard clearance rule, [ObstacleIndex.violatesClearance]); 0 keeps the legacy home search.
+     */
+    val noteHomeClearance: Float = 0f,
+    /** PAL Welle X7: cap on the positions tried in a note home (600 for the narrow requirement strips; a C4 frame is much larger). */
+    val noteHomeMaxCandidates: Int = 600,
+    /**
      * Nacharbeit 120: the lane or pool rectangle of a hinted note's anchor (note id to rectangle). The hinted search
      * first runs confined to it (inset by [laneInset]); when no free position exists there, the search runs as before
      * and a note that ends up outside the rectangle is reported as a placement miss with `outsideHomeLane`.
@@ -668,10 +675,10 @@ public object NotePlacer {
             var best: Plan? = null
             var tried = 0
             var y = home.top + HOME_TOP_GAP_PX
-            while (y + size.height <= home.bottom + 0.5f && tried < HOME_MAX_CANDIDATES) {
+            while (y + size.height <= home.bottom + 0.5f && tried < config.noteHomeMaxCandidates) {
                 val xs = generateSequence(home.left) { it + HOME_STEP_PX }.takeWhile { it + size.width <= home.right + 0.5f }.toList()
                 for (x in xs + (home.right - size.width)) {
-                    if (tried++ >= HOME_MAX_CANDIDATES || budget.exhausted) break
+                    if (tried++ >= config.noteHomeMaxCandidates || budget.exhausted) break
                     val rect = Rect(origin = Point(x = x, y = y), size = size)
                     if (!onSide(rect = rect, box = box, side = hint)) continue
                     val plan = accept(rect) ?: continue
@@ -815,19 +822,31 @@ public object NotePlacer {
         val home = config.noteHomes[noteId] ?: return null
         if (size.width > home.size.width + 0.5f || size.height > home.size.height - HOME_TOP_GAP_PX + 0.5f) return null
         var best: Plan? = null
+
         // PAL Welle X6: drawn edges running through the best plan's rectangle; fewer beats cheaper, so a note whose cheapest
         // slot lies on an edge moves to a free slot of its strip. Equal counts keep the old cost order (and the old pick).
         var bestHits = 0
         val exempt = anchors.flatMapTo(HashSet()) { it.exempt }
         var candidates = 0
         var y = home.top + HOME_TOP_GAP_PX
-        while (y + size.height <= home.bottom + 0.5f && candidates < HOME_MAX_CANDIDATES) {
+        while (y + size.height <= home.bottom + 0.5f && candidates < config.noteHomeMaxCandidates) {
             // the rightmost position is always tried, so the notes of a strip fill it exactly whatever the step
             val xs = generateSequence(home.left) { it + HOME_STEP_PX }.takeWhile { it + size.width <= home.right + 0.5f }.toList()
             for (x in xs + (home.right - size.width)) {
-                if (candidates++ >= HOME_MAX_CANDIDATES) break
+                if (candidates++ >= config.noteHomeMaxCandidates) break
                 val rect = Rect(origin = Point(x = x, y = y), size = size)
                 if (obstacles.overlapsNote(rect)) continue
+                if (config.noteHomeClearance > 0f &&
+                    obstacles.violatesClearance(
+                        r = rect,
+                        clearance = config.noteHomeClearance,
+                        noteGap = config.noteHomeClearance,
+                        budget = budget,
+                        hardLabels = true,
+                    )
+                ) {
+                    continue
+                }
                 val plan = planFor(rect = rect, anchors = anchors, obstacles = obstacles, config = config, budget = budget)
                 if (!plan.routed) continue
                 val hits = obstacles.foreignEdgesHitting(r = rect, exemptOwners = exempt, budget = budget)
@@ -2100,6 +2119,5 @@ public object NotePlacer {
     /** Nacharbeit 55: grid step and candidate cap of the search inside a group's note area. */
     private const val HOME_STEP_PX: Float = 6f
     private const val HOME_TOP_GAP_PX: Float = 12f
-    private const val HOME_MAX_CANDIDATES: Int = 600
     private const val EMERGENCY_SEGMENTS: Int = 4
 }
