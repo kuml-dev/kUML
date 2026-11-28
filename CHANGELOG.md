@@ -6,6 +6,22 @@ All notable changes to this project are documented here. Format follows
 
 ## [Unreleased]
 
+### PAL Welle Y3: free-standing activity legend uses the free bottom-right corner inside the content box before falling back below the content
+
+- **Measured (master a9912d38, `PalWelleY3LooseNoteCornerGateTest`, detector `LooseNoteCornerMetrics`).** Image area with the legend against the same source without it, L1 = legend outside the content box although a corner is free, L2 = legend really intersects a foreign element, L2b = gaps below 12 px (16 px to a lane border):
+
+| Fixture | Area before | Area after | Without legend | L1 before / after | L2 | L2b |
+|---|---|---|---|---|---|---|
+| `legend-free-corner` (two lanes) | 406912 | 380800 | 380800 | 1 / 0 | 0 / 0 | 0 / 0 |
+| `legend-no-lanes` | 958576 | 926800 | 926800 | 1 / 0 | 0 / 0 | 0 / 0 |
+| `legend-dense-corner` | 362628 | 362628 | 326940.8 | 0 / 0 | 0 / 0 | 0 / 0 |
+| `two-legends` (block does not fit) | 406912 | 406912 | 380800 | 0 / 0 | 0 / 0 | 0 / 0 |
+
+- **Mechanism (`NotePlacer`, only with `looseNotesBelow`, i.e. activity diagrams).** The whole grid of free-standing notes is tried first in the bottom-right corner of the tight content box (nodes, groups, edge points, placed notes; not the canvas padding). Fixed candidate order: the corner, then alternately 8 px to the left and 8 px up, until half the grid has left the corner quadrant; no cost function, no diagonals. The first candidate whose whole rectangle keeps 12 px from nodes, edges, labels, titles, notes and anchor lines wins. With swimlanes (layout groups) it must also lie inside one lane, 16 px from its border (the corner then sits 16 px inside the lane). All or nothing: if the grid is wider or higher than half the content box, the work budget is spent or no candidate is free, every free-standing note keeps the former place below the content.
+- **Byte identity.** Every vault example and fixture without a free-standing note, and the two fixtures without a free corner, render byte-identically to master (checked with `KUML_LOOSECORNER_BASELINE_HASHES`); non-activity diagrams never enter the new path. Unit tests in `NotePlacerLooseCornerTest` (free corner, node, edge, all blocked, too large, budget, block, lanes, determinism, non-activity).
+- **Honesty note.** No existing vault example and none of the PAL documents 60 to 67 has a free-standing note in an activity diagram (the legend of PAL document 62 is anchored to the end node and never ran through this path), so the effect is proven on the synthetic fixtures only; the gate measures the real documents and reports zero free notes there.
+- **What is left.** A legend in a dense corner still goes below the content (disabled test `the legend of the dense-corner fixture does not grow the image`, measured 362628 against 326940.8 without the note).
+
 ### PAL Welle Y2: local per-label repair of STM transition labels closer than 6 px to their own edge
 
 - **Measured.** E1 (label rectangle closer than 5.5 px to its own edge) over the STM and BDD diagrams fell from 40 to 8: Doc 55 1 to 0, Doc 56 1 to 0, Doc 50 9 to 1, Doc 51 13 to 3, Doc 53 3 to 1, Doc 58 13 to 3. E2 and E3 stay 0.

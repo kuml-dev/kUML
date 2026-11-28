@@ -12,6 +12,7 @@ import dev.kuml.layout.Point
 import dev.kuml.layout.Rect
 import dev.kuml.layout.Size
 import dev.kuml.layout.bridge.NoteLayout
+import dev.kuml.layout.polylinePoints
 import io.github.oshai.kotlinlogging.KotlinLogging
 import kotlin.math.ceil
 import kotlin.math.max
@@ -512,9 +513,28 @@ public object NotePlacer {
             val colWidths = (0 until cols).map { c -> rows.maxOf { r -> r.getOrNull(c)?.second?.width ?: 0f } }
             val contentRight = extent.right
             val contentLeft = extent.left
-            var y = if (config.looseNotesBelow) extent.bottom + config.candidateGap * 2f / 3f else 0f
-            val originX =
+            // PAL Welle Y3: first try the free bottom-right corner inside the content box; null keeps the old place below the content.
+            val corner =
                 if (config.looseNotesBelow) {
+                    val gridW = colWidths.sum() + config.gridGap * (cols - 1)
+                    val gridH = rows.sumOf { r -> r.maxOf { it.second.height }.toDouble() }.toFloat() + config.gridGap * (rows.size - 1)
+                    looseCornerOrigin(
+                        gridWidth = gridW,
+                        gridHeight = gridH,
+                        box = contentBox(layout = layout, placed = placedRects),
+                        obstacles = obstacles,
+                        config = config,
+                        budget = budget,
+                        groups = layout.groups.values.map { it.bounds },
+                    )
+                } else {
+                    null
+                }
+            var y = if (config.looseNotesBelow) corner?.y ?: (extent.bottom + config.candidateGap * 2f / 3f) else 0f
+            val originX =
+                if (corner != null) {
+                    corner.x
+                } else if (config.looseNotesBelow) {
                     // right-aligned to the content; left-aligned when the grid is wider than the content (never widens the image on the left)
                     val gridWidth = colWidths.sum() + config.gridGap * (cols - 1)
                     max(contentLeft, contentRight - gridWidth)
@@ -794,6 +814,79 @@ public object NotePlacer {
         layout.nodes.values.forEach { r = r.union(it.bounds) }
         layout.groups.values.forEach { r = r.union(it.bounds) }
         return r
+    }
+
+    /** Tight content box (PAL Welle Y3): nodes, groups, edge points and placed notes, without the canvas padding. */
+    private fun contentBox(
+        layout: LayoutResult,
+        placed: List<Rect>,
+    ): Rect? {
+        var r: Rect? = null
+
+        fun add(o: Rect) {
+            r = r?.union(o) ?: o
+        }
+        layout.nodes.values.forEach { add(it.bounds) }
+        layout.groups.values.forEach { add(it.bounds) }
+        layout.edges.values.forEach { e ->
+            e.polylinePoints().forEach { add(rectOf(left = it.x, top = it.y, right = it.x, bottom = it.y)) }
+        }
+        placed.forEach { add(it) }
+        return r
+    }
+
+    /**
+     * PAL Welle Y3: origin of the whole free-standing note grid in the free bottom-right corner of [box], or null (old place below).
+     * Candidates in a fixed order: the corner itself, then alternately [CORNER_STEP] px to the left (A) and up (B), each until half
+     * the grid has left the corner quadrant. The first candidate whose whole rectangle keeps [CORNER_CLEARANCE] px from nodes, edges,
+     * labels, titles, notes and anchor lines wins; with groups (swimlanes) it must also lie inside one of them, inset by
+     * [NotePlacementConfig.laneInset] (the corner itself then sits that far inside the group). All or nothing for the grid.
+     */
+    private fun looseCornerOrigin(
+        gridWidth: Float,
+        gridHeight: Float,
+        box: Rect?,
+        obstacles: ObstacleIndex,
+        config: NotePlacementConfig,
+        budget: ObstacleIndex.Budget,
+        groups: List<Rect>,
+    ): Point? {
+        if (box == null || budget.exhausted) return null
+        if (gridWidth > box.size.width / 2f || gridHeight > box.size.height / 2f) return null
+        val margin = if (groups.isEmpty()) 0f else config.laneInset
+        val x0 = box.right - margin - gridWidth
+        val y0 = box.bottom - margin - gridHeight
+        val minX = box.left + box.size.width / 2f - gridWidth / 2f
+        val minY = box.top + box.size.height / 2f - gridHeight / 2f
+
+        fun free(
+            x: Float,
+            y: Float,
+        ): Boolean {
+            val rect = Rect(origin = Point(x = x, y = y), size = Size(width = gridWidth, height = gridHeight))
+            if (groups.isNotEmpty() && groups.none { insideLane(rect = rect, lane = it, inset = config.laneInset) }) return false
+            return !obstacles.violatesClearance(
+                r = rect,
+                clearance = CORNER_CLEARANCE,
+                noteGap = CORNER_CLEARANCE,
+                budget = budget,
+                hardLabels = true,
+                hardAnchorLines = true,
+            )
+        }
+        if (free(x0, y0)) return Point(x = x0, y = y0)
+        var k = 1
+        while (!budget.exhausted) {
+            val ax = x0 - CORNER_STEP * k
+            val by = y0 - CORNER_STEP * k
+            val aOk = ax >= minX
+            val bOk = by >= minY
+            if (!aOk && !bOk) return null
+            if (aOk && free(ax, y0)) return Point(x = ax, y = y0)
+            if (bOk && free(x0, by)) return Point(x = x0, y = by)
+            k++
+        }
+        return null
     }
 
     private fun routeOf(pts: List<Point>): EdgeRoute =
@@ -2120,4 +2213,8 @@ public object NotePlacer {
     private const val HOME_STEP_PX: Float = 6f
     private const val HOME_TOP_GAP_PX: Float = 12f
     private const val EMERGENCY_SEGMENTS: Int = 4
+
+    /** PAL Welle Y3: clearance of the free-standing note grid in the corner and the step of the candidate search. */
+    private const val CORNER_CLEARANCE: Float = 12f
+    private const val CORNER_STEP: Float = 8f
 }
