@@ -65,7 +65,17 @@ class PalWelleX1EdgeLabelClearanceInvariantTest :
         // E1 before PAL Welle X1 (nearest label offset 3 px STM / 4 px BDD, multiplicities on the arrowhead): 104, E3: 4, E2: 0.
         // Now: the diagrams below keep a known remainder (the gate keeps the original plan of a crowded diagram: a label has no free spot or the notes sit against the
         // original labels); every other diagram is at 0. E2 and E3 are 0 everywhere.
+        // PAL Welle Y2 (local per-label repair, 4 px raster): the remainder is now 8 labels. Before Y2 (master 2871c25f): Doc 55: 1, Doc 51: 13,
+        // Doc 50: 9, Doc 53: 3, Doc 56: 1, Doc 58: 13 (40 in total). What is left has no free position in the 6 to 16 px band: another label,
+        // a node, or a foreign edge blocks every one (see the `PAL-Y2 edge-gap` debug log and PalWelleY2EdgeLabelRepairGateTest).
         val knownE1 =
+            mapOf(
+                "sysml2-stm-j2/51-rueckluftklappe-stm" to 3,
+                "sysml2-stm-x1/50-tuerverriegelung-stm" to 1,
+                "sysml2-stm-x1/53-stoermeldeklassen-stm" to 1,
+                "sysml2-stm-x1/58-schleusentuer-stm" to 3,
+            )
+        val knownE1Master =
             mapOf(
                 "sysml2-stm-k/55-einfrieren-stm" to 1,
                 "sysml2-stm-j2/51-rueckluftklappe-stm" to 13,
@@ -83,6 +93,7 @@ class PalWelleX1EdgeLabelClearanceInvariantTest :
                     c.e2 shouldBe 0
                     c.e3 shouldBe 0
                     c.e1 shouldBe (knownE1[n] ?: 0)
+                    (c.e1 <= (knownE1Master[n] ?: 0)) shouldBe true
                 }
             }
         }

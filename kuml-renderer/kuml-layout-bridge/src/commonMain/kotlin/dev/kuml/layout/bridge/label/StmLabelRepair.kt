@@ -428,7 +428,15 @@ internal object StmLabelRepair {
     fun repairCandidates(
         req: LabelRequest,
         offsets: List<Float> = OFFSETS,
+        stepPx: Float = STEP_PX,
+        maxFraction: Float = MAX_FRACTION,
+        maxSteps: Int = MAX_STEPS,
+        maxCandidates: Int = MAX_CANDIDATES,
     ): List<Cand> {
+        val step = stepPx.coerceAtLeast(1f)
+        val fraction = maxFraction.coerceIn(0f, 0.5f)
+        val stepLimit = maxSteps.coerceIn(0, 64)
+        val candLimit = maxCandidates.coerceIn(1, 1_000)
         val pts = req.polyline
         if (pts.size < 2) return emptyList()
         val cum = FloatArray(pts.size)
@@ -439,10 +447,10 @@ internal object StmLabelRepair {
         val raw = ArrayList<Float>()
         raw += mid
         for (t in T_FRACTIONS.drop(1)) raw += total * t
-        val steps = minOf(MAX_STEPS, floor(MAX_FRACTION * total / STEP_PX).toInt())
+        val steps = minOf(stepLimit, floor(fraction * total / step).toInt())
         for (k in 1..steps) {
-            raw += mid + k * STEP_PX
-            raw += mid - k * STEP_PX
+            raw += mid + k * step
+            raw += mid - k * step
         }
 
         fun segmentAt(s: Float): Int {
@@ -476,7 +484,7 @@ internal object StmLabelRepair {
             val half = abs(nx) * req.size.width / 2f + abs(ny) * req.size.height / 2f
             for (off in offsets) {
                 for (sign in intArrayOf(1, -1)) {
-                    if (out.size >= MAX_CANDIDATES) return out
+                    if (out.size >= candLimit) return out
                     val d = sign * (off + half)
                     out += Cand(rect = LabelPlacer.centered(cx = p.x + nx * d, cy = p.y + ny * d, size = req.size), segment = seg)
                 }

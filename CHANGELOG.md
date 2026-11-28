@@ -6,6 +6,14 @@ All notable changes to this project are documented here. Format follows
 
 ## [Unreleased]
 
+### PAL Welle Y2: local per-label repair of STM transition labels closer than 6 px to their own edge
+
+- **Measured.** E1 (label rectangle closer than 5.5 px to its own edge) over the STM and BDD diagrams fell from 40 to 8: Doc 55 1 to 0, Doc 56 1 to 0, Doc 50 9 to 1, Doc 51 13 to 3, Doc 53 3 to 1, Doc 58 13 to 3. E2 and E3 stay 0.
+- **Mechanism.** After the whole-diagram X1 gate, `StmEdgeGapRepair` moves each remaining E1 label on its own, to the first position on a 4 px raster along its line (offsets 6/8/10/14, up to 0.45 of the length) that is 6 to 16 px from its own line and breaks no hard rule of the label repair. Other labels, wraps, fonts and routes are not touched; the X1 path is unchanged. A result is kept per diagram only when it leaves fewer labels outside the band and nothing unclean, unresolved or overlapping is added. Work is bounded per label and overall.
+- **`StmLabelRepair.repairCandidates`** takes raster step, maximum fraction, step and candidate caps as parameters; the defaults are the former constants, so every other caller is byte-identical.
+- **Byte identity.** Only the six diagrams above change; every other vault diagram and X1 fixture renders byte-identically (checked against master hashes with `KUML_EDGEGAP_Y2_BASELINE_HASHES`).
+- **What is left** has no free position in the band (another label, a node or a foreign edge blocks every one). `PalWelleY2EdgeLabelRepairGateTest` lists each as a disabled test with its blocker; the planner logs them at debug level (`PAL-Y2 edge-gap`). The intermediate 5 px and 4 px steps of the order were dropped: the detector counts everything below 5.5 px as E1, so they cannot lower it.
+
 ### PAL Welle Y1: duration constraint dimension line on the right of the lifeline
 
 - **Dimension line moved right.** The duration-constraint dimension line now stands 14 px right of the lifeline axis (or of the outermost activation bar edge); its label starts 8 px right of the shaft (anchor `start`, opaque background). Before, the line stood 12 px left with a right-aligned label. The room reserved left of the first lifeline for it is gone (only time-observation labels still reserve left room).

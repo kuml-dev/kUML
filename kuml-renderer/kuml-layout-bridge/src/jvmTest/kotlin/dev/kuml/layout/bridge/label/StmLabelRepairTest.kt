@@ -200,4 +200,30 @@ class StmLabelRepairTest :
             on.labels shouldBe off.labels
             on.unresolved shouldBe emptyList()
         }
+
+        // PAL Welle Y2: the candidate raster is a parameter, the defaults are the values before Y2.
+        test("repairCandidates: the defaults equal the explicit pre-Y2 values") {
+            val req = horizontal(id = "e", y = 100f)
+            val a = StmLabelRepair.repairCandidates(req)
+            val b =
+                StmLabelRepair.repairCandidates(
+                    req = req,
+                    offsets = listOf(3f, 6f, 10f, 14f),
+                    stepPx = 8f,
+                    maxFraction = 0.45f,
+                    maxSteps = 24,
+                    maxCandidates = 400,
+                )
+            a.map { it.rect } shouldBe b.map { it.rect }
+            a.map { it.segment } shouldBe b.map { it.segment }
+        }
+
+        test("repairCandidates: a 4 px raster gives more positions and keeps the candidate cap") {
+            val req = horizontal(id = "e", y = 100f)
+            val coarse = StmLabelRepair.repairCandidates(req)
+            val fine = StmLabelRepair.repairCandidates(req = req, stepPx = 4f, maxSteps = 48, maxCandidates = 800)
+            (fine.size > coarse.size) shouldBe true
+            (fine.size <= 800) shouldBe true
+            StmLabelRepair.repairCandidates(req = req, stepPx = 4f, maxSteps = 48, maxCandidates = 5).size shouldBe 5
+        }
     })

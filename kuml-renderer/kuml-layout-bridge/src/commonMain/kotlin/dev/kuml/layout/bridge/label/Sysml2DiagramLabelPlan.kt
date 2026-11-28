@@ -454,7 +454,10 @@ public object Sysml2DiagramLabelPlan {
     /** PAL Welle X1: the 6 to 16 px band (plan rectangle to own line) the edge-gap gate counts violations against. */
     internal const val EDGE_GAP_MIN_PX: Float = 6f
     internal const val EDGE_GAP_MAX_PX: Float = 16f
-    private const val EDGE_GAP_EPS_PX: Float = 0.5f
+    internal const val EDGE_GAP_EPS_PX: Float = 0.5f
+
+    /** PAL Welle Y2: X1 offsets 6/8/10/14 on a 4 px raster along the line up to 0.45 of its length. Only for [StmEdgeGapRepair]. */
+    internal val STM_COSTS_Y2: LabelCostModel = STM_COSTS_X1.copy(arcStepPx = 4f, arcMaxFraction = 0.45f)
 
     /** Number of labels whose rectangle is outside the 6 to 16 px band from its own line (E1 + E2 of PAL Welle X1). */
     internal fun edgeGapViolations(
@@ -527,6 +530,10 @@ public object Sysml2DiagramLabelPlan {
                     edgeGapViolations(labels = trial.labels, polys = polys) < edgeGapViolations(labels = original.labels, polys = polys)
             if (better) chosen = trial
         }
+        if (edgeGapGate && costs == STM_COSTS && edgeGapViolations(labels = chosen.labels, polys = polys) > 0) {
+            val ctx = stmContext(polys = polys, nodes = nodes, composites = composites, labels = labels, frameTop = frameTop)
+            chosen = StmEdgeGapRepair.repair(plan = chosen, requests = ctx.requests, base = ctx.buildIndex(), polys = polys)
+        }
         if (reportUnresolved) {
             for (id in chosen.unresolved) {
                 val why = chosen.unresolvedReason[id] ?: "none"
@@ -536,6 +543,13 @@ public object Sysml2DiagramLabelPlan {
         return chosen
     }
 
+    /** The label requests of a state machine plus the builder of the obstacle model without any label. */
+    internal class StmPlanContext(
+        val requests: List<LabelRequest>,
+        val lines: LinkedHashMap<String, List<String>>,
+        val buildIndex: () -> ObstacleIndex,
+    )
+
     private fun planStmLabelsWith(
         polys: Map<String, List<Point>>,
         nodes: Map<String, Rect>,
@@ -544,6 +558,35 @@ public object Sysml2DiagramLabelPlan {
         frameTop: Float,
         costs: LabelCostModel,
     ): Sysml2LabelPlanResult {
+        val ctx = stmContext(polys = polys, nodes = nodes, composites = composites, labels = labels, frameTop = frameTop)
+        val requests = ctx.requests
+        val lines = ctx.lines
+        val buildIndex = ctx.buildIndex
+        if (requests.isEmpty()) return Sysml2LabelPlanResult(labels = emptyMap(), lines = emptyMap())
+        val placed = LabelPlacer.place(requests = requests, index = buildIndex(), costs = costs)
+        if (!costs.hardExclusions) return Sysml2LabelPlanResult(labels = placed, lines = lines)
+        val variants = labels.filter { it.variants.isNotEmpty() }.associate { it.id to it.variants }
+        val repaired = StmLabelRepair.repair(requests = requests, placed0 = placed, base = buildIndex(), costs = costs, variants = variants)
+        for ((id, vi) in repaired.chosen) {
+            variants[id]?.getOrNull(vi)?.let { lines[id] = it.lines }
+        }
+        return Sysml2LabelPlanResult(
+            labels = repaired.placed,
+            lines = lines,
+            unresolved = repaired.unresolved,
+            variantChosen = repaired.chosen,
+            unresolvedReason = repaired.reason,
+            unresolvedBlockers = repaired.blockers,
+        )
+    }
+
+    internal fun stmContext(
+        polys: Map<String, List<Point>>,
+        nodes: Map<String, Rect>,
+        composites: List<StmCompositeObstacle>,
+        labels: List<StmLabelSpec>,
+        frameTop: Float,
+    ): StmPlanContext {
         // The obstacle model without any label. Built twice: the greedy run adds the labels it places, the repair pass
         // (PAL Welle J2) needs the model without them and tests the labels itself.
         fun buildIndex(): ObstacleIndex {
@@ -631,22 +674,7 @@ public object Sysml2DiagramLabelPlan {
                     extraCandidates = if (headClear.isEmpty()) emptyList() else besideInitial(pts = pts, size = spec.size),
                 )
         }
-        if (requests.isEmpty()) return Sysml2LabelPlanResult(labels = emptyMap(), lines = emptyMap())
-        val placed = LabelPlacer.place(requests = requests, index = buildIndex(), costs = costs)
-        if (!costs.hardExclusions) return Sysml2LabelPlanResult(labels = placed, lines = lines)
-        val variants = labels.filter { it.variants.isNotEmpty() }.associate { it.id to it.variants }
-        val repaired = StmLabelRepair.repair(requests = requests, placed0 = placed, base = buildIndex(), costs = costs, variants = variants)
-        for ((id, vi) in repaired.chosen) {
-            variants[id]?.getOrNull(vi)?.let { lines[id] = it.lines }
-        }
-        return Sysml2LabelPlanResult(
-            labels = repaired.placed,
-            lines = lines,
-            unresolved = repaired.unresolved,
-            variantChosen = repaired.chosen,
-            unresolvedReason = repaired.reason,
-            unresolvedBlockers = repaired.blockers,
-        )
+        return StmPlanContext(requests = requests, lines = lines, buildIndex = ::buildIndex)
     }
 
     private const val MAX_LOG_ID: Int = 120
