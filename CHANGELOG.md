@@ -6,6 +6,22 @@ All notable changes to this project are documented here. Format follows
 
 ## [Unreleased]
 
+### PAL Welle X8: parametric binding anchors clear the node frame (measured first)
+
+- **Measured first.** New gate test `PalWelleX8ParAnchorGateTest` with detector `ParAnchorMetrics` (vault examples module, self-tested by `ParAnchorMetricsTest` on synthetic SVGs) measures on the rendered SVG (rectangles and polylines only, no glyph metrics): P1 a binding line runs along a frame side of its own end box or of the owner composite closer than 4 px over at least 24 px, P2 two edge labels closer than 6 px, P3 an edge label closer than 6 px to its own line.
+
+| Baseline (master 96b06b9e) | P1 | P2 | P3 |
+|---|---|---|---|
+| vault 28 (Newton) | 0 | 0 | 3 |
+| vault 51 (nested constraints) | 0 | 0 | 5 |
+| vault 56 (note at a nested constraint) | 0 | 0 | 0 |
+| pressure cascade script (`PalE2ParBindingLabelGapTest`) | 0 | 0 | 15 |
+| PAL document 80 (one block) | 0 | 0 | 15 |
+
+- **P1 and P2 not reproduced.** No binding line runs along a frame side (the lane plan keeps 12 px, the port contract puts the pins on the border on purpose) and no two labels are closer than 6 px (wave E2 keeps 8 px). No router change was made; the detector now guards both (bounds 0). Already covered by `PalE2ParBindingLabelGapTest`, `ParBindingLanesInvariantTest`, `IbdParArrowStraightRunTest` and `PortEdgeBorderContractTest`.
+- **Fixed: P3.** Every binding label sat at the nearest candidate offset of `PAR_COSTS`, 4 px beside its own line. The nearest offset is now 6 px (`listOf(6, 8, 12, 16, 20, 24)`, as the BDD costs of wave X1 do), so a label keeps 6 px from its line. All other cost values and the 8 px label-to-label gap are unchanged. After: P3 = 0 on all inputs above; P1 = P2 = 0.
+- **Tests.** Gate per input (P1 = P2 = P3 = 0 as regression guard), detector self-tests (positive, negative and limit cases 23.9 / 24.0 px, 3.9 / 4.0 px, 5.9 / 6.0 px). PAL document 80 is read from the local PAL workspace through a temp copy and skipped on CI.
+
 ### PAL Welle X7: C4 notes inside the boundary frame (measured first)
 
 - **Measured first.** New gate test `PalWelleX7C4FrameNoteGateTest` with detector `C4FrameNoteMetrics` (vault examples module) measures on the rendered SVG (rectangles and polylines only, no glyph metrics): C1 a note whose anchors are all members of the system frame lies outside although a slot of its size exists inside (4 px grid, 12 px clear of nodes, edges, labels, other notes and the title strip, and reachable by a straight anchor line), C2 a note overlaps the title strip, crosses a frame line or lies inside closer than 12 px to it, C3 canvas width beyond content plus 2 x 24 px (a violation only when a C1 note causes it). The C4 renderer writes no ids on anchor lines, so the detector assigns them to notes by geometry.

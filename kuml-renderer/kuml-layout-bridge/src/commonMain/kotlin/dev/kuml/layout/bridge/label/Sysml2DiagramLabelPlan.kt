@@ -256,7 +256,8 @@ public object Sysml2DiagramLabelPlan {
         LabelCostModel(
             lineClearance = 2f,
             nodeClearance = 2f,
-            edgeOffsets = listOf(4f, 8f, 12f, 16f, 20f, 24f),
+            // PAL wave X8: the nearest offset is 6 px (was 4), so a binding label keeps 6 px from its own line (P3).
+            edgeOffsets = listOf(6f, 8f, 12f, 16f, 20f, 24f),
             maxDistancePx = 24f,
         )
 

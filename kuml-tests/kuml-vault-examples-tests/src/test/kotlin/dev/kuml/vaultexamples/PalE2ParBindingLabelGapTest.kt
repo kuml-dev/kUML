@@ -27,7 +27,7 @@ class PalE2ParBindingLabelGapTest :
         }
     }) {
     companion object {
-        private val SCRIPT =
+        internal val SCRIPT =
             """
             import dev.kuml.sysml2.ConstraintParameter
             import dev.kuml.sysml2.ConstraintParameterDirection
