@@ -93,6 +93,7 @@ public object KumlPngRenderer {
      * @param options Render-Optionen; Standard: [PngRenderOptions.DEFAULT]
      * @param svgOptions SVG-Render-Optionen für die interne SVG-Zwischenstufe;
      *   Standard: [SvgRenderOptions.DEFAULT]
+     * @param ibdRelayout PAL Welle Y4: legt ein IBD mit Notizplatz neu aus (nur IBD); ohne Angabe bleibt alles wie zuvor
      * @return PNG-Byte-Array
      */
     public fun toPng(
@@ -148,6 +149,7 @@ public object KumlPngRenderer {
         theme: KumlTheme = PlainTheme(),
         options: PngRenderOptions = PngRenderOptions.DEFAULT,
         svgOptions: SvgRenderOptions = SvgRenderOptions.DEFAULT,
+        ibdRelayout: ((Map<dev.kuml.layout.NodeId, dev.kuml.layout.NoteRoom>) -> LayoutResult)? = null,
     ): ByteArray {
         val svg =
             when (diagram) {
@@ -166,6 +168,7 @@ public object KumlPngRenderer {
                         layoutResult = layoutResult,
                         theme = theme,
                         options = svgOptions,
+                        relayout = ibdRelayout,
                     )
                 is UcDiagram ->
                     KumlSvgRenderer.toSvg(

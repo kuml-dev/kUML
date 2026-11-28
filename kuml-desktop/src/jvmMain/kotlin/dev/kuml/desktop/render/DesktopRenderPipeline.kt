@@ -33,6 +33,7 @@ import dev.kuml.layout.bridge.erm.ErmRenderPlan
 import dev.kuml.layout.bridge.layoutHintsFor
 import dev.kuml.layout.bridge.note.NotePlacementMissCollector
 import dev.kuml.layout.bridge.note.NoteUndrawnCollector
+import dev.kuml.layout.bridge.withNoteRooms
 import dev.kuml.renderer.theme.core.KumlTheme
 import dev.kuml.renderer.theme.core.ThemeRegistry
 import dev.kuml.runtime.sysml2.Sysml2StateMachineAdapter
@@ -208,6 +209,18 @@ internal object DesktopRenderPipeline {
             layoutFindings += outcome.findings.map { "[${it.code}] ${it.message}" }
             return render(outcome.result)
         }
+
+        /** PAL Welle Y4: a second layout of [graph] (with note room) whose findings are not collected; the first layout's stand. */
+        fun layoutQuietly(
+            graph: LayoutGraph,
+            hints: LayoutHints,
+            spec: dev.kuml.core.model.layout.LayoutSpec?,
+            kind: dev.kuml.layout.bridge.SpecDiagramKind,
+            diagramName: String?,
+        ): LayoutResult =
+            dev.kuml.layout.bridge.LayoutSpecRunner
+                .layout(engine = elkEngine, graph = graph, hints = hints, spec = spec, kind = kind, diagramName = diagramName)
+                .result
     }
 
     fun render(
@@ -369,18 +382,38 @@ internal object DesktopRenderPipeline {
                 ) {
                     KumlSvgRenderer.toSvg(model = model, diagram = diagram, layoutResult = it, theme = env.theme, options = env.svgOptions)
                 }
-            is IbdDiagram ->
+            is IbdDiagram -> {
+                val ibdGraph = Sysml2LayoutBridge.toLayoutGraph(model = model, diagram = diagram)
+                val ibdHints = Sysml2LayoutBridge.layoutHintsFor(model = model, diagram = diagram)
+                val ibdKind =
+                    dev.kuml.layout.bridge.SpecDiagramKinds
+                        .of(diagram)
                 env.layoutThenRender(
-                    graph = Sysml2LayoutBridge.toLayoutGraph(model = model, diagram = diagram),
-                    hints = Sysml2LayoutBridge.layoutHintsFor(model = model, diagram = diagram),
+                    graph = ibdGraph,
+                    hints = ibdHints,
                     spec = diagram.layout,
-                    kind =
-                        dev.kuml.layout.bridge.SpecDiagramKinds
-                            .of(diagram),
+                    kind = ibdKind,
                     diagramName = diagram.name,
                 ) {
-                    KumlSvgRenderer.toSvg(model = model, diagram = diagram, layoutResult = it, theme = env.theme, options = env.svgOptions)
+                    KumlSvgRenderer.toSvg(
+                        model = model,
+                        diagram = diagram,
+                        layoutResult = it,
+                        theme = env.theme,
+                        options = env.svgOptions,
+                        // PAL Welle Y4: second layout with note room, only when the renderer asks for it.
+                        relayout = { rooms ->
+                            env.layoutQuietly(
+                                graph = ibdGraph.withNoteRooms(rooms),
+                                hints = ibdHints,
+                                spec = diagram.layout,
+                                kind = ibdKind,
+                                diagramName = diagram.name,
+                            )
+                        },
+                    )
                 }
+            }
             is UcDiagram ->
                 env.layoutThenRender(
                     graph = Sysml2LayoutBridge.toLayoutGraph(model = model, diagram = diagram),

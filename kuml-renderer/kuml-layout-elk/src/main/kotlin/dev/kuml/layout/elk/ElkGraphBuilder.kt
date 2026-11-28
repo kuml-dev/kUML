@@ -151,6 +151,24 @@ internal class ElkGraphBuilder(
         }
     }
 
+    /**
+     * PAL Welle Y4: an invisible outside label that only keeps [height] px free above or below the node. It is not put into
+     * [nodeLabelMap], so the result mapper reports no label for it; the placement hangs on the label, not on the node.
+     */
+    private fun addRoomLabel(
+        elkNode: ElkNode,
+        node: LayoutNode,
+        height: Float,
+        placement: java.util.EnumSet<NodeLabelPlacement>,
+    ) {
+        val label = ElkGraphUtil.createLabel(elkNode)
+        // ELK drops a label without text, so the text is a placeholder that is never drawn or reported.
+        label.text = "room"
+        label.width = node.intrinsicSize.width.toDouble()
+        label.height = height.toDouble()
+        label.setProperty(CoreOptions.NODE_LABELS_PLACEMENT, placement)
+    }
+
     /** Legt ELK-Ports und externe Labels eines Knotens an (C3-1). */
     private fun buildPortsAndLabels(
         elkNode: ElkNode,
@@ -164,6 +182,16 @@ internal class ElkGraphBuilder(
             label.text = node.id.value
             nodeLabelMap[node.id] = label
             elkNode.setProperty(CoreOptions.NODE_LABELS_PLACEMENT, NodeLabelPlacement.outsideTopCenter())
+        }
+        node.noteRoom?.let { room ->
+            if (room.top >
+                0f
+            ) {
+                addRoomLabel(elkNode = elkNode, node = node, height = room.top, placement = NodeLabelPlacement.outsideTopCenter())
+            }
+            if (room.bottom > 0f) {
+                addRoomLabel(elkNode = elkNode, node = node, height = room.bottom, placement = NodeLabelPlacement.outsideBottomCenter())
+            }
         }
         if (node.ports.isEmpty()) return
         val fixedPositions = node.ports.all { it.offset != null }

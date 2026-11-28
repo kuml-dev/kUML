@@ -18,6 +18,7 @@ import dev.kuml.layout.LayoutResult
 import dev.kuml.layout.NodeHints
 import dev.kuml.layout.NodeId
 import dev.kuml.layout.NodeLayout
+import dev.kuml.layout.NoteRoom
 import dev.kuml.layout.Point
 import dev.kuml.layout.PortId
 import dev.kuml.layout.PortSide
@@ -2996,6 +2997,29 @@ public object Sysml2LayoutBridge {
             }
         }
     }
+
+    /**
+     * PAL Welle Y4: the ids of the notes of [diagram] that may reserve room above or below their part box (`ABOVE` / `BELOW`
+     * note with exactly one anchor that is a top-level part box). Empty when no note qualifies.
+     */
+    public fun ibdNoteRoomNoteIds(
+        model: Sysml2Model,
+        diagram: IbdDiagram,
+    ): Set<String> =
+        IbdNoteRoom
+            .eligible(model = model, diagram = diagram)
+            .flatMap { r -> r.notes.map { it.first } }
+            .toSet()
+
+    /**
+     * PAL Welle Y4: the room per part node for the eligible notes of [diagram] (limited to [onlyNoteIds] when set).
+     * Empty when no note qualifies, in which case the layout graph must stay as it is.
+     */
+    public fun ibdNoteRooms(
+        model: Sysml2Model,
+        diagram: IbdDiagram,
+        onlyNoteIds: Set<String>? = null,
+    ): Map<NodeId, NoteRoom> = IbdNoteRoom.rooms(IbdNoteRoom.eligible(model = model, diagram = diagram, onlyNoteIds = onlyNoteIds))
 
     /**
      * Enriches a raw [LayoutResult] with port positions derived from the

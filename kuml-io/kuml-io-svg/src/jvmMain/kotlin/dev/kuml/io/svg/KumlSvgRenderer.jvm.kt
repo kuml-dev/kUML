@@ -73,8 +73,9 @@ public fun KumlSvgRenderer.toSvgFile(
     out: Path,
     theme: KumlTheme = PlainTheme(),
     options: SvgRenderOptions = SvgRenderOptions.DEFAULT,
+    relayout: ((Map<dev.kuml.layout.NodeId, dev.kuml.layout.NoteRoom>) -> LayoutResult)? = null,
 ): File {
-    val svg = toSvg(model = model, diagram = diagram, layoutResult = layoutResult, theme = theme, options = options)
+    val svg = toSvg(model = model, diagram = diagram, layoutResult = layoutResult, theme = theme, options = options, relayout = relayout)
     val file = out.toFile()
     file.parentFile?.mkdirs()
     file.writeText(svg, Charsets.UTF_8)

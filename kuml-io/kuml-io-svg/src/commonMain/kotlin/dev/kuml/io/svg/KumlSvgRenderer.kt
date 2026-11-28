@@ -2751,6 +2751,166 @@ public object KumlSvgRenderer {
         layoutResult: LayoutResult,
         theme: KumlTheme = PlainTheme(),
         options: SvgRenderOptions = SvgRenderOptions.DEFAULT,
+        relayout: ((Map<dev.kuml.layout.NodeId, dev.kuml.layout.NoteRoom>) -> LayoutResult)? = null,
+    ): String {
+        if (relayout == null || dev.kuml.layout.bridge.IbdNoteRoomProbe.disabled) {
+            return renderIbd(model = model, diagram = diagram, layoutResult = layoutResult, theme = theme, options = options)
+        }
+        return renderIbdGated(
+            model = model,
+            diagram = diagram,
+            layoutResult = layoutResult,
+            theme = theme,
+            options = options,
+            relayout = relayout,
+        )
+    }
+
+    /** One finished IBD render run with what it reported to the collectors (PAL Welle Y4 gate). */
+    internal class IbdRun(
+        val svg: String,
+        val misses: List<dev.kuml.layout.bridge.note.PlacementHintMiss>,
+        val undrawn: List<dev.kuml.layout.bridge.note.UndrawnNote>,
+        /** What the run wrote to the audit recorders; replayed only when the run is kept. */
+        val recorded: dev.kuml.layout.bridge.IbdRenderRecorders.Captured<*>? = null,
+    ) {
+        /** Note hints that were missed (W004); the port label findings (W001, W002) carry a code and are counted apart. */
+        val noteMisses: Int get() = misses.count { it.code == null }
+
+        fun portFindings(code: String): Int = misses.count { it.code == code }
+
+        val area: Double
+            get() {
+                val box =
+                    Regex("""<svg\b[^>]*?viewBox="([^"]+)"""")
+                        .find(svg)
+                        ?.groupValues
+                        ?.get(1)
+                        ?.trim()
+                        ?.split(Regex("\\s+"))
+                val w = box?.getOrNull(2)?.toDoubleOrNull() ?: 0.0
+                val h = box?.getOrNull(3)?.toDoubleOrNull() ?: 0.0
+                return w * h
+            }
+    }
+
+    private fun renderIbdScoped(
+        model: Sysml2Model,
+        diagram: IbdDiagram,
+        layoutResult: LayoutResult,
+        theme: KumlTheme,
+        options: SvgRenderOptions,
+    ): IbdRun {
+        val captured =
+            dev.kuml.layout.bridge.IbdRenderRecorders.capture {
+                dev.kuml.layout.bridge.note.NotePlacementMissCollector.collecting {
+                    dev.kuml.layout.bridge.note.NoteUndrawnCollector.collecting {
+                        renderIbd(model = model, diagram = diagram, layoutResult = layoutResult, theme = theme, options = options)
+                    }
+                }
+            }
+        val (inner, misses) = captured.value
+        return IbdRun(
+            svg = inner.first,
+            misses = misses,
+            undrawn = inner.second,
+            recorded = captured,
+        )
+    }
+
+    private fun replay(run: IbdRun): String {
+        run.recorded?.let {
+            dev.kuml.layout.bridge.IbdRenderRecorders
+                .replay(it)
+        }
+        dev.kuml.layout.bridge.note.NotePlacementMissCollector
+            .report(run.misses)
+        dev.kuml.layout.bridge.note.NoteUndrawnCollector
+            .report(run.undrawn)
+        return run.svg
+    }
+
+    /**
+     * PAL Welle Y4 gate: the diagram is rendered as before (run A). Only when an `ABOVE` / `BELOW` note that qualifies for
+     * note room missed its hint there, the layout is made a second time with room reserved for those notes (run B). B is
+     * kept only when it is strictly better: fewer note hint misses, a drawing that is not larger, and no more port label
+     * findings or undrawn notes. Otherwise A is returned word for word. Only the findings of the kept run are reported.
+     */
+    private fun renderIbdGated(
+        model: Sysml2Model,
+        diagram: IbdDiagram,
+        layoutResult: LayoutResult,
+        theme: KumlTheme,
+        options: SvgRenderOptions,
+        relayout: (Map<dev.kuml.layout.NodeId, dev.kuml.layout.NoteRoom>) -> LayoutResult,
+    ): String {
+        val eligible = Sysml2LayoutBridge.ibdNoteRoomNoteIds(model = model, diagram = diagram)
+        if (eligible.isEmpty()) {
+            return renderIbd(model = model, diagram = diagram, layoutResult = layoutResult, theme = theme, options = options)
+        }
+        val a = renderIbdScoped(model = model, diagram = diagram, layoutResult = layoutResult, theme = theme, options = options)
+        val missed =
+            a.misses
+                .filter { it.code == null && it.noteId in eligible }
+                .map { it.noteId }
+                .toSet()
+        if (missed.isEmpty()) return replay(a)
+        val rooms = Sysml2LayoutBridge.ibdNoteRooms(model = model, diagram = diagram, onlyNoteIds = missed)
+        if (rooms.isEmpty()) return replay(a)
+        val b =
+            renderIbdScoped(model = model, diagram = diagram, layoutResult = relayout(rooms), theme = theme, options = options)
+        val reason = ibdGateVerdict(a = a, b = b)
+        val forced = dev.kuml.layout.bridge.IbdNoteRoomProbe.forced
+        val takeB = reason == null || forced
+        dev.kuml.layout.bridge.IbdNoteRoomProbe.record(
+            dev.kuml.layout.bridge.IbdNoteRoomProbe.Decision(
+                diagram = diagram.name,
+                reservedNoteIds = missed.toList().sorted(),
+                missesA = a.noteMisses,
+                missesB = b.noteMisses,
+                areaA = a.area,
+                areaB = b.area,
+                takenB = takeB,
+                reason =
+                    if (reason == null) {
+                        "B is better"
+                    } else if (forced) {
+                        "forced ($reason)"
+                    } else {
+                        reason
+                    },
+            ),
+        )
+        return replay(if (takeB) b else a)
+    }
+
+    /**
+     * Why the second IBD layout (B) must not replace the first (A), or `null` when B is strictly better: it has fewer note hint
+     * misses, its drawing is not larger, and it has no more port label findings and no note A drew that B leaves out.
+     */
+    internal fun ibdGateVerdict(
+        a: IbdRun,
+        b: IbdRun,
+    ): String? {
+        val hintMiss = dev.kuml.layout.bridge.note.PlacementHintMiss.PORT_LABEL_HINT_NOT_HONOURED
+        val noSpace = dev.kuml.layout.bridge.note.PlacementHintMiss.PORT_LABEL_NO_FREE_POSITION
+        val undrawnA = a.undrawn.map { it.noteId to it.anchorId }.toSet()
+        return when {
+            b.noteMisses >= a.noteMisses -> "no fewer note misses (${a.noteMisses} -> ${b.noteMisses})"
+            b.area > a.area + 0.01 -> "larger drawing (${a.area} -> ${b.area})"
+            b.portFindings(hintMiss) > a.portFindings(hintMiss) -> "more port label hint misses"
+            b.portFindings(noSpace) > a.portFindings(noSpace) -> "more port labels without a free position"
+            !undrawnA.containsAll(b.undrawn.map { it.noteId to it.anchorId }) -> "more undrawn notes"
+            else -> null
+        }
+    }
+
+    private fun renderIbd(
+        model: Sysml2Model,
+        diagram: IbdDiagram,
+        layoutResult: LayoutResult,
+        theme: KumlTheme,
+        options: SvgRenderOptions,
     ): String {
         val visible = visiblePartUsageElements(model = model, diagram = diagram)
         val synthetic =

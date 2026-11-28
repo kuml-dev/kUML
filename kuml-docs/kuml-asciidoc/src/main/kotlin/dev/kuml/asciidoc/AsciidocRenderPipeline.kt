@@ -30,6 +30,7 @@ import dev.kuml.layout.bridge.erm.ErmContentSizeProvider
 import dev.kuml.layout.bridge.erm.ErmIdef1xLayoutBridge
 import dev.kuml.layout.bridge.erm.ErmLayoutBridge
 import dev.kuml.layout.bridge.layoutHintsFor
+import dev.kuml.layout.bridge.withNoteRooms
 import dev.kuml.layout.elk.ElkLayoutEngine
 import dev.kuml.renderer.theme.core.KumlTheme
 import dev.kuml.renderer.theme.core.PlainTheme
@@ -277,12 +278,16 @@ internal object AsciidocRenderPipeline {
             }
             is IbdDiagram -> {
                 val layoutGraph = Sysml2LayoutBridge.toLayoutGraph(model = model, diagram = diagram)
-                val layoutResult =
-                    layoutEngine.layout(
-                        graph = layoutGraph,
-                        hints = Sysml2LayoutBridge.layoutHintsFor(model = model, diagram = diagram),
-                    )
-                KumlSvgRenderer.toSvg(model = model, diagram = diagram, layoutResult = layoutResult, theme = theme)
+                val ibdHints = Sysml2LayoutBridge.layoutHintsFor(model = model, diagram = diagram)
+                val layoutResult = layoutEngine.layout(graph = layoutGraph, hints = ibdHints)
+                KumlSvgRenderer.toSvg(
+                    model = model,
+                    diagram = diagram,
+                    layoutResult = layoutResult,
+                    theme = theme,
+                    // PAL Welle Y4: second layout with note room, only when the renderer asks for it.
+                    relayout = { rooms -> layoutEngine.layout(graph = layoutGraph.withNoteRooms(rooms), hints = ibdHints) },
+                )
             }
             is UcDiagram -> {
                 val layoutGraph = Sysml2LayoutBridge.toLayoutGraph(model = model, diagram = diagram)

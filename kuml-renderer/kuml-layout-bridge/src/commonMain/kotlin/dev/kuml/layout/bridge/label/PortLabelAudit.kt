@@ -95,6 +95,11 @@ public object PortLabelAudit {
         }
     }
 
+    /** Hands [snapshots] to the enclosing [collecting] scope, if any (PAL Welle Y4: a render run that was captured and kept). */
+    internal fun replay(snapshots: List<Snapshot>) {
+        currentAuditState()?.sink?.addAll(snapshots)
+    }
+
     internal fun record(
         requests: List<LabelRequest>,
         placed: Map<String, PlacedLabel>,

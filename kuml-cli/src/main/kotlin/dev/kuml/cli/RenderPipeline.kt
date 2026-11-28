@@ -68,6 +68,7 @@ import dev.kuml.layout.bridge.note.NotePlacementMissCollector
 import dev.kuml.layout.bridge.note.NoteUndrawnCollector
 import dev.kuml.layout.bridge.stmAspectFinding
 import dev.kuml.layout.bridge.ucAspectFinding
+import dev.kuml.layout.bridge.withNoteRooms
 import dev.kuml.layout.elk.ElkLayoutEngineProvider
 import dev.kuml.layout.grid.GridLayoutEngineProvider
 import dev.kuml.render.smil.SpeedFactor
@@ -995,6 +996,19 @@ internal object RenderPipeline {
                         kind = SpecDiagramKind.SYSML2_IBD,
                         diagramName = diagram.name,
                     )
+                // PAL Welle Y4: second layout with note room, asked for by the renderer only when a note hint is missed; its
+                // layout findings are not reported (the findings of the first layout stand).
+                val ibdRelayout: (Map<dev.kuml.layout.NodeId, dev.kuml.layout.NoteRoom>) -> LayoutResult = { rooms ->
+                    LayoutSpecRunner
+                        .layout(
+                            engine = sysml2Engine,
+                            graph = layoutGraph.withNoteRooms(rooms),
+                            hints = Sysml2LayoutBridge.layoutHintsFor(model = model, diagram = diagram),
+                            spec = diagram.layout,
+                            kind = SpecDiagramKind.SYSML2_IBD,
+                            diagramName = diagram.name,
+                        ).result
+                }
                 when (format) {
                     "svg" ->
                         writeText(
@@ -1006,6 +1020,7 @@ internal object RenderPipeline {
                                     layoutResult = layoutResult,
                                     theme = theme,
                                     options = SvgRenderOptions(watermark = watermark),
+                                    relayout = ibdRelayout,
                                 ),
                         )
                     "latex" ->
@@ -1028,6 +1043,7 @@ internal object RenderPipeline {
                             width = width,
                             output = output,
                             watermark = watermark,
+                            ibdRelayout = ibdRelayout,
                         )
                     else -> throw ScriptEvaluationException(message = "Unsupported format: $format")
                 }
@@ -1563,6 +1579,7 @@ internal object RenderPipeline {
         // PAL Welle D (Punkt 11): must equal the padding of the SVG branch of the same diagram type, otherwise the PNG
         // is rasterised from a different SVG (different canvas, aspect ratio) than the file `--format svg` writes.
         paddingPx: Float = SvgRenderOptions.DEFAULT.paddingPx,
+        ibdRelayout: ((Map<dev.kuml.layout.NodeId, dev.kuml.layout.NoteRoom>) -> LayoutResult)? = null,
     ) {
         val pngBytes =
             KumlPngRenderer.toPng(
@@ -1572,6 +1589,7 @@ internal object RenderPipeline {
                 theme = theme,
                 options = PngRenderOptions(widthPx = width),
                 svgOptions = SvgRenderOptions(paddingPx = paddingPx, watermark = watermark),
+                ibdRelayout = ibdRelayout,
             )
         writeBinary(out = output, bytes = pngBytes)
     }

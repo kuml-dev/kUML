@@ -54,6 +54,15 @@ class LayoutApiSerializationTest :
             decoded shouldBe graph
         }
 
+        test("PAL Y4 — a node without noteRoom encodes to the literal it had before, one with a room round-trips") {
+            val plain = LayoutNode(id = NodeId("n1"), intrinsicSize = Size(width = 120f, height = 60f))
+            val literal = json.encodeToString(plain)
+            literal.contains("noteRoom") shouldBe false
+            json.decodeFromString<LayoutNode>(literal) shouldBe plain
+            val roomy = plain.copy(noteRoom = NoteRoom(top = 40f, bottom = 12f))
+            json.decodeFromString<LayoutNode>(json.encodeToString(roomy)) shouldBe roomy
+        }
+
         test("Test 2 — LayoutResult mit allen 4 EdgeRoute-Subtypen: Round-Trip") {
             val result =
                 LayoutResult(

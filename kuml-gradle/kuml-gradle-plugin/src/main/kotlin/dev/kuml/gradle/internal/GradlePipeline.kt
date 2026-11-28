@@ -23,6 +23,7 @@ import dev.kuml.layout.bridge.bpmn.BpmnContentSizeProvider
 import dev.kuml.layout.bridge.bpmn.BpmnLayoutBridge
 import dev.kuml.layout.bridge.bpmn.ChoreographyGridLayout
 import dev.kuml.layout.bridge.layoutHintsFor
+import dev.kuml.layout.bridge.withNoteRooms
 import dev.kuml.layout.elk.ElkLayoutEngine
 import dev.kuml.renderer.theme.core.KumlTheme
 import dev.kuml.renderer.theme.core.PlainTheme
@@ -211,17 +212,17 @@ internal object GradlePipeline {
                         )
                     }
                     is IbdDiagram -> {
-                        val layout =
-                            layoutEngine.layout(
-                                graph = Sysml2LayoutBridge.toLayoutGraph(model = extracted.model, diagram = diagram),
-                                hints = Sysml2LayoutBridge.layoutHintsFor(model = extracted.model, diagram = diagram),
-                            )
+                        val graph = Sysml2LayoutBridge.toLayoutGraph(model = extracted.model, diagram = diagram)
+                        val ibdHints = Sysml2LayoutBridge.layoutHintsFor(model = extracted.model, diagram = diagram)
+                        val layout = layoutEngine.layout(graph = graph, hints = ibdHints)
                         KumlSvgRenderer.toSvg(
                             model = extracted.model,
                             diagram = diagram,
                             layoutResult = layout,
                             theme = theme,
                             options = svgOptions,
+                            // PAL Welle Y4: second layout with note room, only when the renderer asks for it.
+                            relayout = { rooms -> layoutEngine.layout(graph = graph.withNoteRooms(rooms), hints = ibdHints) },
                         )
                     }
                     is UcDiagram -> {

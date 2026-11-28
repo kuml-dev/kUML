@@ -6,6 +6,24 @@ All notable changes to this project are documented here. Format follows
 
 ## [Unreleased]
 
+### PAL Welle Y4: note room for ABOVE/BELOW hints in the IBD layout (gated)
+
+- **Measured (master f8e0b7b2, `PalWelleY4NoteRoomGateTest`).** Every IBD input rendered twice in one JVM, gate off (the layout as before) and gate on. H1 = honoured ABOVE/BELOW hints, H2 = width added by hinted notes (px), area = image width times height.
+
+| Diagram | ABOVE/BELOW hints | H1 before / after | H2 before / after | Area before / after | Second layout | Kept |
+|---|---|---|---|---|---|---|
+| PAL 41 (`referenzbereich`: a6-41, m2-41) | 5 | 3 / 3 | 618.6 / 618.6 | 1 478 050 / 1 478 050 | asked for, 2 notes reserved: misses 2 -> 3, area +20 % | first layout (byte-identical) |
+| PAL 42 (a13e-42 on connector I15) | 4 | 3 / 3 | 360.8 / 360.8 | 1 135 880 / 1 135 880 | not asked for (the missed note hangs on a connector) | first layout |
+| PAL 46 (LEFT/RIGHT only, control) | 0 | 0 / 0 | 0 / 0 | 488 425 / 488 425 | not asked for | first layout |
+| PAL 47 (a13e-47 on connector `I17 F`) | 1 | 0 / 0 | 634.2 / 634.2 | 723 408 / 723 408 | not asked for | first layout |
+| all vault examples with an IBD | none | - | - | identical | not asked for | first layout |
+
+- **Mechanism.** `LayoutNode.noteRoom` (`NoteRoom(top, bottom)`, default `null`, no serialization change) reserves space above or below a node. The ELK adapter keeps it free with an invisible outside node label per side (the label carries a placeholder text, ELK drops labels without text; the label is never reported in `NodeLayout.labels`). `IbdNoteRoom` decides which notes may reserve room: an `ABOVE`/`BELOW` note with exactly one anchor that is a top-level part box, at most two per side and 16 nodes per diagram, room = 24 px anchor gap + notes + 12 px between them + 16 px clearance, capped at 200 px (measured: 13 px of clearance fails, 17 px fits). Public API: `Sysml2LayoutBridge.ibdNoteRoomNoteIds/ibdNoteRooms`, `LayoutGraph.withNoteRooms`.
+- **Gate.** `KumlSvgRenderer.toSvg(IbdDiagram, ..., relayout)` renders as before (run A). Only when an eligible note missed its hint there (`KUML-NOTE-W004`), the pipeline lays the graph out a second time with room for exactly those notes (run B). B is kept only when it has fewer note misses, a drawing that is not larger, no more port label findings (`KUML-IBD-W001/W002`) and no note that A drew and B drops; otherwise A is returned word for word. Both runs report to their own collector scopes, only the kept run's findings reach the surface; the layout findings of B are not reported. Without a `relayout` callback (library callers, WASM playground) nothing changes. `IbdNoteRoomProbe` switches the gate off or forces B for tests.
+- **Wired surfaces.** CLI (SVG and PNG), Gradle plugin, web, desktop, AsciiDoc extension, the vault test renderer.
+- **Result.** For the PAL fixtures the gate keeps the first layout everywhere, so they are byte-identical to master: a13e-42 and a13e-47 hang on connectors (room covers part boxes only), and a6-41 / m2-41 sit above `referenzbereich`, where a connector enters the box from above and splits the band into two halves of about 160 px (the notes are 250 px wide). The mechanism works where the band is free: `IbdNoteRoomGateTest` has a two-part IBD whose missed ABOVE note is honoured on a smaller drawing.
+- **Rest, with reasons.** Notes on connectors (42, 47): room would have to come from the connector's centre label. Notes on ports and nested parts, notes with several anchors, a third note per side: general placement as before. Connectors that enter the box from the reserved side (41). An ABOVE band at the first layer collides with the owner frame title. SEQ row reservation (separate wave). The LaTeX renderer and the WASM playground (grid engine ignores `noteRoom`) do not use the gate.
+
 ### PAL Welle Y3: free-standing activity legend uses the free bottom-right corner inside the content box before falling back below the content
 
 - **Measured (master a9912d38, `PalWelleY3LooseNoteCornerGateTest`, detector `LooseNoteCornerMetrics`).** Image area with the legend against the same source without it, L1 = legend outside the content box although a corner is free, L2 = legend really intersects a foreign element, L2b = gaps below 12 px (16 px to a lane border):

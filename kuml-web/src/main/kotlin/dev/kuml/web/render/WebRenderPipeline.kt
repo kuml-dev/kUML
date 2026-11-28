@@ -42,6 +42,7 @@ import dev.kuml.layout.bridge.erm.ErmContentSizeProvider
 import dev.kuml.layout.bridge.erm.ErmIdef1xLayoutBridge
 import dev.kuml.layout.bridge.erm.ErmLayoutBridge
 import dev.kuml.layout.bridge.layoutHintsFor
+import dev.kuml.layout.bridge.withNoteRooms
 import dev.kuml.renderer.theme.core.KumlTheme
 import dev.kuml.renderer.theme.core.ThemeRegistry
 import dev.kuml.sysml2.ActDiagram
@@ -398,15 +399,14 @@ internal object WebRenderPipeline {
                 )
             }
             is IbdDiagram -> {
-                val layoutResult =
-                    engine.layout(
-                        graph = Sysml2LayoutBridge.toLayoutGraph(model = model, diagram = diagram),
-                        hints = Sysml2LayoutBridge.layoutHintsFor(model = model, diagram = diagram),
-                    )
+                val ibdGraph = Sysml2LayoutBridge.toLayoutGraph(model = model, diagram = diagram)
+                val ibdHints = Sysml2LayoutBridge.layoutHintsFor(model = model, diagram = diagram)
+                val layoutResult = engine.layout(graph = ibdGraph, hints = ibdHints)
                 renderSysml2Ibd(
                     model = model,
                     diagram = diagram,
                     layoutResult = layoutResult,
+                    relayout = { rooms -> engine.layout(graph = ibdGraph.withNoteRooms(rooms), hints = ibdHints) },
                     theme = theme,
                     format = format,
                     widthPx = widthPx,
@@ -626,6 +626,7 @@ internal object WebRenderPipeline {
         model: Sysml2Model,
         diagram: IbdDiagram,
         layoutResult: LayoutResult,
+        relayout: ((Map<dev.kuml.layout.NodeId, dev.kuml.layout.NoteRoom>) -> LayoutResult)? = null,
         theme: KumlTheme,
         format: String,
         widthPx: Int,
@@ -643,6 +644,7 @@ internal object WebRenderPipeline {
                             layoutResult = layoutResult,
                             theme = theme,
                             options = SvgRenderOptions(watermark = watermark),
+                            relayout = relayout,
                         ),
                     durationMs = durationMs,
                 )
@@ -655,6 +657,7 @@ internal object WebRenderPipeline {
                             layoutResult = layoutResult,
                             theme = theme,
                             options = PngRenderOptions(widthPx = widthPx),
+                            ibdRelayout = relayout,
                         ),
                     durationMs = durationMs,
                 )

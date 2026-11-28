@@ -47,6 +47,22 @@ public data class LayoutNode(
      * Die Engine reserviert dafür Platz; die berechnete Position steht in [NodeLayout.labels] unter `"node"`.
      */
     val externalLabelSize: Size? = null,
+    /**
+     * Space outside the box reserved above and below the node for notes that are placed later (PAL Welle Y4). The engine
+     * only keeps this room free (an invisible outside label per side); it reports no position in [NodeLayout.labels].
+     * Engines without support ignore the field.
+     */
+    val noteRoom: NoteRoom? = null,
+)
+
+/**
+ * Room reserved outside a node above ([top]) and below ([bottom]) it, in layout pixels; the width of the room is the
+ * width of the node (PAL Welle Y4).
+ */
+@Serializable
+public data class NoteRoom(
+    val top: Float = 0f,
+    val bottom: Float = 0f,
 )
 
 /** Seite eines Knotenrands, an dem ein [LayoutPort] andockt. */

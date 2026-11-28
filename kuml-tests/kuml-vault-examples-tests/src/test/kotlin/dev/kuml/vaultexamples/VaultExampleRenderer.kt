@@ -31,6 +31,7 @@ import dev.kuml.layout.bridge.erm.ErmContentSizeProvider
 import dev.kuml.layout.bridge.erm.ErmIdef1xLayoutBridge
 import dev.kuml.layout.bridge.erm.ErmLayoutBridge
 import dev.kuml.layout.bridge.layoutHintsFor
+import dev.kuml.layout.bridge.withNoteRooms
 import dev.kuml.layout.elk.ElkLayoutEngineProvider
 import dev.kuml.layout.grid.GridLayoutEngineProvider
 import dev.kuml.renderer.theme.core.ThemeRegistry
@@ -80,11 +81,13 @@ object VaultExampleRenderer {
         engine: dev.kuml.layout.KumlLayoutEngine,
         model: dev.kuml.sysml2.Sysml2Model,
         diagram: dev.kuml.sysml2.Sysml2Diagram,
+        rooms: Map<dev.kuml.layout.NodeId, dev.kuml.layout.NoteRoom> = emptyMap(),
+        quiet: Boolean = false,
     ): dev.kuml.layout.LayoutResult {
         val graph =
             when (diagram) {
                 is BdDiagram -> Sysml2LayoutBridge.toLayoutGraph(model = model, diagram = diagram)
-                is IbdDiagram -> Sysml2LayoutBridge.toLayoutGraph(model = model, diagram = diagram)
+                is IbdDiagram -> Sysml2LayoutBridge.toLayoutGraph(model = model, diagram = diagram).withNoteRooms(rooms)
                 is UcDiagram -> Sysml2LayoutBridge.toLayoutGraph(model = model, diagram = diagram)
                 is ReqDiagram -> Sysml2LayoutBridge.toLayoutGraph(model = model, diagram = diagram)
                 is StmDiagram -> Sysml2LayoutBridge.toLayoutGraph(model = model, diagram = diagram)
@@ -105,7 +108,7 @@ object VaultExampleRenderer {
                 is ParDiagram -> SpecDiagramKind.SYSML2_PAR
                 is dev.kuml.sysml2.Sysml2PackageDiagram -> SpecDiagramKind.SYSML2_PKG
             }
-        return recorded(
+        val outcome =
             LayoutSpecRunner
                 .layout(
                     engine = engine,
@@ -113,8 +116,8 @@ object VaultExampleRenderer {
                     hints = Sysml2LayoutBridge.layoutHintsFor(model = model, diagram = diagram),
                     spec = diagram.layout,
                     kind = kind,
-                ),
-        )
+                )
+        return if (quiet) outcome.result else recorded(outcome)
     }
 
     private fun umlKind(type: DiagramType): SpecDiagramKind =
@@ -139,6 +142,49 @@ object VaultExampleRenderer {
         val layout = sysml2Layout(engine = engine, model = extracted.model, diagram = diagram)
         val plan = KumlSvgRenderer.parLabelPlan(model = extracted.model, diagram = diagram, layoutResult = layout)
         return Sysml2LayoutBridge.parLabelWarnings(plan).map { it.code }
+    }
+
+    /**
+     * PAL Welle Y4: the `ABOVE` / `BELOW` notes of an IBD script and how the note room sees them: `eligible` (one anchor that is
+     * a top-level part box), `edge-anchor`, `port-anchor`, `nested-anchor` or `multi-anchor`. Empty for other diagrams.
+     */
+    fun ibdNoteEligibility(script: String): Map<String, String> {
+        ensureInit()
+        val success = KumlScriptHost.eval(code = script) as? ResultWithDiagnostics.Success ?: return emptyMap()
+        val extracted =
+            DiagramExtractor.extractAny(
+                returnValue = success.value.returnValue,
+                input = File("inline.kuml.kts"),
+            ) as? ExtractedDiagram.Sysml2
+                ?: return emptyMap()
+        val diagram = extracted.diagram as? IbdDiagram ?: return emptyMap()
+        val model = extracted.model
+        val projection =
+            dev.kuml.sysml2.projection
+                .sysml2IbdProjection(model = model, diagram = diagram)
+        val eligible = Sysml2LayoutBridge.ibdNoteRoomNoteIds(model = model, diagram = diagram)
+        val wires =
+            (projection.connections.map { it.usage.id } + projection.flows.map { it.usage.id } + projection.bindings.map { it.usage.id })
+                .toSet()
+        val out = LinkedHashMap<String, String>()
+        for (c in model.comments) {
+            val side = c.note.placement
+            if (side != dev.kuml.core.model.note.NotePlacement.ABOVE && side != dev.kuml.core.model.note.NotePlacement.BELOW) continue
+            val targets =
+                model.commentLinks
+                    .filter { it.link.noteId == c.id }
+                    .map { it.link.targetId }
+                    .distinct()
+            out[c.id] =
+                when {
+                    targets.size > 1 -> "multi-anchor"
+                    c.id in eligible -> "eligible"
+                    targets.singleOrNull() in projection.nestedPartPaths -> "nested-anchor"
+                    targets.singleOrNull() in wires -> "edge-anchor"
+                    else -> "port-anchor"
+                }
+        }
+        return out
     }
 
     /**
@@ -282,6 +328,10 @@ object VaultExampleRenderer {
                                     layoutResult =
                                         sysml2Layout(engine = elkEngine, model = model, diagram = diagram),
                                     theme = theme,
+                                    // PAL Welle Y4: second layout with note room, only when the renderer asks for it.
+                                    relayout = { rooms ->
+                                        sysml2Layout(engine = elkEngine, model = model, diagram = diagram, rooms = rooms, quiet = true)
+                                    },
                                 )
                             is UcDiagram ->
                                 KumlSvgRenderer.toSvg(

@@ -31,6 +31,8 @@ internal class NoteHintReport(
     /** The union of all non-note node boxes. */
     val content: SvgRect?,
     val svgWidth: Double,
+    /** Height of the SVG view box (PAL Welle Y4: drawing area = width times height). */
+    val svgHeight: Double = 0.0,
 ) {
     val hinted: Int get() = notes.size
     val honoured: Int get() = notes.count { NoteHintClearance.honoured(it) }
@@ -206,13 +208,10 @@ internal object NoteHintClearance {
             if (box == null) continue
             out += HintNote(noteId = id, hint = hint, rect = rect, box = box, leaderLength = length, seq = script.contains("seqDiagram("))
         }
-        val width =
-            Regex("""<svg[^>]*\bviewBox="[-0-9.]+ [-0-9.]+ ([-0-9.]+) """)
-                .find(svg)
-                ?.groupValues
-                ?.get(1)
-                ?.toDouble() ?: 0.0
-        return NoteHintReport(notes = out, content = content, svgWidth = width)
+        val view = Regex("""<svg[^>]*\bviewBox="[-0-9.]+ [-0-9.]+ ([-0-9.]+) ([-0-9.]+)"""").find(svg)
+        val width = view?.groupValues?.get(1)?.toDouble() ?: 0.0
+        val height = view?.groupValues?.get(2)?.toDouble() ?: 0.0
+        return NoteHintReport(notes = out, content = content, svgWidth = width, svgHeight = height)
     }
 
     private fun union(

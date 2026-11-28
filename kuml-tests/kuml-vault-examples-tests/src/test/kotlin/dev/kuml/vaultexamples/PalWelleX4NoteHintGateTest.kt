@@ -177,6 +177,12 @@ class PalWelleX4NoteHintGateTest :
         // a13e-47 at x 933..1193, anchor point x 331) and add 618.6 / 360.8 / 634.2 px of width. Mirrored ABOVE positions stacked above
         // the content were tried in this wave and rejected: 0 of 3 hints gained (the anchors lie inside the content, the leader would
         // have to cross parts), so the only fix is to reserve space for the note in the ELK layer.
+        // PAL Welle Y4 (note room in ELK, gated, see PalWelleY4NoteRoomGateTest): the room works for a note whose anchor is a part box
+        // with free space on that side (IbdNoteRoomGateTest: a missed ABOVE note is honoured on a smaller drawing). It does not help
+        // these three fixtures: a13e-42 and a13e-47 hang on connectors (I15, I17 F), which the room does not cover, and a6-41 / m2-41
+        // (ABOVE `referenzbereich`) have a connector entering the box from above, which splits the reserved band into two halves of
+        // about 160 px; the notes are 250 px wide, so the second layout (+18 % area, one more miss) loses against the first and the
+        // gate keeps the first layout. They stay open until connectors get room too (next wave).
         xtest("IBD: every ABOVE/BELOW hint of the PAL fixtures 41, 42 and 47 is honoured (needs a note layer in ELK)") {
             for (n in listOf("41-druckregelung-ibd", "42-erhitzer-ibd", "47-erhitzer-stb-ibd")) {
                 val script = resource("/pal-ibd/$n.kuml.kts")
