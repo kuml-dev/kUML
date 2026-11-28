@@ -160,7 +160,7 @@ class Sysml2C3SeqSvgTest :
             abs((m2 - m0) - (2 * 32f)) shouldBeLessThanOrEqual 1f
         }
 
-        "duration constraint bracket sits 12 px left of the axis (wave 2F) and time observation draws a tick" {
+        "duration constraint dimension line sits 14 px right of the axis (Y1) and time observation draws a tick" {
             val model =
                 sysml2Model(name = "Time") {
                     val a = lifelineDef(name = "a")
@@ -178,7 +178,7 @@ class Sysml2C3SeqSvgTest :
             val g = block(svg, "durationConstraint:a-0-2")
             val line = Regex("<line[^>]*/>").findAll(g).first().value
             val x = attr(line, "x1")
-            abs(x - (lifelineCx(svg, "a") - 12f)) shouldBeLessThanOrEqual 1f
+            abs(x - (lifelineCx(svg, "a") + 14f)) shouldBeLessThanOrEqual 1f
             attr(line, "y2") shouldBeGreaterThan attr(line, "y1")
             g shouldContain "{0..3s}"
             block(svg, "timeObservation:b-0") shouldContain "t0"

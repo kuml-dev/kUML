@@ -62,11 +62,18 @@ internal object SeqNoteScenes {
         }
         for (u in refs) rowReach[u.seqNo] = maxOf(rowReach[u.seqNo] ?: 0f, dev.kuml.io.svg.sysml2.SYSML2_REF_HEIGHT / 2f)
 
+        val axisXOf: (String) -> Float? = { id -> layouts[NodeId(id)]?.let { it.bounds.origin.x + it.bounds.size.width / 2f } }
         val selfLabelEnds =
-            dev.kuml.io.svg.sysml2.selfLabelEnds(
-                messages = messages,
-                axisXOf = { id -> layouts[NodeId(id)]?.let { it.bounds.origin.x + it.bounds.size.width / 2f } },
-            )
+            dev.kuml.io.svg.sysml2
+                .selfLabelEnds(messages = messages, axisXOf = axisXOf) +
+                dev.kuml.io.svg.sysml2.durationLabelEnds(
+                    durations = durations,
+                    hasBarOf = { dc ->
+                        dev.kuml.io.svg.sysml2
+                            .durationHasBar(dc = dc, execSpecs = execSpecs)
+                    },
+                    axisXOf = axisXOf,
+                )
         val b = SeqSceneCapture.Builder()
         val theme = PlainTheme()
         val visibleLayouts = lifelines.mapNotNull { layouts[NodeId(it.id)] }
@@ -159,11 +166,8 @@ internal object SeqNoteScenes {
                 for (dc in durations) {
                     val nl = layouts[NodeId(dc.lifelineId)] ?: continue
                     val hasBar =
-                        execSpecs.any {
-                            it.lifelineId == dc.lifelineId &&
-                                it.startSeqNo <= minOf(dc.fromSeqNo, dc.toSeqNo) &&
-                                it.endSeqNo >= maxOf(dc.fromSeqNo, dc.toSeqNo)
-                        }
+                        dev.kuml.io.svg.sysml2
+                            .durationHasBar(dc = dc, execSpecs = execSpecs)
                     dev.kuml.io.svg.sysml2.renderDurationConstraint(
                         constraint = dc,
                         lifelineLayout = nl,

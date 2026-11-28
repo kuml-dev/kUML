@@ -6,6 +6,13 @@ All notable changes to this project are documented here. Format follows
 
 ## [Unreleased]
 
+### PAL Welle Y1: duration constraint dimension line on the right of the lifeline
+
+- **Dimension line moved right.** The duration-constraint dimension line now stands 14 px right of the lifeline axis (or of the outermost activation bar edge); its label starts 8 px right of the shaft (anchor `start`, opaque background). Before, the line stood 12 px left with a right-aligned label. The room reserved left of the first lifeline for it is gone (only time-observation labels still reserve left room).
+- **Layout and frames follow.** The sequence layout reserves the label width on the right of the axis (maximum with self-message and activation-bar labels, no sum), keeps 12 px to the canvas edge for the rightmost lifeline, and combined-fragment frames covering the duration rows are pushed out to at least 8 px right of the label.
+- **Only diagrams with a duration constraint change** (vault example 50, `sysml2-c4/seq-nested`, `sysml2-f2/seq-fragments-time`, PAL `76-schliessen-freigabe-seq`); every other sequence diagram renders byte-identically.
+- **Gate.** `SeqFrameGeometryGateTest` now asserts I-12f (shaft position, label anchor, no collision with lifelines or foreign labels) at zero; `Sysml2PalWelleX2SeqTest` 12f is enabled.
+
 ### PAL Welle X8: parametric binding anchors clear the node frame (measured first)
 
 - **Measured first.** New gate test `PalWelleX8ParAnchorGateTest` with detector `ParAnchorMetrics` (vault examples module, self-tested by `ParAnchorMetricsTest` on synthetic SVGs) measures on the rendered SVG (rectangles and polylines only, no glyph metrics): P1 a binding line runs along a frame side of its own end box or of the owner composite closer than 4 px over at least 24 px, P2 two edge labels closer than 6 px, P3 an edge label closer than 6 px to its own line.

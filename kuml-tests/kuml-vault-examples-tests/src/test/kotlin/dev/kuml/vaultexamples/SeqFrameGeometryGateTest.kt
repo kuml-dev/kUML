@@ -15,7 +15,7 @@ import java.io.File
  * - I-12f: a duration constraint stands 14 px right of its lifeline (or activation bar), its label starts 8 px right of
  *   the shaft, and neither the label nor the shaft meets a foreign label rectangle or lifeline.
  *
- * Gates (asserted): I-12a and I-12b-2 zero, I-12b-1 not above the two known cases; I-12f is measured only.
+ * Gates (asserted): I-12a and I-12b-2 zero, I-12b-1 not above the two known cases; I-12f is zero (Y1).
  *
  * The test prints the violation count per invariant and fixture (`[welle-x2]`) and writes the table to
  * `build/sample-output/seq-frame-geometry.txt`. The PAL workspace is read only; the documents are copied into a temp dir.
@@ -99,10 +99,9 @@ class SeqFrameGeometryGateTest :
             out.appendLine(summary)
             val dir = File("build/sample-output").also { it.mkdirs() }
             File(dir, "seq-frame-geometry.txt").writeText(out.toString())
-            // Gates: 12a and 12b-2 are fixed / never reproduced. 12b-1 keeps the two known cases (the duration-constraint
-            // label of vault 50 and seq-nested, 2 px below the frame top edge: part of the blocked 12f work). 12f is not
-            // asserted: its target geometry (right of the lifeline) is blocked, see Sysml2PalWelleX2SeqTest.
+            // Gates: 12a, 12b-2 and (since PAL Welle Y1) 12f are zero. 12b-1 keeps the two known cases at most.
             check(totals.getValue("12a") == 0) { "I-12a violated: $summary" }
+            check(totals.getValue("12f") == 0) { "I-12f violated: $summary" }
             check(totals.getValue("12b2") == 0) { "I-12b-2 violated: $summary" }
             check(totals.getValue("12b1") <= 2) { "I-12b-1 got worse: $summary" }
         }

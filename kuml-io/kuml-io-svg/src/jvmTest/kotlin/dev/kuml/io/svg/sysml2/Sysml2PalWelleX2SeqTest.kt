@@ -98,14 +98,8 @@ class Sysml2PalWelleX2SeqTest :
             return t.groupValues[1].toFloat() + num(Regex("<rect[^>]*/>").find(g)!!.value, "width") / 2f
         }
 
-        // BLOCKED (PAL Welle X2): moving the dimension line to the right of the lifeline redraws existing diagram 50
-        // (vault example "50 SysML 2 SEQ - Verschachtelte Fragmente, ref, Zeit"), sysml2-c4/seq-nested and
-        // sysml2-f2/seq-fragments-time, contradicts the deliberate "12 px left" rule pinned by Sysml2C3SeqSvgTest, and
-        // needs the layout (seqSideTextNeeds, which reserves the room LEFT of the axis) to reserve the room on the right.
-        // Needs approval to change those references; the test documents the target geometry and was red on df533387.
-        "12f: the duration dimension line stands 14 px right of the lifeline axis, its label starts 8 px right of it".config(
-            enabled = false,
-        ) {
+        // PAL Welle Y1 (12f): the dimension line stands right of the lifeline (axis or activation bar), label to its right.
+        "12f: the duration dimension line stands 14 px right of the lifeline axis, its label starts 8 px right of it" {
             val svg = render(durationModel())
             val start = svg.indexOf("<g id=\"durationConstraint:a-0-2\"")
             val g = svg.substring(start, svg.indexOf("</g>", start))
@@ -113,7 +107,58 @@ class Sysml2PalWelleX2SeqTest :
             val axis = lifelineAxisX(svg, "a")
             shaftX shouldBe (axis + 14f)
             val text = Regex("<text[^>]*>").find(g)!!.value
-            (text.contains("text-anchor=\"start\"")) shouldBe true
+            // anchor "start" is the SVG default and is not written out
+            (text.contains("text-anchor")) shouldBe false
             num(text, "x") shouldBe (shaftX + 8f)
+        }
+
+        "12f: with an activation bar the dimension line stands 14 px right of the bar edge" {
+            val model =
+                sysml2Model(name = "DCBar") {
+                    val a = lifelineDef(name = "a")
+                    val b = lifelineDef(name = "b")
+                    message(label = "req", source = a, target = b, seqNo = 0)
+                    message(label = "resp", source = b, target = a, seqNo = 2, kind = dev.kuml.sysml2.MessageKind.Reply)
+                    executionSpec(name = "act", lifeline = a, startSeqNo = 0, endSeqNo = 2)
+                    durationConstraint(lifeline = a, from = 0, to = 2, expression = "0..3s")
+                    seqDiagram(name = "S") {
+                        include(a)
+                        include(b)
+                    }
+                }
+            val svg = render(model)
+            val start = svg.indexOf("<g id=\"durationConstraint:a-0-2\"")
+            val g = svg.substring(start, svg.indexOf("</g>", start))
+            val shaftX = num(Regex("<line[^>]*/>").find(g)!!.value, "x1")
+            shaftX shouldBe (lifelineAxisX(svg, "a") + 5f + 14f)
+        }
+
+        "12f: the label background rectangle starts at the label and covers the text width" {
+            val svg = render(durationModel())
+            val start = svg.indexOf("<g id=\"durationConstraint:a-0-2\"")
+            val g = svg.substring(start, svg.indexOf("</g>", start))
+            val rect = Regex("<rect[^>]*fill=\"white\"[^>]*/>").find(g)!!.value
+            val shaftX = num(Regex("<line[^>]*/>").find(g)!!.value, "x1")
+            num(rect, "x") shouldBe (shaftX + 8f - 2f)
+            durationLabelRight(shaftX = shaftX, expression = "0..3s") shouldBe (num(rect, "x") + num(rect, "width"))
+        }
+
+        "12f: a frame covering the duration rows clears the label by 8 px, a frame outside the rows is unchanged" {
+            val ends = listOf(SeqSelfLabelEnd(seqNo = 0, axisX = 100f, labelLeft = 110f, labelRight = 200f, lastSeqNo = 2, clearance = 8f))
+            fragmentRightPastSelfLabels(baseRight = 150f, ends = ends, rows = 1..1, axisRange = 0f..200f, levelsBelow = 0) shouldBe 208f
+            fragmentRightPastSelfLabels(baseRight = 150f, ends = ends, rows = 3..4, axisRange = 0f..200f, levelsBelow = 0) shouldBe 150f
+            fragmentRightPastSelfLabels(baseRight = 300f, ends = ends, rows = 1..1, axisRange = 0f..200f, levelsBelow = 0) shouldBe 300f
+        }
+
+        "12f: the dimension line frame ends reach from the shaft to the label right edge for the whole row span" {
+            val dc =
+                sysml2Model(name = "X") {
+                    val a = lifelineDef(name = "a")
+                    durationConstraint(lifeline = a, from = 2, to = 0, expression = "0..3s")
+                }.usages.filterIsInstance<dev.kuml.sysml2.DurationConstraintUsage>()
+            val ends = durationLabelEnds(durations = dc, hasBarOf = { _ -> false }, axisXOf = { 100f })
+            ends.single().seqNo shouldBe 0
+            ends.single().lastSeqNo shouldBe 2
+            ends.single().labelRight shouldBe durationLabelRight(shaftX = 114f, expression = "0..3s")
         }
     })

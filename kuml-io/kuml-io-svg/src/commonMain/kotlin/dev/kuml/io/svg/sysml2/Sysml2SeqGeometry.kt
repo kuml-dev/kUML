@@ -1,6 +1,7 @@
 package dev.kuml.io.svg.sysml2
 
 import dev.kuml.sysml2.CombinedFragmentUsage
+import dev.kuml.sysml2.DurationConstraintUsage
 import dev.kuml.sysml2.InteractionUseUsage
 import dev.kuml.sysml2.MessageKind
 import dev.kuml.sysml2.MessageUsage
@@ -299,6 +300,10 @@ internal data class SeqSelfLabelEnd(
     val axisX: Float,
     val labelLeft: Float,
     val labelRight: Float,
+    /** Last row the label's content spans (equals [seqNo] for a self message; a duration dimension line spans rows). */
+    val lastSeqNo: Int = seqNo,
+    /** Space kept between a frame edge and [labelRight]/[labelLeft]. */
+    val clearance: Float = SEQ_FRAME_LABEL_CLEARANCE,
 )
 
 /**
@@ -331,9 +336,80 @@ internal fun fragmentRightPastSelfLabels(
 ): Float {
     var right = baseRight
     for (e in ends) {
-        if (e.seqNo !in rows || e.axisX !in axisRange) continue
-        val inTheWay = e.labelLeft - SEQ_FRAME_LABEL_CLEARANCE < baseRight && baseRight < e.labelRight + SEQ_FRAME_LABEL_CLEARANCE
-        if (inTheWay) right = maxOf(right, e.labelRight + SEQ_FRAME_LABEL_CLEARANCE + SYSML2_FRAGMENT_INDENT * levelsBelow)
+        if (e.seqNo > rows.last || e.lastSeqNo < rows.first || e.axisX !in axisRange) continue
+        val inTheWay = e.labelLeft - e.clearance < baseRight && baseRight < e.labelRight + e.clearance
+        if (inTheWay) right = maxOf(right, e.labelRight + e.clearance + SYSML2_FRAGMENT_INDENT * levelsBelow)
     }
     return right
 }
+
+/** PAL Welle Y1 (12f): distance (px) of a duration dimension line from the axis or the outermost activation bar edge. */
+internal const val DURATION_DIM_OFFSET: Float = 14f
+
+/** PAL Welle Y1 (12f): the label starts this far right of the dimension line's shaft. */
+internal const val DURATION_LABEL_GAP: Float = 8f
+
+/** PAL Welle Y1 (12f): horizontal padding of the duration label's background rectangle. */
+internal const val DURATION_LABEL_HPAD: Float = 2f
+
+/** Space (px) kept between a fragment frame edge and a duration label. */
+internal const val SEQ_FRAME_DURATION_CLEARANCE: Float = 8f
+
+/** Half width (px) of the tick at each end of a duration dimension line (a tick is 8 px wide). */
+internal const val DURATION_TICK_HALF: Float = 4f
+
+/** PAL Welle Y1 (12f): x of the dimension line's shaft for a lifeline axis [axisX]. */
+internal fun durationShaftX(
+    axisX: Float,
+    hasActivationBar: Boolean,
+): Float = axisX + (if (hasActivationBar) SYSML2_EXEC_SPEC_HALF_WIDTH else 0f) + DURATION_DIM_OFFSET
+
+/** PAL Welle Y1 (12f): the right edge of the label background rectangle that [renderDurationConstraint] draws. */
+internal fun durationLabelRight(
+    shaftX: Float,
+    expression: String,
+): Float {
+    val label = "{" + clipSeqText(text = expression, max = Sysml2Limits.TIME_EXPR) + "}"
+    return shaftX + DURATION_LABEL_GAP - DURATION_LABEL_HPAD + label.length * SEQ_BODY_CHAR_WIDTH + 2f * DURATION_LABEL_HPAD
+}
+
+/** Half width (px) of an execution specification (activation bar). */
+internal const val SYSML2_EXEC_SPEC_HALF_WIDTH: Float = 5f
+
+/** Width (px) of one character of the sequence body text, as the renderer measures it. */
+internal const val SEQ_BODY_CHAR_WIDTH: Float = 6.5f
+
+/**
+ * PAL Welle Y1 (12f): the label ends of all duration constraints, so a fragment frame that covers their rows is pushed
+ * out past the dimension line and its label (kept [SEQ_FRAME_DURATION_CLEARANCE] px clear).
+ *
+ * @param hasBarOf whether the duration constraint stands right of an activation bar (same rule as the renderer)
+ */
+internal fun durationLabelEnds(
+    durations: List<DurationConstraintUsage>,
+    hasBarOf: (DurationConstraintUsage) -> Boolean,
+    axisXOf: (String) -> Float?,
+): List<SeqSelfLabelEnd> =
+    durations.mapNotNull { dc ->
+        val axis = axisXOf(dc.lifelineId) ?: return@mapNotNull null
+        val shaft = durationShaftX(axisX = axis, hasActivationBar = hasBarOf(dc))
+        SeqSelfLabelEnd(
+            seqNo = minOf(dc.fromSeqNo, dc.toSeqNo),
+            axisX = axis,
+            labelLeft = shaft - DURATION_TICK_HALF,
+            labelRight = durationLabelRight(shaftX = shaft, expression = dc.expression),
+            lastSeqNo = maxOf(dc.fromSeqNo, dc.toSeqNo),
+            clearance = SEQ_FRAME_DURATION_CLEARANCE,
+        )
+    }
+
+/** PAL Welle Y1 (12f): does the duration constraint's row span lie inside an activation bar of its lifeline? */
+internal fun durationHasBar(
+    dc: DurationConstraintUsage,
+    execSpecs: List<dev.kuml.sysml2.ExecutionSpecificationUsage>,
+): Boolean =
+    execSpecs.any {
+        it.lifelineId == dc.lifelineId &&
+            it.startSeqNo <= minOf(dc.fromSeqNo, dc.toSeqNo) &&
+            it.endSeqNo >= maxOf(dc.fromSeqNo, dc.toSeqNo)
+    }

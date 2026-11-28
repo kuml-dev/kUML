@@ -213,8 +213,8 @@ private fun seqFoundLostCanvasRoom(
 }
 
 /**
- * Wave 2F: text that stands LEFT of the leftmost lifeline (a duration constraint bracket, which is drawn 12 px left of
- * the axis) would start at a negative x. The whole diagram moves right by the missing room and the canvas widens by
+ * Wave 2F: text that stands LEFT of the leftmost lifeline (a time observation label; since PAL Welle Y1 the duration
+ * dimension line stands on the right) would start at a negative x. The whole diagram moves right by the missing room and the canvas widens by
  * the same amount. Idempotent: once the room exists, nothing moves.
  */
 private fun seqLeftCanvasShift(
@@ -278,7 +278,8 @@ private fun seqSpaceLifelines(
         } &&
             ordered.last().let { last ->
                 val b = layoutResult.nodes.getValue(last).bounds
-                layoutResult.canvas.width >= b.origin.x + b.size.width / 2f + (rightNeeds[last] ?: 0f)
+                layoutResult.canvas.width >=
+                    b.origin.x + b.size.width / 2f + (rightNeeds[last] ?: 0f) + (needs.rightCanvasExtra[last] ?: 0f)
             }
     if (orderOk && spacingOk) return layoutResult
     if (ordered.size < 2 && spacingOk) return layoutResult
@@ -324,7 +325,7 @@ private fun seqSpaceLifelines(
     val newRight =
         maxOf(
             lastBounds.origin.x + lastBounds.size.width,
-            lastBounds.origin.x + lastBounds.size.width / 2f + (rightNeeds[lastId] ?: 0f),
+            lastBounds.origin.x + lastBounds.size.width / 2f + (rightNeeds[lastId] ?: 0f) + (needs.rightCanvasExtra[lastId] ?: 0f),
         )
     val canvas = Size(width = maxOf(layoutResult.canvas.width, newRight + rightMargin), height = layoutResult.canvas.height)
     return layoutResult.copy(canvas = canvas, nodes = newNodes)
@@ -334,11 +335,13 @@ private fun seqSpaceLifelines(
 private data class SeqSideNeeds(
     val left: Map<NodeId, Float>,
     val right: Map<NodeId, Float>,
+    /** Extra room right of [right] that only matters at the canvas edge (a duration dimension keeps 12 px to it). */
+    val rightCanvasExtra: Map<NodeId, Float> = emptyMap(),
 )
 
 /**
  * Widest duration-constraint / time-observation / self-message text on each side of a lifeline's axis. Mirrors the
- * renderer: the duration constraint bracket and its text stand LEFT of the axis, a time observation label stands left
+ * renderer: the duration dimension line (14 px right of the axis or bar) and its label stand RIGHT of the axis, a time observation label stands left
  * unless the lifeline is the leftmost one or a message in the same row runs to its left (then it is on the right),
  * a self-message label stands right of its loop.
  */
@@ -350,6 +353,7 @@ private fun seqSideTextNeeds(
     val indexOf = ordered.mapIndexed { i, id -> id.value to i }.toMap()
     val left = HashMap<NodeId, Float>()
     val right = HashMap<NodeId, Float>()
+    val canvasExtra = HashMap<NodeId, Float>()
 
     fun add(
         into: HashMap<NodeId, Float>,
@@ -363,8 +367,14 @@ private fun seqSideTextNeeds(
         when (u) {
             is DurationConstraintUsage ->
                 if (u.lifelineId in visible) {
-                    // axis + activation bar half width + 12 gap + 8 hook/text offset + text
-                    add(left, u.lifelineId, 5f + 12f + 8f + u.expression.take(Sysml2Limits.TIME_EXPR).length * SEQ_CHAR_W + 2f * SEQ_CHAR_W)
+                    // PAL Welle Y1 (12f): axis + activation bar half width + 14 dimension offset + 8 label gap + text
+                    // (braces + background padding); the room is reserved RIGHT of the axis, plus a canvas-edge margin.
+                    add(
+                        right,
+                        u.lifelineId,
+                        5f + 14f + 8f + u.expression.take(Sysml2Limits.TIME_EXPR).length * SEQ_CHAR_W + 2f * SEQ_CHAR_W + 2f,
+                    )
+                    add(canvasExtra, u.lifelineId, MIN_SIDE_TEXT_CLEARANCE)
                 }
             is TimeObservationUsage ->
                 if (u.lifelineId in visible) {
@@ -400,7 +410,7 @@ private fun seqSideTextNeeds(
             else -> Unit
         }
     }
-    return SeqSideNeeds(left = left, right = right)
+    return SeqSideNeeds(left = left, right = right, rightCanvasExtra = canvasExtra)
 }
 
 private const val MIN_SEQ_LIFELINE_GAP: Float = 40f

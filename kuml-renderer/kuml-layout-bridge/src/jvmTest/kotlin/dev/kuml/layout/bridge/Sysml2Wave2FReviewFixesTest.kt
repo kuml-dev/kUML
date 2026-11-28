@@ -35,7 +35,7 @@ class Sysml2Wave2FReviewFixesTest :
                 .bounds
                 .let { it.origin.x + it.size.width / 2f }
 
-        test("a long duration constraint on the leftmost lifeline gets room to its left (text start >= 0), idempotent") {
+        test("a long duration constraint on the rightmost lifeline widens the canvas (label right edge + 12 px), idempotent") {
             val expression = "tAntwort - tAnfrage <= 2 s"
             val model =
                 sysml2Model(name = "DC") {
@@ -43,17 +43,39 @@ class Sysml2Wave2FReviewFixesTest :
                     val b = lifelineDef(name = "B")
                     message(label = "req", source = a, target = b, seqNo = 0)
                     message(label = "res", source = b, target = a, seqNo = 1)
-                    durationConstraint(lifeline = a, from = 0, to = 1, expression = expression)
+                    durationConstraint(lifeline = b, from = 0, to = 1, expression = expression)
                     seqDiagram(name = "S") {
                         include(a)
                         include(b)
                     }
                 }
             val (seq, result) = layoutSeq(model)
-            // the renderer draws the text right-aligned at (axis - 5 - 12 - 8); its width is ~6.5 px per character
-            val textStart = centre(result, "A") - (5f + 12f + 8f) - ("{$expression}".length * 6.5f)
-            (textStart >= 0f) shouldBe true
+            // the renderer draws the label at (axis + 5 + 14 + 8) with a 2 px padding; its width is 6.5 px per character
+            val labelRight = centre(result, "B") + (5f + 14f + 8f) + ("{$expression}".length * 6.5f) + 2f
+            (result.canvas.width >= labelRight + 12f) shouldBe true
             Sysml2LayoutBridge.normalizeSeqLayout(model = model, diagram = seq, layoutResult = result) shouldBe result
+        }
+
+        test("a duration constraint on the first lifeline moves nothing to the left and keeps clear of the next lifeline") {
+            val expression = "tAntwort - tAnfrage <= 2 s"
+
+            fun model(withDuration: Boolean) =
+                sysml2Model(name = "DC1") {
+                    val a = lifelineDef(name = "A")
+                    val b = lifelineDef(name = "B")
+                    message(label = "req", source = a, target = b, seqNo = 0)
+                    message(label = "res", source = b, target = a, seqNo = 1)
+                    if (withDuration) durationConstraint(lifeline = a, from = 0, to = 1, expression = expression)
+                    seqDiagram(name = "S") {
+                        include(a)
+                        include(b)
+                    }
+                }
+            val (_, plain) = layoutSeq(model(false))
+            val (_, withDc) = layoutSeq(model(true))
+            centre(withDc, "A") shouldBe centre(plain, "A")
+            val aRight = 5f + 14f + 8f + expression.length * 6.5f + 2f * 6.5f + 2f
+            (centre(withDc, "B") - centre(withDc, "A") >= aRight + 12f) shouldBe true
         }
 
         test("a duration constraint on the second lifeline keeps clear of the first lifeline's self-message label") {
@@ -63,16 +85,19 @@ class Sysml2Wave2FReviewFixesTest :
                     val b = lifelineDef(name = "B")
                     message(label = "a long self message label", source = a, target = a, seqNo = 0)
                     message(label = "req", source = a, target = b, seqNo = 1)
-                    durationConstraint(lifeline = b, from = 0, to = 1, expression = "tAntwort - tAnfrage <= 2 s")
+                    durationConstraint(lifeline = a, from = 0, to = 1, expression = "tAntwort - tAnfrage <= 2 s")
                     seqDiagram(name = "S") {
                         include(a)
                         include(b)
                     }
                 }
             val (_, result) = layoutSeq(model)
-            val aRight = 32f + 4f + "a long self message label".length * 6.5f
-            val bLeft = 5f + 12f + 8f + "tAntwort - tAnfrage <= 2 s".length * 6.5f + 2f * 6.5f
-            (centre(result, "B") - centre(result, "A") >= aRight + bLeft) shouldBe true
+            val aRight =
+                maxOf(
+                    32f + 4f + "a long self message label".length * 6.5f,
+                    5f + 14f + 8f + "tAntwort - tAnfrage <= 2 s".length * 6.5f + 15f,
+                )
+            (centre(result, "B") - centre(result, "A") >= aRight) shouldBe true
         }
 
         test("a time observation label left of lifeline B keeps clear of lifeline A's self-message label") {

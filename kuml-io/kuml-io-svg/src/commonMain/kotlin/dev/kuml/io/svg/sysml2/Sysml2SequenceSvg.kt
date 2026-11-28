@@ -1648,8 +1648,9 @@ internal fun renderDurationConstraint(
 ) {
     val cx = lifelineLayout.bounds.origin.x + lifelineLayout.bounds.size.width / 2f
     val headBottom = lifelineLayout.bounds.origin.y + SEQ_RENDERER_HEAD_HEIGHT
-    // Wave 2F: the bracket stands 12 px left of the outermost activation bar (or the axis), its text left of it.
-    val x = cx - (if (hasActivationBar) EXEC_SPEC_WIDTH / 2f else 0f) - 12f
+    // PAL Welle Y1 (12f): the dimension line stands 14 px right of the outermost activation bar (or the axis); its label
+    // starts 8 px right of the shaft.
+    val x = durationShaftX(axisX = cx, hasActivationBar = hasActivationBar)
     val y1 = headBottom + (constraint.fromSeqNo + 1) * SEQ_RENDERER_MESSAGE_ROW_HEIGHT + rows.offsetAt(constraint.fromSeqNo)
     val y2 = headBottom + (constraint.toSeqNo + 1) * SEQ_RENDERER_MESSAGE_ROW_HEIGHT + rows.offsetAt(constraint.toSeqNo)
     val dim = durationDimensionGeometry(x = x, y1 = y1, y2 = y2)
@@ -1685,17 +1686,14 @@ internal fun renderDurationConstraint(
         }
         drawSeqLabelWithWhiteBackground(
             label = "{" + clipSeqText(text = constraint.expression, max = Sysml2Limits.TIME_EXPR) + "}",
-            x = x - 8f,
+            x = x + DURATION_LABEL_GAP,
             y = (dim.top + dim.bottom) / 2f + 4f,
-            anchor = "end",
+            anchor = "start",
             builder = this,
-            hPad = 2f,
+            hPad = DURATION_LABEL_HPAD,
         )
     }
 }
-
-/** Half width (px) of the tick at each end of a duration dimension line (a tick is 8 px wide). */
-private const val DURATION_TICK_HALF: Float = 4f
 
 /** Length (px) and half width (px) of the arrowheads of a duration dimension line. */
 private const val DURATION_ARROW_LENGTH: Float = 6f
